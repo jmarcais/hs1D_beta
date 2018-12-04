@@ -1,0 +1,9 @@
+To compile and run this software, one needs the NVIDIA CUDA Toolkit (http://www.nvidia.com/object/cuda_get.html) and, of course, an NVIDIA graphics card of reasonably modern vintage.
+
+BUILDING INSTRUCTIONS: Change the 'MATLAB' (and if necessary, 'MEX') variables in the Makefile to appropriate values, then simply run 'make' at a prompt and an executable (mex/mexmac/mexmaci/dll?) file will be created.
+
+This code uses your GPU's built-in bilinear texture interpolation capability, and is very fast.  For reasonably sized operations (taking, say, a 50x50 matrix up to 1000x1000) CUDA-based code is 5-10x faster than linear interp2 (as tested on a MBP 2.4GHz C2D, GeForce 8600M GT).
+
+With very (VERY) large matrices, however, it has the capability of completely crashing your computer or giving bizarre results.  Be careful!
+
+By Alexander Huth, California Institute of Technology, 2008

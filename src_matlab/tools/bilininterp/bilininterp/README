@@ -1,0 +1,57 @@
+==========================================================================
+| R E A D M E                                                            |
+|------------------------------------------------------------------------|
+| by Gerald Buchgraber, Technical University of Graz, Austria, 2009      |
+| gerald.buchgraber@student.tugraz.at                                    |
+==========================================================================
+
+First of all I have to thank Alexander Huth for his work on a bilinear
+interpolation using NVIDIAs CUDA API. You can find his work here:
+
+CUDAINTERP2
+http://www.mathworks.com/matlabcentral/fileexchange/20248
+
+The code files of cudainterp2 are also included within the cudainterp2
+folder because we will compare the bilininterp implementation with
+the cudainterp2 implementation and both with the matlab interp2 function.
+
+==========================================================================
+
+BILININTERP
+
+This code uses, similar to Alexanders approach, the GPU's built-in bilinear texture interpolation capability,
+which is indeed very fast. The speedup is depending on your CUDA enabled graphics hardware.
+The more multiprocessors, texture units, ... the better the results will be.
+For example: test_results_bilininterp_vs_cudainterp2_GPU_9600M_GT.png
+
+To compile and run this piece of software, you need the NVIDIA CUDA Toolkit. (http://www.nvidia.com/object/cuda_get.html)
+To compile Alexander's solution also the NVIDA CUDA SDK is necessary. (for bilininterp alone it isn't)
+
+
+COMPILING MEX FILES UNDER WINDOWS
+
+You can compile the mex files of bilininterp and cudainterp2 by using the file: "build_mex.m" within Matlab itself.
+Therefore it is necessary to copy the file: "nvmex.pl" from the bin folder to the Matlab bin directory
+e.g. C:\Program Files\MATLAB\R2008a\bin
+
+Note: I used Matlab R2008a with the nvmex files from the NVidia forums on Windows Vista
+http://forums.nvidia.com/index.php?showtopic=66961
+
+For older Matlab versions and further documentation the following address may be helpful
+http://developer.nvidia.com/object/matlab_cuda.html
+
+Before compiling you have to ensure valid "include" and "library" paths in "build_mex.m".
+
+After you've passed all this obstacles you can try out some test files also included in this folder:
+
+- bilininterp_complex_test ........................... Interpolation of complex data
+- bilininterp_speed_test.m ........................... Yet another speedup test visualization
+- bilininterp_trajectory_test.m ...................... Nice visualization of interpolation results
+- test_bilininterp_vs_cudainterp2.m .................. Comparison of bilininterp and cudainterp2
+
+In the last test you can see the performance boost of bilininterp in comparision to cudainterp2
+
+==========================================================================
+
+So, have fun with it!
+Regards, Gerald
