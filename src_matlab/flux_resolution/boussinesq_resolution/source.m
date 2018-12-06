@@ -102,6 +102,7 @@ classdef source
                            Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t');
                        end
                     else
+%                         Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t','spline');
                         Recharge=nakeinterp1(t_chronicle',(obj.recharge_chronicle)',t');
                     end
                     Recharge=Recharge'; 
