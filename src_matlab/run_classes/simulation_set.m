@@ -799,7 +799,7 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
             tic
-            range_=  1531:1704; %1:1465;%1:8759; %4332:4505; %
+            range_= 4332:4505; % 1531:1704; %1:1465;%1:8759; %
             if(nargin<3)
 %                 folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Guillec2';
 %                 d_init_add=2.7707;
@@ -897,7 +897,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-10);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-5);%,'MaxStep',3600*24*30);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope

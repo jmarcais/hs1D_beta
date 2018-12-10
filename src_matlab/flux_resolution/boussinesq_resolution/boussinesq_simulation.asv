@@ -144,7 +144,7 @@ classdef boussinesq_simulation
             
             for i=1:length(t)
                 Q(:,i)=-obj.compute_Q_from_S(S(:,i))*S(:,i);
-                QS(:,i)=obj.compute_QS_from_Q(S(:,i),t(i))*Q(:,i)+obj.partition_source_terms_QS(S(:,i),t(i)); %2*block_size+2:3*block_size+1,:);
+                QS(:,i)=obj.compute_QS_from_Q(S(:,i),t(i))*Q(:,i); %2*block_size+2:3*block_size+1,:);
             end
             
             x_edge=obj.discretization.get_edges_coordinates;
@@ -219,10 +219,17 @@ classdef boussinesq_simulation
             
             block_size=obj.discretization.Nx;
             
-            alpha_complementar=1-obj.alpha(y,t);
+            alpha_comp=obj.alpha(y,t);
+            alpha_complementar=sparse(diag(1-obj.alpha(y,t)));
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
 %             Rain=obj.N*obj.w;
-            D=alpha_complementar.*Recharge_rate_spatialized;
+            D=alpha.*Recharge_rate_spatialized;
+           
+            Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
+            Edges_value=obj.boundary_cond.fixed_edge_matrix_values;
+            
+            D(1,:)=(1-Edges(1))*D(1,:);
+            D(block_size,:)=(1-Edges(2))*D(block_size,:);
            
             D=sparse(D);
         end

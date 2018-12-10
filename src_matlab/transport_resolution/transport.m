@@ -2,12 +2,12 @@ classdef transport
     properties(Access=public)
         t           % [1 x Nt] array [s]
         N           % [1 x Nt] array containing recharge time series corresponding to the time array [m/s]
-        x_traj      % [(N_inj*N_x) x Nt]  matrix containing the trajectories on synchronised timesteps [m]
-        t_inj       % [1 x N_inj] array containing the timesteps when injection is done (when N~=0)
+        x_traj      % [(size(t_inj)*N_x) x Nt]  matrix containing the trajectories on synchronised timesteps [m]
+        t_inj       % [1 x size(t_inj)] array containing the timesteps when injection is done (when N~=0)
         t_inj_pos
-        N_inj
+        N_inj       % [(size(t_inj)*N_x) x 1] array containing the recharge corresponding to individual trajectory
         x           % [N_x x 1] array containing the river distance aray x [m]
-        weight      % [(N_inj*N_x) x 1] array containing the weight to apply to the trajectories
+        weight      % [(size(t_inj)*N_x) x 1] array containing the weight to apply to the trajectories
     end
     
     methods(Access=public)
@@ -27,10 +27,19 @@ classdef transport
             end
 
             if(spacing_==-1)
-                obj.t_inj=obj.t(obj.N>threshold);
-                obj.N_inj=obj.N(obj.N>threshold);
+                size_N=size(obj.N);
                 t_inj_pos=1:1:length(obj.t);
-                obj.t_inj_pos=t_inj_pos(obj.N>threshold);
+                if(size_N(1)>1)
+                    N_max=max(obj.N);
+                    obj.t_inj=obj.t(N_max>threshold);
+                    obj.N_inj=obj.N(:,N_max>threshold);
+                    obj.N_inj=reshape(obj.N_inj,size(obj.N_inj,1)*size(obj.N_inj,2),1);
+                    obj.t_inj_pos=t_inj_pos(N_max>threshold);
+                else
+                    obj.t_inj=obj.t(obj.N>threshold);
+                    obj.N_inj=obj.N(obj.N>threshold);
+                    obj.t_inj_pos=t_inj_pos(obj.N>threshold);
+                end
                 if(obj.t_inj(end)==obj.t(end))
                     obj.t_inj=obj.t_inj(1:end-1);
                     obj.t_inj_pos=obj.t_inj_pos(1:end-1);
@@ -82,19 +91,36 @@ classdef transport
 % % %             dt=(dt(2:end)+dt(1:end-1))/2;
 % % %             dt=[dt(1),dt];
 % % %             N_inj=obj.N_inj.*dt*(1000);
-            dt_inj=obj.t_inj(2:end)-obj.t_inj(1:end-1);
-            t_inj_edge1=obj.t_inj-[dt_inj(1),dt_inj]/2;
-            t_inj_edge2=obj.t_inj+[dt_inj,dt_inj(end)]/2;
-            dt_inj=t_inj_edge2-t_inj_edge1;
-            dflux=dt_inj.*obj.N_inj*1000;
-% % %             weight_temp=discretized_area*N_inj;
-            weight_temp=discretized_area*dflux;
-            obj.weight=reshape(weight_temp,length(dflux)*length(discretized_area),1);
+            size_N=size(obj.N);
+            if(size_N(1)>1)
+                dt=obj.t(2:end)-obj.t(1:end-1);
+                t_edge1=obj.t-[dt(1),dt]/2;
+                t_edge2=obj.t+[dt,dt(end)]/2;
+                dt=t_edge2-t_edge1;
+                dt_inj=dt(obj.t_inj_pos);
+                dt_inj=dt_inj';
+                dt_inj=repelem(dt_inj,length(obj.x));
+                dflux=dt_inj.*obj.N_inj*1000;
+                % % %             weight_temp=discretized_area*N_inj;
+                weight_temp=repelem(discretized_area,length(obj.t_inj)).*dflux;
+                obj.weight=weight_temp;
+            else
+                dt_inj=obj.t_inj(2:end)-obj.t_inj(1:end-1);
+                t_inj_edge1=obj.t_inj-[dt_inj(1),dt_inj]/2;
+                t_inj_edge2=obj.t_inj+[dt_inj,dt_inj(end)]/2;
+                dt_inj=t_inj_edge2-t_inj_edge1;
+                dflux=dt_inj.*obj.N_inj*1000;
+                % % %             weight_temp=discretized_area*N_inj;
+                weight_temp=discretized_area*dflux;
+                obj.weight=reshape(weight_temp,length(dflux)*length(discretized_area),1);
+            end
         end
         
         % compute the trajectories of the flowpaths
 %         function obj=compute_trajectories(obj,sol_simulated,block_size,x_S,x_Q,folder_mex_option)
         function obj=compute_trajectories(obj,velocity,block_size,x_S,x_Q,folder_mex_option)
+            %#JM to change in a future release threslhold should be defined outside the method
+            threshold=0;
             obj.x=x_S;
             if(nargin>5)
                 %% C code in mex file
@@ -125,13 +151,22 @@ classdef transport
                     mat_pos_allocate=cell(length(obj.t_inj_pos),1);
                     for i=1:length(obj.t_inj_pos)
                         pos_temp=obj.t_inj_pos(i);
-                        [~,traj_temp] = ode45(Velocity_reg,obj.t(pos_temp:end),x_S,options_reg);
+                        size_N=size(obj.N);
+                        if(size_N(1)>1)
+                            Bool_inj_spat=obj.N(:,pos_temp)>threshold;
+                            [~,traj_temp2] = ode45(Velocity_reg,obj.t(pos_temp:end),x_S(Bool_inj_spat),options_reg);
+                            traj_temp2=traj_temp2';
+                            traj_temp=zeros(length(Bool_inj_spat),size(traj_temp2,2));
+                            traj_temp(Bool_inj_spat,:)=traj_temp2;
+                        else
+                            [~,traj_temp] = ode45(Velocity_reg,obj.t(pos_temp:end),x_S,options_reg);
+                            traj_temp=traj_temp';
+                        end
                         if(length(obj.t(pos_temp:end))==2)
-                            traj_temp=traj_temp([1,end],:);
+                            traj_temp=traj_temp(:,[1,end]);
                         end
 % % %#20180116                                             obj.x_traj(block_size*(i-1)+1:block_size*i,pos_temp:size(traj_temp,1)+pos_temp-1)=traj_temp';
-                        AA=(combvec(block_size*(i-1)+1:block_size*i,pos_temp:size(traj_temp,1)+pos_temp-1))';
-                        traj_temp=traj_temp';
+                        AA=(combvec(block_size*(i-1)+1:block_size*i,pos_temp:size(traj_temp,2)+pos_temp-1))';
                         bool_delete=traj_temp<x_Q(2);
                         bool_delete=logical(cumsum(bool_delete,2));
                         bool_delete=[false(length(obj.x),1),bool_delete(:,1:end-1)];
@@ -268,20 +303,27 @@ classdef transport
         
         % analyze particle paths present in the same element of the hillslope at a given time. If seepage is occuring in this element
         % then a certain number of particle is exiting the medium according to the ratio of seepage vs total flow the element is experiencing
-        function obj=cut_trajectory_seepage(obj,sol_simulated,block_size,x_S,x_Q,w,x_traj_soil)
-            area_spatialized=w;
-            area_spatialized= repmat(area_spatialized,1,length(obj.N));
-            precip=obj.N;
-            precip=repmat(precip,length(w),1);
-            infilt_spat=precip.*area_spatialized;
-            Seepage=deval(sol_simulated,obj.t,2*block_size+2:3*block_size+1)-infilt_spat;
+        function obj=cut_trajectory_seepage(obj,sol_simulated,block_size,x_S,x_Q,w,RF_spat,Subsurface_flux,x_traj_soil)
+            Seepage=RF_spat;
             Seepage(Seepage<0)=0;
+            Subsurface_flux2=Subsurface_flux;
             
-            Subsurface_flux2=deval(sol_simulated,obj.t,block_size+1:2*block_size+1);
-            Subsurface_flux2=[zeros(1,length(obj.N));Subsurface_flux2];
+%             
+%             area_spatialized=w;
+%             area_spatialized= repmat(area_spatialized,1,size(obj.N,2));
+%             precip=obj.N;
+%             if(size(obj.N,1)==1)
+%                 precip=repmat(precip,length(w),1);
+%             end
+%             infilt_spat=precip.*area_spatialized;
+%             Seepage=deval(sol_simulated,obj.t,2*block_size+2:3*block_size+1)-infilt_spat;
+%             Seepage(Seepage<0)=0;
+%             
+%             Subsurface_flux2=deval(sol_simulated,obj.t,block_size+1:2*block_size+1);
+            Subsurface_flux2=[zeros(1,size(obj.N,2));Subsurface_flux2];
             x_Q2=[-1;x_Q];
-            Subsurface_flux=zeros(length(x_S),length(obj.N));
-            for i=1:length(obj.N)
+            Subsurface_flux=zeros(length(x_S),size(obj.N,2));
+            for i=1:size(obj.N,2)
                 Subsurface_flux(:,i)=nakeinterp1(x_Q2,Subsurface_flux2(:,i),x_S);
             end
             Seepage_proportion=Seepage./(Seepage+abs(Subsurface_flux));
@@ -320,7 +362,7 @@ classdef transport
                     Weight_cum=cumsum(Weight_partial(Index_));
                     Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_prop));
 % % %#20180116                                             obj.x_traj(Particle_Position_to_delete,i+1:end)=nan;
-                    if(nargin>6)% && ~isnan(x_traj_soil))
+                    if(nargin>8)% && ~isnan(x_traj_soil))
                         obj.x_traj(Particle_Position_to_delete,i+1:end)=x_traj_soil(Particle_Position_to_delete,i+1:end);
                     else
                         obj.x_traj(Particle_Position_to_delete,i+1:end)=0;
@@ -410,20 +452,30 @@ classdef transport
             [row,col] = find(obj.x_traj);
             min_=accumarray(row,col,[],@min);
             max_=accumarray(row,col,[],@max);
+            max_=[max_;zeros(length(obj.weight)-length(max_),1)];
+            min_=[min_;zeros(length(obj.weight)-length(min_),1)];
             
-            t_out=obj.t(max_);
+            t_out=nan(size(max_));
+            t_in=nan(size(min_));
+            
+            t_out(max_>0)=obj.t(max_(max_>0));
             t_out(max_==length(obj.t))=nan;
             t_out=t_out';
-            t_in=obj.t(min_);
+            t_in(min_>0)=obj.t(min_(min_>0));
             t_in=t_in';
             delta_t=t_out-t_in;
             
             size_trajectories=size(obj.x_traj);
-            linearInd_fin = sub2ind(size_trajectories,(1:1:size_trajectories(1))',max_);
-            linearInd_init = sub2ind(size_trajectories,(1:1:size_trajectories(1))',min_);
-            x_fin=obj.x_traj(linearInd_fin);
-            x_fin(max_==length(obj.t))=nan;
-            x_init=obj.x_traj(linearInd_init);
+            AA=(1:1:size_trajectories(1))';
+            linearInd_fin = sub2ind(size_trajectories,AA(max_>0),max_(max_>0));
+            linearInd_init = sub2ind(size_trajectories,AA(min_>0),min_(min_>0));
+%             linearInd_fin = sub2ind(size_trajectories,(1:1:size_trajectories(1))',max_);
+%             linearInd_init = sub2ind(size_trajectories,(1:1:size_trajectories(1))',min_);
+            x_fin=nan(length(max_),1);
+            x_fin(max_>0)=obj.x_traj(linearInd_fin);
+            x_fin(max_(max_>0)==length(obj.t))=nan;
+            x_init=nan(length(min_),1);
+            x_init(min_>0)=obj.x_traj(linearInd_init);
             delta_x_groundwater=x_fin-x_init;
         end
         
@@ -715,11 +767,15 @@ classdef transport
         function obj=transport_with_rooting(runs,x,slope_angle,k_soil)
             [obj,x_S,x_Q,width,velocity,Bool_sat,sol_simulated]=transport.instantiate_transport_and_velocity_field(runs);
             block_size=length(x_S);
+            
+            [~,~,DPSA_spat,RF_spat]=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
+            Subsurface_flux=runs.simulation_results.Q;
+            
             % compute the trajectories inside the aquifer
             obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q);
             obj=obj.cut_trajectory_saturated_areas(Bool_sat);
-            obj=obj.cut_trajectory_seepage(sol_simulated,block_size,x_S,x_Q,width);
-            
+            obj=obj.cut_trajectory_seepage(sol_simulated,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+
             % retrieve the particles essential properties for their travel inside the aquifer
             [t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=obj.get_trajectory_properties;
             
@@ -758,15 +814,7 @@ classdef transport
             obj.x=x_S;
             
             % Bool_sat computation
-%             area_spatialized= repmat(width,1,length(obj.N));
-%             precip=obj.N;
-%             precip=repmat(precip,length(width),1);
-%             infilt_spat=precip.*area_spatialized;
-%             relstor2=sim_res.QS-infilt_spat>=-0.05*abs(sim_res.QS);
             relstor=bsxfun(@rdivide,sim_res.S,Smax);
-%             relstor=relstor+relstor2;
-% %             relstor=sim_res.QS>0;
-% %             Bool_sat=relstor>=1;
             % first mesh is always considered as saturated (it is the river)
             relstor(:,1)=1;
             Bool_sat=relstor>=0.99995;%0.99999;%0.9999;%0.999;
