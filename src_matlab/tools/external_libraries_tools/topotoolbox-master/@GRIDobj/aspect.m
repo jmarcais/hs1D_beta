@@ -1,6 +1,6 @@
 function OUT = aspect(DEM,classify)
 
-% aspect (angle of exposition) from a digital elevation model (GRIDobj)
+%ASPECT angle of exposition from a digital elevation model (GRIDobj)
 %
 % Syntax
 %
@@ -28,9 +28,9 @@ function OUT = aspect(DEM,classify)
 %
 % Example
 %
-%     load exampleDEM
-%     DEM = GRIDobj(X,Y,dem);
+%     DEM = GRIDobj('srtm_bigtujunga30m_utm11.tif');
 %     ASP = aspect(DEM);
+%     imageschs(DEM,ASP)
 %
 % References
 %
@@ -39,14 +39,14 @@ function OUT = aspect(DEM,classify)
 %     in small semiarid catchments. Journal of Hydrology, 253, 211 - 226.
 %
 %
-% See also: GRIDobj/gradient8
+% See also: GRIDobj/gradient8, GRIDobj/reclassify
 %
-% Author: Wolfgang Schwanghart (w.schwanghart[at]unibas.ch)
-% Date: 24. February, 2009
+% Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
+% Date: 17. August, 2017
 
 narginchk(1,2)
 
-if nargin == 1;
+if nargin == 1
     classify = false;
 else
    
@@ -61,7 +61,7 @@ if classify
 end
 
 % Large matrix support. Break calculations in chunks using blockproc
-if numel(DEM.Z)>(5001*5001);
+if numel(DEM.Z)>(5001*5001)
     fun    = @(x) aspfun(x);
     blksiz = bestblk(size(DEM.Z),5000);
     OUT.Z  = blockproc(DEM.Z,blksiz,fun,'BorderSize',[1 1]);
@@ -76,7 +76,7 @@ OUT.zunit = 'degree';
 
 
 function ASP = aspfun(Z) 
-if isstruct(Z);
+if isstruct(Z)
     Z = Z.data;
 end
 

@@ -1,6 +1,6 @@
 function [IXgn,d] = snap2stream(I,IXg,plotit)
 
-% snap gauges or pour points to stream raster
+%SNAP2STREAM snap gauges or pour points to stream raster
 %
 % Syntax
 %
@@ -14,7 +14,7 @@ function [IXgn,d] = snap2stream(I,IXg,plotit)
 %     streams derived from a digital elevation model. Calculation of 
 %     drainage basins may thus return wrong basin delineations. One method 
 %     is to manually adjust their location to a derived stream raster.
-%     snap2stream does this automatically by finding identifying the
+%     snap2stream does this automatically by finding the locations'
 %     shortest distance to a stream. 
 %
 %     Note that the function STREAMobj/snap2stream is more elaborate and
@@ -40,8 +40,8 @@ function [IXgn,d] = snap2stream(I,IXg,plotit)
 %
 % See also: COORD2IND, BWDIST, STREAMobj/snap2stream
 %
-% Author: Wolfgang Schwanghart (w.schwanghart[at]unibas.ch)
-% Date: 10. July, 2009
+% Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
+% Date: 7. March, 2018
 
 narginchk(2,3)
 if nargin == 2;

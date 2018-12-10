@@ -1,6 +1,6 @@
 function rgb = imageschs(DEM,A,varargin)
 
-% plot hillshade image with overlay
+%IMAGESCHS plot hillshade image with overlay
 %
 % Syntax
 %
@@ -20,9 +20,14 @@ function rgb = imageschs(DEM,A,varargin)
 %     control lighting direction and representation of missing values
 %     (nan).
 %
-%     If called with an output variable, imageschs returns an RGB image.
-%     The hillshading algorithm follows the logarithmic approach to shaded 
-%     relief representation of Katzil and Doytsher (2003).
+%     If called with an output variable, imageschs does not plot the
+%     hillshade but returns an RGB image. The hillshading algorithm follows
+%     the logarithmic approach to shaded relief representation of Katzil
+%     and Doytsher (2003).
+%
+%     Some of the parameter settings (e.g. colorbarylabel) require MATLAB's
+%     graphics engine introduced in R2014b and will throw errors when used
+%     with older versions.
 %
 % Input
 %
@@ -62,10 +67,14 @@ function rgb = imageschs(DEM,A,varargin)
 %                      hillshading.
 %     medfilt          use median filter to smooth hillshading 
 %                      (default=false)
+%     method           'surfnorm' or 'mdow'. mdow is the multidirectional
+%                      oblique hillshade algorithm.
 %     azimuth          azimuth angle of illumination, (default=315)
 %     altitude         altitude angle of illumination, (default=60)
 %     exaggerate       elevation exaggeration (default=2). Increase to
-%                      pronounce elevation differences in flat terrain
+%                      pronounce elevation differences in flat terrain. If
+%                      the DEM is in geographic coordinates, use a value of
+%                      0.000003.
 %     ticklabels       'default', 'nice' or 'none'
 %     tickstokm        true or {false}. If set to true, coordinates will be
 %                      divided by 1000.
@@ -119,6 +128,15 @@ function rgb = imageschs(DEM,A,varargin)
 %     geotiffwrite('file.tif',RGB,DEM.georef.SpatialRef,...
 %            'GeoKeyDirectoryTag',DEM.georef.GeoKeyDirectoryTag);
 %
+% Example 8: Calculate hillshade RGB and display using imshow
+%
+%     DEM = GRIDobj('srtm_bigtujunga30m_utm11.tif');
+%     RGB = imageschs(DEM);
+%     RGB = flipud(RGB);
+%     [~,R] = GRIDobj2im(DEM);
+%     imshow(RGB,R)
+%     axis xy
+%
 % References
 %
 %     Katzil, Y., Doytsher, Y. (2003): A logarithmic and sub-pixel approach
@@ -141,6 +159,7 @@ function rgb = imageschs(DEM,A,varargin)
 % 18.3.2016: added option percentclip
 % 13.6.2016: added option makepermanent
 % 14.6.2016: added options 
+% 06.4.2018: new example
 
 persistent H
 
@@ -149,7 +168,7 @@ nargoutchk(0,1);
 
 % if A is not supplied to the function, coloring will be according to
 % values in DEM
-if nargin == 1 || (nargin>=2 && isempty(A));
+if nargin == 1 || (nargin>=2 && isempty(A))
     A = DEM;
 end
 
@@ -193,6 +212,7 @@ addParamValue(p,'usepermanent',false);
 addParamValue(p,'colorbarlabel',[],@(x) ischar(x));
 addParamValue(p,'colorbarylabel',[],@(x) ischar(x));
 addParamValue(p,'tickstokm',false,@(x) isscalar(x));
+addParamValue(p,'method','surfnorm');
 parse(p,DEM,A,varargin{:});
 
 % required
@@ -210,6 +230,7 @@ usepermanent  = p.Results.usepermanent;
 tokm           = p.Results.tickstokm > 0;
 colorBarLabel  =p.Results.colorbarlabel;
 colorBarYLabel =p.Results.colorbarylabel;
+meth       = validatestring(p.Results.method,{'default','surfnorm','mdow'});
 
 
 ticklabels = validatestring(p.Results.ticklabels,{'default','none','nice'});
@@ -258,8 +279,13 @@ nhs = 256;
 if usepermanent && isequal(size(H),DEM.size)
 
 else
-    
-    H = hillshade(DEM,'exaggerate',exag,'azimuth',azi,'altitude',alti,'useparallel',p.Results.useparallel);
+    H = hillshade(DEM,'exaggerate',exag,'azimuth',azi,'altitude',alti,'useparallel',p.Results.useparallel,'method',meth);
+%     switch meth
+%         case 'default'    
+%             H = hillshade(DEM,'exaggerate',exag,'azimuth',azi,'altitude',alti,'useparallel',p.Results.useparallel);
+%         case 'mdow'
+%             H = hillshademdow(DEM,'exaggerate',exag,'useparallel',p.Results.useparallel);
+%     end
     H = H.Z;
     Inan = isnan(H);
     if any(Inan(:))
@@ -278,10 +304,9 @@ else
 end
 
 % derive coloring
-if ~isa(A,'logical');
-%     A(Inan) = nan;
+if ~isa(A,'logical')
     Inan = isnan(A(:)) | isinf(A(:));
-    if any(Inan(:));
+    if any(Inan(:))
         nans = true;
         A(Inan) = nan;
     else
@@ -289,13 +314,13 @@ if ~isa(A,'logical');
         clear Inan
     end
     
-    if isa(colmapfun,'char');        
+    if isa(colmapfun,'char')        
         ncolors = 256-nans;
         colmapfun = str2func(lower(colmapfun));
         cmap = colmapfun(ncolors);
     else
         ncolors = size(colmapfun,1);
-        if nans && ncolors >= 256;
+        if nans && (ncolors >= 256)
             error('TopoToolbox:GRIDobj',['NaNs found in the second input grid. \n'...
                   'Please provide colormap with less than 256 colors']);
         else
@@ -303,9 +328,9 @@ if ~isa(A,'logical');
         end        
     end
     
-    if cbar && isempty(p.Results.caxis);
+    if cbar && isempty(p.Results.caxis)
         alims = [min(A(:)) max(A(:))];
-    elseif cbar && ~isempty(p.Results.caxis);
+    elseif cbar && ~isempty(p.Results.caxis)
         alims = sort(p.Results.caxis,'ascend');
     else
         alims = [min(A(:)) max(A(:))];
@@ -331,7 +356,7 @@ cmap = reshape(cmap,[ncolors*nhs 3]);
 IND  = uint16(H+1) + nhs*uint16(A) + 1;
 
 % handle NaNs
-if nans;
+if nans
     cmapnan   = bsxfun(@times,nancolor,linspace(0,1,nhs)');
     IND(Inan) = uint16(H(Inan)) + nhs*(ncolors) +1;% unclear if this is ok...
     cmap      = [cmap;cmapnan];
@@ -359,7 +384,7 @@ if nargout == 0
         if alims(1) ~= alims(2) 
             caxis(alims);
         end
-        colormap(cmap(nhs:nhs:nhs*ncolors,:));
+        colormap(gca,cmap(nhs:nhs:nhs*ncolors,:));
         cc = colorbar;%('location','south');
         if ~isempty(colorBarLabel)
             title(cc,colorBarLabel);
@@ -391,7 +416,7 @@ if nargout == 0
     end
     
     % plot grid
-    if ~isempty(gridmarkers);
+    if ~isempty(gridmarkers)
         if numel(gridmarkers) == 1
             gridmarkers = [gridmarkers gridmarkers];
         end
@@ -405,6 +430,6 @@ if nargout == 0
     end
         
     
-elseif nargout == 1;
+elseif nargout == 1
     rgb = RGB;
 end

@@ -1,6 +1,6 @@
 function [DEMr,zone] = reproject2utm(DEM,res,varargin)
 
-% Reproject DEM with WGS84 coordinate system to UTM-WGS84 
+%REPROJECT2UTM Reproject DEM with WGS84 coordinate system to UTM-WGS84 
 %
 % Syntax
 % 
@@ -38,7 +38,8 @@ function [DEMr,zone] = reproject2utm(DEM,res,varargin)
 %     zone     utm zone (string)
 %
 %
-% See also: GRIDobj, imtransform, maketform, mfwdtran, minvtran, utmzone
+% See also: GRIDobj, imtransform, maketform, mfwdtran, minvtran, utmzone,
+%           GRIDobj/projectGRIDobj
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
 % Date: 12. January, 2017
@@ -47,7 +48,7 @@ function [DEMr,zone] = reproject2utm(DEM,res,varargin)
 % get latitude and longitude vectors
 [lon,lat] = getcoordinates(DEM);
 
-if ~isa(res,'GRIDobj');
+if ~isa(res,'GRIDobj')
     % and calculate centroid of DEM. The centroid is used to
     % get the utmzone
     lonc = sum(lon([1 end]))/2;
@@ -67,8 +68,8 @@ p.FunctionName = 'GRIDobj/reproject2UTM';
 addRequired(p,'DEM',@(x) isa(x,'GRIDobj'));
 addRequired(p,'res',@(x) (~isa(x,'GRIDobj') && isscalar(x) && x > 0) || isa(x,'GRIDobj'));
 % optional
-addParameter(p,'zone',zone,@(x) ischar(x));
-addParameter(p,'method','bilinear',@(x) ischar(validatestring(x,validmethods)));
+addParamValue(p,'zone',zone,@(x) ischar(x));
+addParamValue(p,'method','bilinear',@(x) ischar(validatestring(x,validmethods)));
 
 parse(p,DEM,res,varargin{:});
 
@@ -77,7 +78,7 @@ zone = p.Results.zone;
 
 
 % prepare mstruct (transformation structure) if only res supplied
-if ~isa(res,'GRIDobj');
+if ~isa(res,'GRIDobj')
     mstruct       = defaultm('utm');
     mstruct.zone  = p.Results.zone;
     mstruct.geoid = wgs84Ellipsoid;
@@ -106,7 +107,7 @@ T = maketform('custom', 2, 2, ...
     []);
 
 % calculate image transform
-if ~isa(res,'GRIDobj');
+if ~isa(res,'GRIDobj')
     [Znew,xdata,ydata] = imtransform(flipud(DEM.Z),T,p.Results.method,...
         'Xdata',lims([1 2]),...
         'Ydata',lims([3 4]),...

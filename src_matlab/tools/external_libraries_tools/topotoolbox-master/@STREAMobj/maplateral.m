@@ -1,11 +1,11 @@
 function [a,mask] = maplateral(S,A,dist,aggfun,varargin)
 
-% map values of regions adjacent to streams to stream network
+%MAPLATERAL map values of regions adjacent to streams to stream network
 %
 % Syntax
 %
 %     a = maplateral(S,A,dist,aggfun)
-%     
+%     [a,mask] = ...     
 %
 % Description
 %
@@ -46,20 +46,22 @@ function [a,mask] = maplateral(S,A,dist,aggfun,varargin)
 %     S = klargestconncomps(S);
 %     S = trunk(S);
 %     g = maplateral(S,gradient8(DEM),100,{@min @max});
+%     plotdz(S,DEM)
+%     yyaxis right
 %     plotdzshaded(S,g)
 %     ylabel('Hillslope gradient [-]')
 %
 % See also: STREAMobj, SWATHobj
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 5. March, 2017
+% Date: 12. June, 2018
 
 % Input checking and parsing
 validatealignment(S,A)
 p = inputParser;
 p.FunctionName = 'STREAMobj/maplateral';
-addParameter(p,'excludestream',true,@(x) isscalar(x));
-addParameter(p,'inpaintnans',true,@(x) isscalar(x));
+addParamValue(p,'excludestream',true,@(x) isscalar(x));
+addParamValue(p,'inpaintnans',true,@(x) isscalar(x));
 parse(p,varargin{:});
 
 % create mask, if required
@@ -84,6 +86,8 @@ I  = D<=dist(2) & D>=dist(1);
 if p.Results.excludestream
     I(S.IXgrid) = false;
 end
+
+    
 
 % grid values
 A  = A.Z(I);

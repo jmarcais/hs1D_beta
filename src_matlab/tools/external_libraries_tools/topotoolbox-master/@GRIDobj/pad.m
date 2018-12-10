@@ -1,6 +1,6 @@
 function DEM = pad(DEM,varargin)
 
-% add or remove a border of pixels around a GRIDobj
+%PAD add or remove a border of pixels around a GRIDobj
 %
 % Syntax
 %
@@ -29,13 +29,18 @@ function DEM = pad(DEM,varargin)
 %
 % Example
 %
-%
-%
+%     DEM = GRIDobj('srtm_bigtujunga30m_utm11.tif');
+%     DEMp20 = pad(DEM,20);
+%     DEMm100 = pad(DEM,-100);
+%     subplot(1,2,1)
+%     imageschs(DEMp20)
+%     subplot(1,2,2)
+%     imageschs(DEMm100)
 % 
 % See also: GRIDobj/crop, padarray
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 8. January, 2015
+% Date: 18. August, 2017
 
 
 % check input arguments
@@ -47,7 +52,7 @@ defaultval = 0;
 defaultpx  = 1;
 addRequired(p,'DEM')
 addOptional(p,'px',defaultpx, @(x) isnumeric(x) && isscalar(x));
-addOptional(p,'val',defaultval,@(x) isnumeric(x) && isscalar(x));
+addOptional(p,'val',defaultval,@(x) isscalar(x));
 parse(p,DEM,varargin{:});
 
 px  = sign(p.Results.px)*ceil(abs(p.Results.px));
@@ -65,15 +70,15 @@ end
 if val == 0
     Znew = zeros(newsize,class(DEM.Z));
 elseif isnan(val)
-    Znew = nan(newsize,class(DEM.Z),class(DEM.Z));
+    Znew = nan(newsize,class(DEM.Z));
 else
     Znew = zeros(newsize,class(DEM.Z))+val;
 end
 
 % transfer values to new array
-if px>0;
+if px>0
     Znew(px+1:end-px,px+1:end-px) = DEM.Z;
-elseif px<0;
+elseif px<0
     abspx = abs(px);
     Znew = DEM.Z(abspx+1:end-abspx,abspx+1:end-abspx);
 end
@@ -83,6 +88,7 @@ DEM.Z           = Znew;
 DEM.refmat(3,:) = DEM.refmat(3,:)-px*[DEM.refmat(2,1) DEM.refmat(1,2)];
 DEM.size        = size(DEM.Z);
 
-if ~isempty(DEM.georef);
-DEM.georef.SpatialRef = refmatToMapRasterReference(DEM.refmat,size(Znew));
+if ~isempty(DEM.georef)
+    DEM.georef.SpatialRef = refmatToMapRasterReference(DEM.refmat,size(Znew));
 end
+

@@ -1,5 +1,5 @@
 function h = plot(SW,varargin)
-% plot instance of SWATHobj
+%PLOT plot instance of SWATHobj
 %
 % Syntax
 %
@@ -99,8 +99,8 @@ function h = plot(SW,varargin)
 
 
 cmaps = {'bone','colorcube','cool','copper','flag',...
-    'gray','hot','hsv','jet','lines','pink','prism',...
-    'spring','summer','white','winter'};
+    'gray','hot','vga','hsv','jet','lines','pink','prism',...
+    'spring','summer','white','winter','parula','autumn'};
 
 
 % Parse inputs

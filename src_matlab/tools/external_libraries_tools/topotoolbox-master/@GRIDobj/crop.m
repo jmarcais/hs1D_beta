@@ -1,6 +1,6 @@
 function [DEMc,MASK] = crop(DEM,varargin)
 
-% crop an instance of GRIDobj with axis-aligned minimum bounding box
+%CROP crop an instance of GRIDobj with axis-aligned minimum bounding box
 %
 % Syntax
 %
@@ -26,21 +26,28 @@ function [DEMc,MASK] = crop(DEM,varargin)
 %     ix       linear index into the DEM
 %     x,y      coordinate vectors
 %
+% Example
 %
-% See also: IND2SUB, SUBVOLUME
+%     DEM = GRIDobj('srtm_bigtujunga30m_utm11.tif');
+%     MASK = createmask(DEM);
+%     DEMc = crop(DEM,MASK,NaN);
+%     imagesc(DEMc)
+%
+%
+% See also: IND2SUB, GRIDobj/pad, GRIDobj/resample
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 8. May, 2017
+% Date: 7. March, 2018
 
 
 narginchk(1,3);
 
-if nargin == 1;
+if nargin == 1
     MASK = isnan(DEM.Z);
     
-    if ~any(MASK(:));
+    if ~any(MASK(:))
         DEMc = DEM;
-        if nargout == 2;
+        if nargout == 2
             MASK = DEM;
             MASK.Z = true(DEM.size);
             MASK.zunit = '';
@@ -50,11 +57,11 @@ if nargin == 1;
         return
     end
     MASK = ~MASK;
-    MASK = bwperim(MASK);
+    % MASK = bwperim(MASK);
     IX  = find(MASK); 
      
-elseif nargin >= 2;
-    if isa(varargin{1},'GRIDobj') || isa(varargin{1},'logical');
+elseif nargin >= 2
+    if isa(varargin{1},'GRIDobj') || isa(varargin{1},'logical')
         % GRIDobj
         validatealignment(DEM,varargin{1});
         if isa(varargin{1},'GRIDobj')
@@ -74,18 +81,18 @@ elseif nargin >= 2;
                 DEM.Z(~MASK) = varargin{2};
             end
         end
-        MASK = bwperim(MASK);
+        % MASK = bwperim(MASK);
         IX  = find(MASK);
-    elseif nargin == 2;
+    elseif nargin == 2
         if isnumeric(varargin{1})
             % indices are supplied
             IX  = varargin{1};
-            if numel(IX) < 2;
+            if numel(IX) < 2
                 error('TopoToolbox:GRIDobj',...
                     'At least two indices are required to crop the grid.')
             end
             
-            if any(IX<1) || any(IX>prod(DEM.size));
+            if any(IX<1) || any(IX>prod(DEM.size))
                 error('TopoToolbox:GRIDobj',...
                     ['Index must range between 1 and ' num2str(prod(DEM.size)) '.'])
             end
@@ -93,9 +100,19 @@ elseif nargin >= 2;
             % interactive part
             try
             imagesc(DEM);
+            [xx,yy] = getcoordinates(DEM);
+            minx = min(xx) - 0.1*DEM.cellsize;
+            maxx = max(xx) + 0.1*DEM.cellsize;
+            miny = min(yy) - 0.1*DEM.cellsize;
+            maxy = max(yy) + 0.1*DEM.cellsize;
+            
             c = uicontrol('Style','Text','Units','normalized','position',[0 0 1 0.05],...
-                'String','Draw rectangle and double click when finished.');
-            h = imrect;
+                          'String','Draw rectangle and double click when finished.');
+            
+            fcn = makeConstrainToRectFcn('imrect',[minx maxx],[miny maxy]);
+            h = imrect(gca,'PositionConstraintFcn',fcn);
+            
+            
             addNewPositionCallback(h,@(pos) set(c,'String',...
                 ['LX:' num2str(round(pos(1)),'%d') ', LY:' num2str(round(pos(2)),'%d') ...
                  ', UX:' num2str(round(pos(1)+pos(3)),'%d') ', UY:' num2str(round(pos(2)+pos(4)),'%d')]));
@@ -104,13 +121,12 @@ elseif nargin >= 2;
             delete(h)
             close
             catch ME
+                delete(h);
                 error('TopoToolbox:crop','output variable undefined')
-%                 warning('empty matrix returned')
-%                 DEMc = [];
                 return
             end
             
-            MASK  = bwperim(MASK);
+            % MASK  = bwperim(MASK);
             IX    = find(MASK);
         end
             
@@ -153,7 +169,7 @@ sizout = zeros(1,2);
 
 % loop through dimensions (see ind2sub) 
 % and get subscripts of minimum bounding rectangle/box/...
-for r = 2:-1:1;  
+for r = 2:-1:1  
     IX2       = rem(IX-1,k(r))+1;         
     subdim    = (IX-IX2)/k(r)+1; 
     S.subs{r} = min(subdim):max(subdim);
@@ -165,7 +181,7 @@ DEMc      = DEM;
 DEMc.Z    = reshape(subsref(DEM.Z,S),sizout);
 DEMc.size = sizout;
 [x,y]     = sub2coord(DEM,S.subs{1}(1),S.subs{2}(1));
-DEMc.refmat(3,:) = [x y];
+DEMc.refmat(3,:) = [x y] - DEMc.cellsize*[1 -1];
 
 DEMc.name   = [DEM.name ' (cropped)'];
 DEMc.zunit  = DEM.zunit;

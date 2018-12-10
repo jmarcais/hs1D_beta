@@ -1,6 +1,6 @@
 classdef FLOWobj
     
-% Create flow direction object
+%FLOWOBJ create flow direction object
 %
 % Syntax
 %
@@ -39,7 +39,7 @@ classdef FLOWobj
 %
 %  Applicable only, if calculated from GRIDobj
 %
-%     'preprocess' --  {'fill'}, 'carve', 'none'
+%     'preprocess' --  {'carve'}, 'fill', 'none'
 %            set DEM preprocessing that determines flow behavior in
 %            topographic depressions and flat areas 
 %     'sinks' -- logical matrix same size as dem
@@ -116,7 +116,7 @@ classdef FLOWobj
 %     https://www.mathworks.com/matlabcentral/fileexchange/15818-upslope-area-functions
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 07. October, 2016
+% Date: 02. September, 2017
 
 
 % Update 
@@ -124,6 +124,7 @@ classdef FLOWobj
 % R2015b
 % 2016-10-07: added support for multiple flow directions
 % 2016-11-14: added support for Dinf
+% 2017-09-02: default preprocessing option is carve
 
 properties(GetAccess = 'public', SetAccess = 'public')
     size      % size of instance of GRIDobj from which STREAMobj was derived
@@ -160,7 +161,7 @@ methods
             addParamValue(p,'size',[],@(x) isempty(x) || numel(x)==2);
             addParamValue(p,'cellsize',1,@(x) isscalar(x));
             addParamValue(p,'refmat',[]);
-            addParamValue(p,'preprocess','none',@(x) ischar(validatestring(x,expectedPreProcess)));
+            addParamValue(p,'preprocess','carve',@(x) ischar(validatestring(x,expectedPreProcess)));
             addParamValue(p,'tweight',2,@(x) isscalar(x));
             addParamValue(p,'cweight',1,@isnumeric);
             addParamValue(p,'sinks',[],@(x) isa(x,'GRIDobj'));
@@ -296,7 +297,7 @@ methods
                             disp([datestr(clock) ' -- Sink filling'])
                         end
                         
-                        if isempty(sinks);
+                        if isempty(sinks)
                             DEM = fillsinks(DEM);
                         else
                             DEM = fillsinks(DEM,sinks);
@@ -309,7 +310,7 @@ methods
                         if verbose
                             disp([datestr(clock) ' -- Sink filling'])
                         end
-                        if isempty(sinks);
+                        if isempty(sinks)
                             DEMF = fillsinks(DEM);
                         else
                             DEMF = fillsinks(DEM,sinks);
@@ -320,7 +321,7 @@ methods
                         % There is also a weights option, which is a
                         % GRIDobj with weights. But this is currently
                         % undocumented
-                        if isempty(weights);                            
+                        if isempty(weights)                            
                             D    = DEMF-DEM;
                         else
                             D    = -weights;
@@ -386,7 +387,7 @@ methods
                 switch preprocess
                     case 'carve'
                         CarveMinVal = 0.1;
-                        if ~isscalar(cweight);
+                        if ~isscalar(cweight)
                             D = (D + cweight);                            
                             D = linscale(D,0,100);
                         end
@@ -401,15 +402,18 @@ methods
                         
                         % -- Old version
                         CC = bwconncomp(I);                                
-                        for r = 1:CC.NumObjects;
-                            D(CC.PixelIdxList{r}) = (max(D(CC.PixelIdxList{r})) - D(CC.PixelIdxList{r})).^tweight + CarveMinVal;
+                        for r = 1:CC.NumObjects
+                            maxdepth = max(D(CC.PixelIdxList{r}));
+                            D(CC.PixelIdxList{r}) = (maxdepth - D(CC.PixelIdxList{r})).^tweight + CarveMinVal;
+%                             D(CC.PixelIdxList{r}) = maxdepth - D(CC.PixelIdxList{r});
+%                             D(CC.PixelIdxList{r}) = (D(CC.PixelIdxList{r})./maxdepth + CarveMinVal).^tweight;
                         end
                         clear CC
 
                         % enable that flow in flats follows digitized
                         % streams. Undocumented...
-                        if ~isscalar(streams);
-                        if islogical(streams);                        
+                        if ~isscalar(streams)
+                        if islogical(streams)                        
                             D(streams) = CarveMinVal;
                         else
                             D = max(D - D.*min(streams,0.99999),CarveMinVal);
@@ -424,7 +428,7 @@ methods
                 rowadd = [-1 -1 0 1 1  1  0 -1];
                 coladd = [ 0  1 1 1 0 -1 -1 -1];
                 PreSillPixel = [];
-                for r = 1:8;
+                for r = 1:8
                     rowp = row + rowadd(r);
                     colp = col + coladd(r);
                     
@@ -584,8 +588,13 @@ methods
                     error('unknown flow direction type')
             end
             
-            p = toposort(digraph(M));
-            p = uint32(p);
+            try
+                p = toposort(digraph(M));
+                p = uint32(p);
+            catch
+                [p,~] = dmperm(speye(size(M))-M);
+                p = uint32(p);
+            end
             
             [FD.ix,FD.ixc,FD.fraction] = find(M(p,p));
             
@@ -621,6 +630,35 @@ methods
             FD.ixcix  = [];
         end
     end
+    
+    function FD = multi_normalize(FD)
+        
+        if isempty(FD.fraction)
+            return
+        end
+        s = accumarray(FD.ix,FD.fraction,[prod(FD.size) 1],@sum);
+        FD.fraction = FD.fraction./s(FD.ix);
+    end
+    
+    function FD = multi_weights(FD,varargin)
+        
+        p = inputParser;
+        addParameter(p,'DEM',[],@(x) isa(x,'GRIDobj'));
+        addParameter(p,'type','random')
+        addParameter(p,'beta',1)
+        parse(p,varargin{:});
+        
+        switch p.Results.type
+            case 'random'
+                FD.fraction = rand(size(FD.fraction));
+        end
+        FD = multi_normalize(FD);
+        
+        
+        
+    end
+    
+            
 
 end
 end

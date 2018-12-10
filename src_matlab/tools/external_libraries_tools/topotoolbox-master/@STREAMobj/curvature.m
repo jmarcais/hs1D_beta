@@ -1,6 +1,6 @@
 function k = curvature(S,varargin)
 
-% curvature or 2nd derivative of a STREAMobj
+%CURVATURE curvature or 2nd derivative of a STREAMobj
 %
 % Syntax
 %
@@ -19,7 +19,7 @@ function k = curvature(S,varargin)
 %
 %     There is no straightforward way to calculate curvature at river
 %     confluences since there are two or more pixels upstream. The 
-%     algorithm uses the upstream pixel with the long downstream flow
+%     algorithm uses the upstream pixel with the longest downstream flow
 %     distance to derive curvature.
 %
 % Input arguments
@@ -41,15 +41,16 @@ function k = curvature(S,varargin)
 %     FD = FLOWobj(DEM,'preprocess','carve');
 %     S  = STREAMobj(FD,'minarea',1000);
 %     S  = klargestconncomps(S);
-%     y = smooth(S,S.y,'mingradient',nan,'k',10000,'nonstifftribs',true);
-%     x = smooth(S,S.x,'mingradient',nan,'k',10000,'nonstifftribs',true);
+%     y = smooth(S,S.y,'k',1000,'nstribs',true);
+%     x = smooth(S,S.x,'k',1000,'nstribs',true);
 %     k = curvature(S,x,y);
 %     plotc(S,k);
 %     caxis(repmat(min(abs(caxis)),1,2).*[-1 1])
+%     h = colorbar;
+%     h.Label.String = 'Curvature';
 %
 %
-%
-% See also: STREAMobj/gradient
+% See also: STREAMobj/gradient, STREAMobj/smooth
 % 
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
 % Date: 25. January, 2016
@@ -85,9 +86,9 @@ nr     = numel(S.x);
 Asd    = sparse(rowix(:),colix(:),val(:),nr,nr);
 
 % check input arguments
-if nargin == 1 || nargin == 3;
+if nargin == 1 || nargin == 3
     
-    if nargin == 1;
+    if nargin == 1
         x = S.x;
         y = S.y;
     else
@@ -111,7 +112,7 @@ else
     if isa(DEM,'GRIDobj')
         validatealignment(S,DEM);
         z = getnal(S,DEM);
-    elseif isnal(S,DEM);
+    elseif isnal(S,DEM)
         z = DEM;
     else
         error('Imcompatible format of second input argument')

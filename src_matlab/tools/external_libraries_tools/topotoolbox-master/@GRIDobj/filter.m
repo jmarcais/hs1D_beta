@@ -1,6 +1,6 @@
 function DEM = filter(DEM,varargin)
 
-% edge detection using sobel filter 
+%FILTER 2D-filtering of DEMs with different kernels 
 %
 % Syntax
 %
@@ -44,7 +44,7 @@ validmethods = {'mean','average','median','sobel','scharr','wiener'};
 p = inputParser;
 p.StructExpand  = true;
 p.KeepUnmatched = false;
-p.FunctionName = 'hillshade'; 
+p.FunctionName = 'filter'; 
 addRequired(p,'DEM',@(x) isequal(class(x),'GRIDobj'));
 addOptional(p,'method','mean',@(x) ischar(x));
 addOptional(p,'kernel',[3 3],@(x) isscalar(x) || (numel(x) == 2) || isempty(x));
@@ -61,7 +61,7 @@ dem    = DEM.Z;
 % pad DEM if there are NaNs
 inan    = isnan(dem);
 flagnan = any(inan(:));
-if flagnan;
+if flagnan
     [~,L]   = bwdist(~inan); 
     dem     = dem(L);
 end

@@ -1,10 +1,10 @@
 function varargout = identifyflats(DEM)
 
-% identify flat terrain in a digital elevation model
+%IDENTIFYFLATS identify flat terrain in a digital elevation model
 %
 % Syntax
 %
-%     [FLATS,SILLS,CLOSEDBASINS] = identifyflats(DEM)
+%     [FLATS,SILLS,CLOSED] = identifyflats(DEM)
 %
 % Description
 %
@@ -25,17 +25,20 @@ function varargout = identifyflats(DEM)
 %                where true cells indicate flat terrain (GRIDobj). 
 %     SILLS      instance of GRIDobj that contains logical matrix 
 %                where true cells indicate sill locations (GRIDobj).
-%     CLOSEDBASINS instance of GRIDobj that contains the lowest 
+%     CLOSED     instance of GRIDobj that contains the lowest 
 %                locations in closed basins as logical grid.
 %                
+% Example
 %
-%
+%     DEM = GRIDobj('srtm_bigtujunga30m_utm11.tif');
+%     DEM = fillsinks(DEM);
+%     [FLATS,SILLS] = identifyflats(DEM);
+%     imageschs(DEM,FLATS+2*SILLS,'colormap','parula')
 % 
-% See also: ROUTEFLATS, CROSSFLATS
-%
+% See also: GRIDobj, GRIDobj/fillsinks
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 26. November, 2013
+% Date: 26. April, 2018
 
 
 narginchk(1,1)
@@ -44,7 +47,7 @@ dem = DEM.Z;
 
 % handle NaNs
 log_nans = isnan(dem);
-if any(log_nans(:));
+if any(log_nans(:))
     flag_nans = true;
     dem(log_nans) = -inf;
 else
@@ -76,13 +79,13 @@ varargout{1}.Z = flats;
 varargout{1}.name = 'flats';
 
 % identify sills
-if nargout >= 2;    
+if nargout >= 2   
     % find sills and set marker
     Imr = -inf(size(dem));
     Imr(flats) = dem(flats);
     Imr = (imdilate(Imr,ones(3)) == dem) & ~flats;
     
-    if flag_nans;
+    if flag_nans
         Imr(log_nans) = false;
     end
     % prepare output
@@ -96,7 +99,7 @@ if nargout >= 3
     varargout{3} = DEM;
     varargout{3}.Z = imregionalmin(dem);
     
-    if flag_nans;
+    if flag_nans
         varargout{3}.Z = varargout{3}.Z | log_nans;
         varargout{3}.Z = imclearborder(varargout{3}.Z);
         varargout{3}.Z(log_nans) = false;

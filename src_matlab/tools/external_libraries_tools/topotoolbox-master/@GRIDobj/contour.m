@@ -1,6 +1,6 @@
 function varargout = contour(DEM,varargin)
 
-% contour plot of an instance of GRIDobj
+%CONTOUR contour plot of an instance of GRIDobj
 %
 % Syntax
 %
@@ -25,7 +25,7 @@ function varargout = contour(DEM,varargin)
 %
 %     MS        structure array (can be exported using shapewrite or
 %               plotted using mapshow, requires the Mapping Toolbox)
-%     [x,y,z]   nan-punctuated vector for 2d and 3d plotting
+%     [x,y,z]   nan-punctuated vectors for 2d and 3d plotting
 %
 % Example
 % 
@@ -43,15 +43,15 @@ function varargout = contour(DEM,varargin)
 % Date: 6. August, 2013
 
 [Z,x,y] = GRIDobj2mat(DEM);
-if nargout == 0;   
-    contour(x,y,double(Z),varargin{:});
+if nargout == 0   
+    contour(x,y,double(Z),double(varargin{:}));
     return
 end
 
-c = contourc(x,y,double(DEM.Z),varargin{:});
+c = contourc(double(x),double(y),double(Z),double(varargin{:}));
 IXs = 2;
 counter = 1;
-while IXs(counter) < size(c,2);
+while IXs(counter) < size(c,2)
     elev(counter)   = c(1,IXs(counter)-1);
     IXe(counter) = IXs(counter) + c(2,IXs(counter)-1) - 1;   
     counter = counter+1;
@@ -77,7 +77,7 @@ end
 
 nrcontours = numel(IXe);
 xy = [];
-for r = 1:nrcontours;
+for r = 1:nrcontours
     
     cc = c(:,IXs(r):IXe(r))';
     xy = [xy; cc; [nan nan]];
@@ -87,22 +87,22 @@ x = xy(:,1);
 y = xy(:,2);
 
 % prepare output
-if nargout >= 2 ;
+if nargout >= 2 
     
     varargout{1} = x;
     varargout{2} = y;
     
-    if nargout == 3;
+    if nargout == 3
         IXs = IXs-1;
         IXe = IXe-1;
         z = nan(size(x));
-        for r = 1:nrcontours;
+        for r = 1:nrcontours
             z(IXs(r):IXe(r)) = elev(r);
         end
         varargout{3} = z;
     end
     
-elseif nargout == 1;
+elseif nargout == 1
     
     IXs = num2cell(IXs-1);
     IXe = num2cell(IXe-1);
