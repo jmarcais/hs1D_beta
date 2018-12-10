@@ -70,19 +70,19 @@ classdef boussinesq_simulation
             Edges=obj.boundary_cond.fixed_edge_matrix_values;
             Edges_bool=obj.boundary_cond.fixed_edge_matrix_boolean;
             initial_conditions.Sin(1)=Edges_bool(1)*Edges(1)+(1-Edges_bool(1))*initial_conditions.Sin(1); initial_conditions.Sin(end)=Edges_bool(2)*Edges(2)+(1-Edges_bool(2))*initial_conditions.Sin(end);
-            if(~isnan(sum(Sinitial)) && length(Sinitial)==3*obj.discretization.Nx+1)
-                initial_conditions.Qin(1)=Edges_bool(3)*Edges(3)+(1-Edges_bool(3))*initial_conditions.Qin(1); initial_conditions.Qin(end)=Edges_bool(4)*Edges(4)+(1-Edges_bool(4))*initial_conditions.Qin(end);
-            else
-                initial_conditions.Qin=-obj.compute_Q_from_S(initial_conditions.Sin)*initial_conditions.Sin;
-                initial_conditions.Qin(1)=Edges_bool(3)*Edges(3)+(1-Edges_bool(3))*initial_conditions.Qin(1); initial_conditions.Qin(end)=Edges_bool(4)*Edges(4)+(1-Edges_bool(4))*initial_conditions.Qin(end);
-                initial_conditions.QSin=obj.compute_QS_from_Q([initial_conditions.Sin;initial_conditions.Qin;zeros(size(initial_conditions.Qin))],t_initial)*initial_conditions.Qin;
-            end
+%             if(~isnan(sum(Sinitial)) && length(Sinitial)==3*obj.discretization.Nx+1)
+%                 initial_conditions.Qin(1)=Edges_bool(3)*Edges(3)+(1-Edges_bool(3))*initial_conditions.Qin(1); initial_conditions.Qin(end)=Edges_bool(4)*Edges(4)+(1-Edges_bool(4))*initial_conditions.Qin(end);
+%             else
+%                 initial_conditions.Qin=-obj.compute_Q_from_S(initial_conditions.Sin)*initial_conditions.Sin;
+%                 initial_conditions.Qin(1)=Edges_bool(3)*Edges(3)+(1-Edges_bool(3))*initial_conditions.Qin(1); initial_conditions.Qin(end)=Edges_bool(4)*Edges(4)+(1-Edges_bool(4))*initial_conditions.Qin(end);
+%                 initial_conditions.QSin=obj.compute_QS_from_Q([initial_conditions.Sin;initial_conditions.Qin;zeros(size(initial_conditions.Qin))],t_initial)*initial_conditions.Qin;
+%             end
         end
 
         % set the parameters for the resolution of the Boussinesq DAE
         function [t,x_center,x_edge,S,Q,QS,obj]=implicit_scheme_solver(obj,t_properties,solver_options)
             % initial vector for the DAE
-            y0=[obj.initial_conditions.Sin;obj.initial_conditions.Qin;obj.initial_conditions.QSin];
+            y0=[obj.initial_conditions.Sin];
            
             % Number of unknowns
 %             Nun=3*obj.discretization.Nx+1;
@@ -96,11 +96,8 @@ classdef boussinesq_simulation
             
             % Initial slope of the DAE
             yp0=f(time_range(1),y0);
-                        
-            % Mass Matrix Form of DAE
-            MM=(obj.compute_mass_matrix);
             
-            options = odeset('Mass', MM, 'InitialSlope', yp0,'MStateDependence','yes','MassSingular','yes');%,'Refine',100); %,'BDF','on','MaxOrder',1);
+            options = odeset( 'InitialSlope', yp0);
             if(solver_options.Events==1)
                  event=@(t,y)obj.eventfun(t,y);
                  solver_options.Events=event;
@@ -117,8 +114,8 @@ classdef boussinesq_simulation
             options=odeset(options,solver_options);
            
             % get consistent initial conditions thanks to decic
-            [y0new,yp0new] = decic(@(t,y,yp) MM*yp - (obj.compute_C(y,t)*y+obj.partition_source_terms(y,t)), 0, y0, [], yp0, [], options);
-            change_init_slope=odeset('InitialSlope',yp0new);
+            [y0new,yp0new] = decic(@(t,y,yp) yp - (obj.compute_C(y,t)*y+obj.partition_source_terms(y,t)), 0, y0, [], yp0, [], options);
+            change_init_slope=odeset('InitialSlope',yp0new);%,'Nonnegative',ones(length(y0new),1));
             options=odeset(options,change_init_slope);
             
             % DAE System to solve
@@ -141,9 +138,15 @@ classdef boussinesq_simulation
                 t=time_range(1:tmax_pos);
             end
             S=deval(obj.sol_simulated,t);
-            Q=S(block_size+1:2*block_size+1,:);
-            QS=S(2*block_size+2:3*block_size+1,:);
-            S=S(1:block_size,:);
+            size_S=size(S);
+            Q=nan(size_S(1)+1,size_S(2));
+            QS=nan(size_S);
+            
+            for i=1:length(t)
+                Q(:,i)=-obj.compute_Q_from_S(S(:,i))*S(:,i);
+                QS(:,i)=obj.compute_QS_from_Q(S(:,i),t(i))*Q(:,i); %2*block_size+2:3*block_size+1,:);
+            end
+            
             x_edge=obj.discretization.get_edges_coordinates;
             x_center=obj.discretization.get_center_coordinates;
 
@@ -158,11 +161,12 @@ classdef boussinesq_simulation
            
         end
         
-        function [DPSA_spat,RF_spat]=partition_DPSA_RF(obj,y,t)
+        function [DPSA_spat,RF_spat]=partition_DPSA_RF(obj,S,Q,t)
             block_size=obj.discretization.Nx;
-            Source_Partitioned=obj.partition_source_terms(y,t);
-            RF_spat=obj.compute_QS_from_Q(y,t)*y((block_size+1):2*block_size+1);
-            DPSA_spat=Source_Partitioned(2*block_size+2:3*block_size+1);
+            Source_Partitioned=obj.partition_source_terms(S,t);
+            Recharge_rate_spatialized=obj.compute_source_term_spatialized(S,t);
+            RF_spat=obj.compute_QS_from_Q(S,t)*Q;
+            DPSA_spat=Recharge_rate_spatialized-Source_Partitioned;
         end
     end
     
@@ -176,78 +180,38 @@ classdef boussinesq_simulation
         end
         
         function C=compute_C(obj,y,t)
-            %     [  0    -alpha*beta*A    0 ]
+            %     [  0    -alpha*A    0 ]
             % C = [ P(y)       I           0 ]
             %     [  0    -(1-alpha)*A    -I ]
             
             
             block_size=obj.discretization.Nx;
             
-            C=sparse(zeros(3*block_size+1,3*block_size+1));
             % first row block
-            C(1:block_size, 1:block_size)                     = 0;
-            C(1:block_size,(block_size+1):(2*block_size+1))   = obj.compute_dSdt_from_Q(y,t);
-            C(1:block_size,(2*block_size+2):(3*block_size+1)) = 0;
-%             C(1,:)=0;
-            % second row block
-            C(block_size+1:(2*block_size+1),  1:block_size)                     = obj.compute_Q_from_S(y);
-            C(block_size+1:(2*block_size+1), (block_size+1):2*block_size+1)    = sparse(eye(block_size+1)); 
-            C(block_size+1:2*block_size+1, (2*block_size+2):3*block_size+1)  =  0;
-            % third row block
-            C((2*block_size+2):3*block_size+1,  1:block_size)                    = 0;
-            C((2*block_size+2):3*block_size+1, (block_size+1):2*block_size+1)   = obj.compute_QS_from_Q(y,t);
-            C((2*block_size+2):3*block_size+1, (2*block_size+2):3*block_size+1) = -sparse(eye(block_size));
-            % last line
-%             C(3*block_size+2, 3*block_size+2) = obj.compute_deep_dSdt_from_leakage(y,t);
-%             C=sparse(C);
-            % Introduce boundary conditions in the matrix
+            C    = obj.compute_dSdt_from_Q(y,t)*(-obj.compute_Q_from_S(y));
+            
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             C(1,:)=(1-Edges(1))*C(1,:);
             C(block_size,:)=(1-Edges(2))*C(block_size,:);
-%             bound_cond_matrix=sparse(eye(3*block_size+1));
-%             bound_cond_matrix(1,1)=(1-Edges(1));
-%             bound_cond_matrix(block_size,block_size)=(1-Edges(2));
-%             C=bound_cond_matrix*C;
+            C=sparse(C);
         end
         
         % Source term
         function D=partition_source_terms(obj,y,t)        
             
             block_size=obj.discretization.Nx;
-            D=sparse(zeros(3*block_size+1,1));
             
             alpha=obj.alpha(y,t);
-            beta=obj.beta(y,t);
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
 %             Rain=obj.N*obj.w;
-            D(1:block_size,1)=beta.*alpha.*Recharge_rate_spatialized;
-            D((2*block_size+2):3*block_size+1,1)=(1-alpha).*Recharge_rate_spatialized;
-            
-            % Boundary conditions on the source term
-            % Constant S or Q values
-            % 1/ Put source term in D at 0
-%             D(1)=0;
+            D=alpha.*Recharge_rate_spatialized;
+           
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             Edges_value=obj.boundary_cond.fixed_edge_matrix_values;
-%             bound_cond_matrix=eye(3*block_size+1);
-%             bound_cond_matrix(1,1)=1-Edges(1);
-%             bound_cond_matrix(block_size,block_size)=1-Edges(2);
-%             bound_cond_matrix(block_size+1,block_size+1)=1-Edges(3);
-%             bound_cond_matrix(2*block_size+1,2*block_size+1)=1-Edges(4);
-%             D=bound_cond_matrix*D;
-%             bound_values_matrix=zeros(3*block_size+1,1);
-%             bound_values_matrix(block_size+1,1)=-Edges(3)*Edges_value(3);
-%             bound_values_matrix(2*block_size+1,1)=-Edges(4)*Edges_value(4);
-%             D=bound_values_matrix+D;
-
+            
             D(1,:)=(1-Edges(1))*D(1,:);
             D(block_size,:)=(1-Edges(2))*D(block_size,:);
-            D(block_size+1,:)=(1-Edges(3))*D(block_size+1,:);
-            D(2*block_size+1,:)=(1-Edges(4))*D(2*block_size+1,:);
-            % 2/ Set D(edges) at the fixes value (for Q)
-            D(block_size+1,:)=-Edges(3)*Edges_value(3);
-            D(2*block_size+1,:)=-Edges(4)*Edges_value(4);
-            
+           
             D=sparse(D);
         end
         
@@ -274,7 +238,7 @@ classdef boussinesq_simulation
 % % %             Q_from_S=sparse(diag(Q_from_S));
 % % %             Q_from_S=Q_from_S*Omega;
             
-            Q1_from_S=k./f_edges.*cos(angle).*(B*(y(1:block_size)./(f.*w)));
+            Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
             Q1_from_S=sparse(diag(Q1_from_S)*Omega);
             Q2_from_S=k./f_edges.*sin(angle);
             Q2_from_S=sparse(diag(Q2_from_S)*D);
@@ -312,8 +276,7 @@ classdef boussinesq_simulation
         function dSdt_from_Q=compute_dSdt_from_Q(obj,y,t)
             A=obj.discretization.A;
             alpha=sparse(diag(obj.alpha(y,t)));
-            beta=sparse(diag(obj.beta(y,t)));
-            dSdt_from_Q=-beta*alpha*A;
+            dSdt_from_Q=-alpha*A;
 %             dSdt_from_Q=sparse(dSdt_from_Q);
         end
         
@@ -360,12 +323,12 @@ classdef boussinesq_simulation
         
         function OUT=Test_Derivative(obj,y,t)
             A=obj.discretization.A;
-            block_size=obj.discretization.Nx;
+%             block_size=obj.discretization.Nx;
 %             [~,w,~,~]=obj.discretization.get_resampled_variables;
 %             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
 %             Recharge_rate_spatialized=Recharge_rate*w;
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-            OUT=-A*y(block_size+1:2*block_size+1)+Recharge_rate_spatialized;
+            OUT=-A*(-obj.compute_Q_from_S(y)*y)+Recharge_rate_spatialized;
             OUT=OUT>=0;
         end
         
@@ -380,12 +343,6 @@ classdef boussinesq_simulation
             Thresh=threshold_function(y(1:block_size)./(f.*soil_depth.*w));
             Test_Deriv=obj.Test_Derivative(y,t);
             OUT=Thresh.*Test_Deriv+(1-Test_Deriv);
-        end
-        
-        function OUT=beta(obj,y,t)
-            block_size=obj.discretization.Nx;
-%             OUT=1-(1-obj.Test_Derivative(y,t)).*(y(1:block_size)<=0);%.0001*f*w.*soil_depth);
-            OUT=ones(block_size,1);
         end
         
         % Mass matrix: Identity on S, O for Q & QS

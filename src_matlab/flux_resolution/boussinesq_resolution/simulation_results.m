@@ -495,11 +495,11 @@ classdef simulation_results
         end
         
         function [DPSA,RF,DPSA_spat,RF_spat]=compute_DPSA_RF(obj,bouss_sim)
-            t=obj.t; y=[obj.S;obj.Q;obj.QS];
+            t=obj.t; S=obj.S; Q=obj.Q; QS=obj.QS;
             DPSA_spat=nan(size(obj.S));
             RF_spat=nan(size(obj.S));
             for i=1:length(t)
-                [DPSA_spat(:,i),RF_spat(:,i)]=bouss_sim.partition_DPSA_RF(y(:,i),t(i));
+                [DPSA_spat(:,i),RF_spat(:,i)]=bouss_sim.partition_DPSA_RF(S(:,i),Q(:,i),t(i));
             end
             dx=obj.x_Q(2:end)-obj.x_Q(1:end-1);
             dx_QS=diag(dx);
