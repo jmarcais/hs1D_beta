@@ -460,9 +460,7 @@ classdef transport
             
             t_out(max_>0)=obj.t(max_(max_>0));
             t_out(max_==length(obj.t))=nan;
-            t_out=t_out';
             t_in(min_>0)=obj.t(min_(min_>0));
-            t_in=t_in';
             delta_t=t_out-t_in;
             
             size_trajectories=size(obj.x_traj);
@@ -471,7 +469,7 @@ classdef transport
             linearInd_init = sub2ind(size_trajectories,AA(min_>0),min_(min_>0));
 %             linearInd_fin = sub2ind(size_trajectories,(1:1:size_trajectories(1))',max_);
 %             linearInd_init = sub2ind(size_trajectories,(1:1:size_trajectories(1))',min_);
-            x_fin=nan(length(max_),1);
+            x_fin=nan(size(max_));
             x_fin(max_>0)=obj.x_traj(linearInd_fin);
             x_fin(max_(max_>0)==length(obj.t))=nan;
             x_init=nan(length(min_),1);
@@ -791,7 +789,9 @@ classdef transport
             transit_times_soil=interpn(x_Q,travel_time_soil2,full(x_fin_groundwater),'linear',0);
             
             % t_out_river : time at which the particles arrives finally inside the river 
-            t_out_river=cat(2,t_out_groundwater,transit_times_soil); t_out_river= nansum(t_out_river,2); t_out_river=interp1([obj.t,2*obj.t(end)-obj.t(end-1)],[obj.t,2*obj.t(end)-obj.t(end-1)],t_out_river,'nearest',nan);
+            t_out_river=cat(2,t_out_groundwater,transit_times_soil); 
+            t_out_river= nansum(t_out_river,2); 
+            t_out_river=interp1([obj.t,2*obj.t(end)-obj.t(end-1)],[obj.t,2*obj.t(end)-obj.t(end-1)],t_out_river,'nearest',nan);
             transit_times_total=cat(2,transit_times_groundwater,transit_times_soil); transit_times_total= nansum(transit_times_total,2); 
             
             

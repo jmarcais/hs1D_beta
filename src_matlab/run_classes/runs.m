@@ -91,7 +91,7 @@ classdef runs
                 obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
             end
             % spatial discretization
-            if(length(x)<130)
+            if(length(x)<13)
                 Nx=length(x)-1;
                 discretization_type='lin';%'custom';      % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
                 [discretization,obj]=obj.set_space_discretization(Nx,discretization_type);%,xcustom);
