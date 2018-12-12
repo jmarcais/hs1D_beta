@@ -90,7 +90,7 @@ classdef source
                     size_=size(obj.recharge_chronicle);
                     if(size_(1)>1)
                        if(length(t)==1)
-                           Index=floor(t/(t_chronicle(2)-t_chronicle(1)))+1;
+                           Index=floor((t-t_chronicle(1))/(t_chronicle(2)-t_chronicle(1)))+1;
 %                            if(Index>length(t_chronicle))
 %                                 Index=length(t_chronicle);
 %                                 t=t_chronicle(end);

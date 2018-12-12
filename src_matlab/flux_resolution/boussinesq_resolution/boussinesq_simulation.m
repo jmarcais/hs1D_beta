@@ -114,7 +114,7 @@ classdef boussinesq_simulation
             options=odeset(options,solver_options);
            
             % get consistent initial conditions thanks to decic
-            [y0new,yp0new] = decic(@(t,y,yp) yp - (obj.compute_C(y,t)*y+obj.partition_source_terms(y,t)), 0, y0, [], yp0, [], options);
+            [y0new,yp0new] = decic(@(t,y,yp) yp - (obj.compute_C(y,t)*y+obj.partition_source_terms(y,t)), time_range(1), y0, [], yp0, [], options);
             change_init_slope=odeset('InitialSlope',yp0new);%,'Nonnegative',ones(length(y0new),1));
             options=odeset(options,change_init_slope);
             
