@@ -163,10 +163,13 @@ classdef boussinesq_simulation
         
         function [DPSA_spat,RF_spat]=partition_DPSA_RF(obj,S,Q,t)
             block_size=obj.discretization.Nx;
-            Source_Partitioned=obj.partition_source_terms(S,t);
-            Recharge_rate_spatialized=obj.compute_source_term_spatialized(S,t);
+            % return flow
             RF_spat=obj.compute_QS_from_Q(S,t)*Q;
-            DPSA_spat=Recharge_rate_spatialized-Source_Partitioned;
+            % direct precipitations onto saturated areas
+%             Source_Partitioned=obj.partition_source_terms(S,t);
+%             Recharge_rate_spatialized=obj.compute_source_term_spatialized(S,t);
+%             DPSA_spat=Recharge_rate_spatialized-Source_Partitioned;
+            DPSA_spat=obj.partition_source_terms_QS(S,t);
         end
     end
     

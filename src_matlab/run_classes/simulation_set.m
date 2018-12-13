@@ -901,7 +901,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24/10);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
@@ -911,10 +911,10 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R);
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'full');
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial);
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'full');
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
                     slope_angle_top=interpn(x,slope_angle,x_Q1);
@@ -1014,15 +1014,17 @@ classdef simulation_set
            
             % 2nd option
             [DPSA_bed,RF_bed,DPSA_spat_bed,RF_spat_bed]=compute_DPSA_RF(run_obj.simulation_results,run_obj.boussinesq_simulation);
+
+            
             qs1=DPSA_spat_bed;
             dx_Q=run_obj.simulation_results.x_Q(2:end)-run_obj.simulation_results.x_Q(1:end-1);
-            qs1(1,:)=run_obj.boussinesq_simulation.source_terms.recharge_chronicle*dx_Q(1)*w_1(1);
-            if(sum(qs1(:)<0)>0)
-                Min_value_replaced=min(qs1(qs1<0));
-                Number_values_replaced=sum(qs1(:)<0);
-                fprintf(strcat('Warning: \n ',num2str(Number_values_replaced),' values have been replaced that were negative \n Values are between 0 and ',num2str(Min_value_replaced),'\n'));
-                qs1(qs1<0)=0;
-            end
+%             qs1(1,:)=run_obj.boussinesq_simulation.source_terms.recharge_chronicle*dx_Q(1)*w_1(1);
+%             if(sum(qs1(:)<0)>0)
+%                 Min_value_replaced=min(qs1(qs1<0));
+%                 Number_values_replaced=sum(qs1(:)<0);
+%                 fprintf(strcat('Warning: \n ',num2str(Number_values_replaced),' values have been replaced that were negative \n Values are between 0 and ',num2str(Min_value_replaced),'\n'));
+%                 qs1(qs1<0)=0;
+%             end
             qs1=bsxfun(@rdivide,qs1,w_1.*dx_Q);
             time_2006_2=time_properties(run_obj.simulation_results.t(1),run_obj.simulation_results.t(end),length(run_obj.simulation_results.t),'sec');
             seep=source('data_based');
@@ -1037,7 +1039,7 @@ classdef simulation_set
             x=x_Q1;
             z_bottom=cumtrapz(x,angle1);
             z_bottom_soil=z_bottom+[d1_2;2*d1_2(end)-d1_2(end-1)];
-            z_landsurface=z_bottom_soil+3;
+            z_landsurface=z_bottom_soil+1.5;
             d_soil=z_landsurface-z_bottom_soil;
             slope_angle2=(z_bottom_soil(2:end)-z_bottom_soil(1:end-1))./(x(2:end)-x(1:end-1));
             slope_angle2=[slope_angle2;slope_angle2(end)];
@@ -1063,7 +1065,8 @@ classdef simulation_set
             
             t=datetime(datestr(run_obj.simulation_results.t/(24*3600)));
             load('H:\Data_Guillec_Daily\input_output_Guillec.mat');
-            [DPSA_soil,RF_soil]=compute_DPSA_RF(run_obj2.simulation_results,run_obj2.boussinesq_simulation);
+            [DPSA_soil,RF_soil,DPSA_spat_soil,RF_spat_soil]=compute_DPSA_RF(run_obj2.simulation_results,run_obj2.boussinesq_simulation);
+            
             
             GW_bed=-run_obj.simulation_results.Q(2,:);
             Flow_bed=GW_bed+RF_bed;

@@ -505,9 +505,16 @@ classdef simulation_results
             dx_QS=diag(dx);
             DPSA_spat=dx_QS*DPSA_spat;
             RF_spat=dx_QS*RF_spat;
-%             [x_S1,w_1]=get_resampled_variables(bouss_sim.discretization);
-%             DPSA_spat(1,:)=bouss_sim.source_terms.recharge_chronicle(1,:)*x_S1(1)*w_1(1);
-%             RF_spat(1,:)=-obj.Q(2,:);
+            [~,w_1,~,~,x_Q1]=get_resampled_variables(bouss_sim.discretization);
+            DPSA_spat(1,:)=bouss_sim.source_terms.recharge_chronicle(1,:)*(x_Q1(2)-x_Q1(1))*w_1(1);
+            RF_spat(1,:)=-obj.Q(2,:);
+            
+            % test
+            DPSA_spat(RF_spat<0)=DPSA_spat(RF_spat<0)+RF_spat(RF_spat<0);
+            RF_spat(RF_spat<0)=0;
+            RF_spat(DPSA_spat<0)=RF_spat(DPSA_spat<0)+DPSA_spat(DPSA_spat<0);
+            DPSA_spat(DPSA_spat<0)=0;
+            
             DPSA=sum(DPSA_spat);
             RF=sum(RF_spat);
         end
