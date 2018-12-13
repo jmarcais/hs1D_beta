@@ -364,8 +364,8 @@ classdef transport
                     Weight_total_ET=sum(Weight_partial_ET);
                     Weight_partial_ET=Weight_partial_ET./Weight_total_ET;
                     pos_2_ET=mod(particle_subject_to_ET,block_size); pos_2_ET(pos_2_ET==0)=block_size;
-                    Initial_infiltration_point=x_S(pos_2_ET);
-                    [~,Index_]=sort(Initial_infiltration_point);
+                    Initial_infiltration_point_ET=x_S(pos_2_ET);
+                    [~,Index_]=sort(Initial_infiltration_point_ET);
                     Weight_cum_ET=cumsum(Weight_partial_ET(Index_));
                     Particle_to_delete=particle_subject_to_ET(Index_(Weight_cum_ET<=ET_prop));
                     obj.x_traj(Particle_to_delete,1:end)=0;
