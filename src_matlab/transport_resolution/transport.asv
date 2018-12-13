@@ -346,8 +346,7 @@ classdef transport
 % %                 Subsurface_flux=nakeinterp1([-1;x_Q],[0;deval(sol_simulated,obj.t(i),block_size+1:2*block_size+1)],x_S);
 % %                 Seepage_proportion=Seepage./(Seepage+abs(Subsurface_flux));
 % %                 Seepage_proportion(isnan(Seepage_proportion))=0;
-                % #JM #JM_IPGP "delete" the particles that are retrieved by ET
-                % #JM check if the fact to put the entire line at 0 has for effect not to consider it in the TTD computations
+                % "delete" the particles that are retrieved by ET
                 ET_pos=find(Negative_NetPrecip_proportion(:,i)>0);
                 Particle_to_delete=[];
                 ET_prop=0;
@@ -363,12 +362,16 @@ classdef transport
                     Weight_partial_ET=obj.weight(particle_subject_to_ET);
                     Weight_total_ET=sum(Weight_partial_ET);
                     Weight_partial_ET=Weight_partial_ET./Weight_total_ET;
-                    pos_2_ET=mod(particle_subject_to_ET,block_size); pos_2_ET(pos_2_ET==0)=block_size;
-                    Initial_infiltration_point=x_S(pos_2_ET);
+                    pos_2=mod(particle_subject_to_ET,block_size); pos_2(pos_2==0)=block_size;
+                    Initial_infiltration_point=x_S(pos_2);
                     [~,Index_]=sort(Initial_infiltration_point);
-                    Weight_cum_ET=cumsum(Weight_partial_ET(Index_));
-                    Particle_to_delete=particle_subject_to_ET(Index_(Weight_cum_ET<=ET_prop));
-                    obj.x_traj(Particle_to_delete,1:end)=0;
+                    Weight_cum=cumsum(Weight_partial_ET(Index_));
+                    Particle_to_delete=particle_subject_to_ET(Index_(Weight_cum<=ET_prop));
+                    if(nargin>8)
+                        obj.x_traj(Particle_to_delete,i+1:end)=x_traj_soil(Particle_to_delete,i+1:end);
+                    else
+                        obj.x_traj(Particle_to_delete,i+1:end)=0;
+                    end
                 end
                 
                 % not considering the "seepage" coming out the river as it is not real seepage
