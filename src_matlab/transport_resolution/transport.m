@@ -309,9 +309,9 @@ classdef transport
             Subsurface_flux2=Subsurface_flux;
             NetPrecip=obj.N;
             dx_Q=x_Q(2:end)-x_Q(1:end-1);
-            area_spatialized=w*dx_Q;
+            area_spatialized=w.*dx_Q;
             if(size(obj.N,1)==1)
-                NetPrecip=area_spatialized*precip;
+                NetPrecip=area_spatialized*NetPrecip;
             else
                 NetPrecip=bsxfun(@times,NetPrecip,area_spatialized);
             end
