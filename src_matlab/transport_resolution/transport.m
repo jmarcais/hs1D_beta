@@ -314,10 +314,11 @@ classdef transport
         
         % analyze particle paths present in the same element of the hillslope at a given time. If seepage is occuring in this element
         % then a certain number of particle is exiting the medium according to the ratio of seepage vs total flow the element is experiencing
-        function obj=cut_trajectory_seepage(obj,Discretized_Aquifer_Volume,block_size,x_S,x_Q,w,RF_spat,Subsurface_flux,x_traj_soil)
+%1         function obj=cut_trajectory_seepage(obj,Discretized_Aquifer_Volume,block_size,x_S,x_Q,w,RF_spat,Subsurface_flux,x_traj_soil)
+        function obj=cut_trajectory_seepage(obj,block_size,x_S,x_Q,w,RF_spat,x_traj_soil)
             Seepage=RF_spat;
             Seepage(Seepage<0)=0;
-            Subsurface_flux2=Subsurface_flux;
+            Seepage(1,:)=0;
             NetPrecip=obj.N;
             dx_Q=x_Q(2:end)-x_Q(1:end-1);
             area_spatialized=w.*dx_Q;
@@ -326,79 +327,35 @@ classdef transport
             else
                 NetPrecip=bsxfun(@times,NetPrecip,area_spatialized);
             end
-%             
-%             area_spatialized=w;
-%             area_spatialized= repmat(area_spatialized,1,size(obj.N,2));
-%             precip=obj.N;
-%             if(size(obj.N,1)==1)
-%                 precip=repmat(precip,length(w),1);
-%             end
-%             infilt_spat=precip.*area_spatialized;
-%             Seepage=deval(sol_simulated,obj.t,2*block_size+2:3*block_size+1)-infilt_spat;
-%             Seepage(Seepage<0)=0;
-%             
-%             Subsurface_flux2=deval(sol_simulated,obj.t,block_size+1:2*block_size+1);
-            Subsurface_flux2=[zeros(1,size(obj.N,2));Subsurface_flux2];
-            x_Q2=[-1;x_Q];
-            Subsurface_flux=zeros(length(x_S),size(obj.N,2));
-            for i=1:size(obj.N,2)
-                Subsurface_flux(:,i)=nakeinterp1(x_Q2,Subsurface_flux2(:,i),x_S);
-            end
+            NetPrecip(1,:)=0;
+
             %#JM_IPGP #JM test if the normalization should happen to the volume
             dt=obj.t(2:end)-obj.t(1:end-1);
             t_edge1=obj.t-[dt(1),dt]/2;
             t_edge2=obj.t+[dt,dt(end)]/2;
             dt=t_edge2-t_edge1;
-            Discretized_Aquifer_Volume_m3s=bsxfun(@rdivide,Discretized_Aquifer_Volume,dt);
-            Negative_NetPrecip_proportion=zeros(size(NetPrecip));
-            Negative_NetPrecip_proportion(NetPrecip<0)=-NetPrecip(NetPrecip<0)./(Discretized_Aquifer_Volume_m3s(NetPrecip<0));
-            Negative_NetPrecip_proportion(isnan(Negative_NetPrecip_proportion))=0;
-            Negative_NetPrecip_proportion(1,:)=0;
-            Seepage_proportion=Seepage./(Discretized_Aquifer_Volume_m3s);
-            Seepage_proportion(isnan(Seepage_proportion))=0;
-            Seepage_proportion(1,:)=0;
-            
-%             Negative_NetPrecip_proportion=zeros(size(NetPrecip));
-%             Negative_NetPrecip_proportion(NetPrecip<0)=-NetPrecip(NetPrecip<0)./(-NetPrecip(NetPrecip<0)+Seepage(NetPrecip<0)+abs(Subsurface_flux(NetPrecip<0)));
-%             Seepage_proportion=Seepage./(Seepage+abs(Subsurface_flux)); 
-%             Seepage_proportion(NetPrecip<0)=Seepage(NetPrecip<0)./(-NetPrecip(NetPrecip<0)+Seepage(NetPrecip<0)+abs(Subsurface_flux(NetPrecip<0))); 
-%             Seepage_proportion(isnan(Seepage_proportion))=0;
-%             Seepage_proportion(1,:)=0;
+
             BB=zeros(1,length(obj.t));
             for i=1:length(obj.t)
-% %#JM20180616ChangeTest                 Surface_flux=deval(sol_simulated,obj.t(i),2*block_size+2:3*block_size+1).*dx;
-% %                 Seepage=Surface_flux; Seepage(Surface_flux>0)=Seepage(Surface_flux>0)-obj.N(i)*area_spatialized(Surface_flux>0);
-% %                 Seepage(Seepage<0)=0;
-% %                 Subsurface_flux=nakeinterp1([-1;x_Q],[0;deval(sol_simulated,obj.t(i),block_size+1:2*block_size+1)],x_S);
-% %                 Seepage_proportion=Seepage./(Seepage+abs(Subsurface_flux));
-% %                 Seepage_proportion(isnan(Seepage_proportion))=0;
                 % #JM #JM_IPGP "delete" the particles that are retrieved by ET
-                % #JM check if the fact to put the entire line at 0 has for effect not to consider it in the TTD computations
-                ET_pos=find(Negative_NetPrecip_proportion(:,i)>0);
+                ET_pos=find(-NetPrecip(:,i)>0);
                 Particle_to_tag=[];
-                ET_prop=0;
+                ET_m3s=0;
                 for j=1:length(ET_pos)
                     if(~isempty(Particle_to_tag))
-                        ET_prop=ET_prop-Weight_cum_ET(Weight_cum_ET<=ET_prop);
-                        ET_prop=ET_prop(end);
-                        ET_m3s=ET_prop*(-NetPrecip(pos_ET,i))/Negative_NetPrecip_proportion(pos_ET,i);
+                        ET_m3s=ET_m3s-Weight_cum_ET(Weight_cum_ET<=ET_m3s);
+                        ET_m3s=ET_m3s(end);
                     end
                     pos_ET=ET_pos(end-j+1); %pos_ET=ET_pos(j); % 
-                    if(~isempty(Particle_to_tag))
-                        ET_prop=ET_m3s./Discretized_Aquifer_Volume_m3s(pos_ET,i);
-                    end
-                    ET_prop=ET_prop+Negative_NetPrecip_proportion(pos_ET,i);
-                    ET_prop=Negative_NetPrecip_proportion(pos_ET,i);
+                    ET_m3s=ET_m3s-NetPrecip(pos_ET,i);
                     
                     particle_subject_to_ET=find((obj.x_traj(:,i)<=x_Q(pos_ET+1)) & (obj.x_traj(:,i)>x_Q(pos_ET)));
-                    Weight_partial_ET=obj.weight(particle_subject_to_ET);
-                    Weight_total_ET=sum(Weight_partial_ET);
-                    Weight_partial_ET=Weight_partial_ET./Weight_total_ET;
+                    Weight_partial_ET=obj.weight(particle_subject_to_ET)/(1000*dt(i));
                     pos_2_ET=mod(particle_subject_to_ET,block_size); pos_2_ET(pos_2_ET==0)=block_size;
                     Initial_infiltration_point_ET=x_S(pos_2_ET);
                     [~,Index_]=sort(Initial_infiltration_point_ET);
                     Weight_cum_ET=cumsum(Weight_partial_ET(Index_));
-                    Particle_to_tag=particle_subject_to_ET(Index_(Weight_cum_ET<=ET_prop));
+                    Particle_to_tag=particle_subject_to_ET(Index_(Weight_cum_ET<=ET_m3s));
 %                     obj.x_traj(Particle_to_tag,1:end)=0;
                      obj.ET_out(Particle_to_tag)=obj.ET_out(Particle_to_tag)+1;
                      obj.DGW_out(Particle_to_tag)=0;
@@ -418,39 +375,30 @@ classdef transport
                 
                 % not considering the "seepage" coming out the river as it is not real seepage
                 
-                Seepage_pos=find(Seepage_proportion(:,i)>0);
+                Seepage_pos=find(Seepage(:,i)>0);
                 Particle_Position_to_delete=[];
-                Seep_prop=0;
+                Seep_m3s=0;
                 for j=1:length(Seepage_pos)
                     if(~isempty(Particle_Position_to_delete))
 %                         Seep_prop=Seep_prop+Seepage_proportion(pos_,i);
 %                     else
-                        Seep_prop=Seep_prop-Weight_cum(Weight_cum<=Seep_prop);
-                        Seep_prop=Seep_prop(end);
-                        Seep_m3s=Seep_prop*(Seepage(pos_,i))/Seepage_proportion(pos_,i);
+                        Seep_m3s=Seep_m3s-Weight_cum(Weight_cum<=Seep_m3s);
+                        Seep_m3s=Seep_m3s(end);
                     end
                     pos_=Seepage_pos(end-j+1); %pos_=Seepage_pos(j); %
-                    if(~isempty(Particle_Position_to_delete))
-                        Seep_prop=Seep_m3s./Discretized_Aquifer_Volume_m3s(pos_,i);
-                    end
-                    Seep_prop=Seep_prop+Seepage_proportion(pos_,i);
-                    Seep_prop=Seepage_proportion(pos_,i);
+                    Seep_m3s=Seep_m3s+Seepage(pos_,i);
                     
-%                     x_S_seep=x_S(pos_);
                     particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));
-                    Weight_partial=obj.weight(particle_subject_to_seep);
-                    Weight_total=sum(Weight_partial);
-                    Weight_partial=Weight_partial./Weight_total;
+                    Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
                     pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
                     Initial_infiltration_point=x_S(pos_2);
                     [~,Index_]=sort(Initial_infiltration_point);
                     Weight_cum=cumsum(Weight_partial(Index_));
-                    Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_prop));
+                    Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
                     obj.Seep_out(Particle_Position_to_delete)=obj.Seep_out(Particle_Position_to_delete)+1;
                     obj.DGW_out(Particle_Position_to_delete)=0;
                     
-% % %#20180116                                             obj.x_traj(Particle_Position_to_delete,i+1:end)=nan;
-                    if(nargin>8)% && ~isnan(x_traj_soil))
+                    if(nargin>6)% && ~isnan(x_traj_soil))
                         obj.x_traj(Particle_Position_to_delete,i+1:end)=x_traj_soil(Particle_Position_to_delete,i+1:end);
                     else
                         obj.x_traj(Particle_Position_to_delete,i+1:end)=0;
@@ -868,8 +816,7 @@ classdef transport
             obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q);
             obj=obj.cut_trajectory_saturated_areas(Bool_sat);
             dx=x_Q(2:end)-x_Q(1:end-1);
-            Discretized_Aquifer_Volume=bsxfun(@times,runs.simulation_results.S,dx);
-            obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+            obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
             obj=obj.update_DGW(x_Q);
             
             % retrieve the particles essential properties for their travel inside the aquifer
