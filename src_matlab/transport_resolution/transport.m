@@ -101,12 +101,16 @@ classdef transport
                 t_edge1=obj.t-[dt(1),dt]/2;
                 t_edge2=obj.t+[dt,dt(end)]/2;
                 dt=t_edge2-t_edge1;
-                dt_inj=dt(obj.t_inj_pos);
-                dt_inj=dt_inj';
-                dt_inj=repelem(dt_inj,length(obj.x));
-                dflux=dt_inj.*obj.N_inj*1000;
-                % % %             weight_temp=discretized_area*N_inj;
-                weight_temp=repelem(discretized_area,length(obj.t_inj)).*dflux;
+                inmass=obj.N.*(discretized_area*dt)*1000; % incoming mass in L
+% %                 dt_inj=dt(obj.t_inj_pos);
+% %                 dt_inj=dt_inj';
+% %                 dt_inj=repelem(dt_inj,length(obj.x));
+% %                 dflux=dt_inj.*obj.N_inj*1000;
+% %                 % % %             weight_temp=discretized_area*N_inj;
+% %                 weight_temp=repelem(discretized_area,length(obj.t_inj)).*dflux;
+                weight_temp=inmass(:,obj.t_inj_pos);
+                size_=size(weight_temp);
+                weight_temp=reshape(weight_temp,size_(1)*size_(2),1);
                 obj.weight=weight_temp;
             else
                 dt_inj=obj.t_inj(2:end)-obj.t_inj(1:end-1);
@@ -416,6 +420,25 @@ classdef transport
             obj.x_traj=sparse(obj.x_traj);
         end
         
+        function obj=cut_trajectory_groundwater(obj,sol_simulated,x_Q)
+            dt=obj.t(2:end)-obj.t(1:end-1);
+            t_edge1=obj.t-[dt(1),dt]/2;
+            t_edge2=obj.t+[dt,dt(end)]/2;
+            dt=t_edge2-t_edge1;
+            
+            Q_GW=-deval(sol_simulated,obj.t,block_size+1);
+            
+            for i=1:length(obj.t)
+                particle_subject_to_gw=find((obj.x_traj(:,i)<=x_Q(3)));
+                particle_position=obj.x_traj(particle_subject_to_gw,i);
+                [~,Index_]=sort(particle_position);
+                Weight_partial=obj.weight(particle_subject_to_gw)/(1000*dt(i));
+                Weight_cum=cumsum(Weight_partial(Index_));
+                Particle_Position_to_gw=particle_subject_to_gw(Index_(Weight_cum<=Q_GW(i)));
+                obj.x_traj(Particle_Position_to_gw,i+1:end)=0;
+            end
+        end
+        
         function obj=update_DGW(obj,x_Q)
             Bool_fin=obj.x_traj(:,end)>x_Q(2);
             obj.DGW_out(Bool_fin)=0;
@@ -520,13 +543,14 @@ classdef transport
             delta_x_groundwater=x_fin-x_init;
         end
         
-        function [transit_times,weights_]=get_ttds_bis(obj,sample_time,t_out,delta_t)
+        function [transit_times,weights_,number_of_particle]=get_ttds_bis(obj,sample_time,t_out,delta_t)
             if(nargin<3)
                 [t_out,delta_t]=get_trajectory_properties(obj);
             end
             [~,Index_time]=min(abs(obj.t-sample_time));
             transit_times=delta_t(t_out==obj.t(Index_time));
             weights_=obj.weight(t_out==obj.t(Index_time));
+            number_of_particle=sum(t_out==obj.t(Index_time));
         end
         
         function [transit_times,weights_]=get_rtds_bis(obj,sample_time,t_out,delta_t)
@@ -605,14 +629,16 @@ classdef transport
             [time_support,weighted_pdf]=compute_full_distribution(obj,transit_times,weights_);
         end
         
-        function [time_support,weighted_pdf,mean_,std_]=compute_full_distribution(obj,transit_times,weights_,transit_distance,travel_time_soil)
-            if(nargin>3)
+        function [time_support,weighted_pdf,mean_,std_]=compute_full_distribution(obj,transit_times,weights_,time_support,transit_distance,travel_time_soil)
+            if(nargin<4)
+                time_support=(0:0.1:1000)*24*365*3600;
+            end
+            if(nargin>4)
                 travel_time_particle_soil=interpn(obj.x-obj.x(1),travel_time_soil,transit_distance);
                 transit_times(transit_times==0)=travel_time_particle_soil(transit_times==0);
                 time_support=(0:0.01:1000)*24*365*3600;
-            else
-                time_support=(0:0.1:1000)*24*365*3600;
             end
+
                 % #JM20180617 Test add a one day delay for particle injected on the river (which have a zero transit time)
 %                 transit_times(transit_times==0)=0.1*24*3600; % maybe we need to refine time_support discretization to see the difference
                 %             pdf=@(t)(0.25.*(transit_distance/alpha_disp).*(transit_time./t).^3).^0.5.*exp(-0.25*transit_distance/alpha_disp.*(t-transit_time).^2./(t.*transit_time));
@@ -624,10 +650,15 @@ classdef transport
                 %             pdf=@(t) bsxfun(fun3,bsxfun(fun1,k,t).*bsxfun(fun2,theta,t),theta.^k);
                 
                 %             time_support=(0:1:365)*24*3600;
+                if(time_support(1)~=0)
+                    transit_times(transit_times==0)=time_support(1);
+                end
                 compute_pdf=pdf(time_support);
-                compute_pdf(:,1)=0;
-                compute_pdf(transit_times==0,1)=2/(time_support(2)-time_support(1));
-                compute_pdf(transit_times==0,2:end)=0;
+                if(time_support(1)==0)
+                    compute_pdf(:,1)=0;
+                    compute_pdf(transit_times==0,1)=2/(time_support(2)-time_support(1));
+                    compute_pdf(transit_times==0,2:end)=0;
+                end
                 if(length(weights_)~=1)
                     weight_total=sum(weights_);
                     weighted_pdf=1/weight_total*nansum(bsxfun(@times,compute_pdf,weights_));
@@ -636,7 +667,7 @@ classdef transport
                 end
                 %             figure;
                 weighted_pdf_area=trapz(time_support,weighted_pdf);
-% % % %                 weighted_pdf=weighted_pdf/weighted_pdf_area;
+                weighted_pdf=weighted_pdf/weighted_pdf_area;
                 %             plot(time_support/(24*365*3600),weighted_pdf*24*365*3600/weighted_pdf_area);
                 % #JM comment to gain speed
                 mean_=trapz(time_support/(24*365*3600),time_support/(24*365*3600).*weighted_pdf*24*365*3600/weighted_pdf_area);
@@ -817,6 +848,7 @@ classdef transport
             obj=obj.cut_trajectory_saturated_areas(Bool_sat);
             dx=x_Q(2:end)-x_Q(1:end-1);
             obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+%             obj=obj.cut_trajectory_groundwater(sol_simulated,x_Q);
             obj=obj.update_DGW(x_Q);
             
             % retrieve the particles essential properties for their travel inside the aquifer
@@ -847,6 +879,122 @@ classdef transport
             transit_times_soil(obj.ET_out>0)=nan;
         end
         
+        function transport_2compartments(run_shallow,run_deep)
+            obj=transport.run_transport_simu(run_shallow);
+            % retrieve the particles essential properties for their travel inside the aquifer
+            [t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=obj.get_trajectory_properties;
+            
+            % exponential approximation for run_deep
+            [~,~,~,RF_spat_deep]=compute_DPSA_RF(run_deep.simulation_results,run_deep.boussinesq_simulation);
+            Q_out_deep=sum(RF_spat_deep);
+            Volume_deep=trapz(x_S,run_deep.simulation_results.S);
+            tau_deep=Volume_deep./Q_out_deep;
+            
+            time_support=logspace(-4,3,10001)*24*365*3600;%(0:0.001:10)*24*365*3600;
+            weighted_pdfs_shallow=nan(length(obj.t)-1,length(time_support));
+            weighted_pdfs_deep=nan(length(obj.t)-1,length(time_support));
+            weighted_pdfs=nan(length(obj.t)-1,length(time_support));
+            mean_shallow=nan(1,length(obj.t)-1);
+            std_shallow=nan(1,length(obj.t)-1);
+            mean_tot=nan(1,length(obj.t)-1);
+            std_tot=nan(1,length(obj.t)-1);
+            median_tot=nan(1,length(obj.t)-1);
+            median_shallow=nan(1,length(obj.t)-1);
+
+            number_of_particle_shallow=nan(1,length(obj.t)-1);
+            Q_shallow=nan(1,length(obj.t)-1);
+            dt=obj.t(2:end)-obj.t(1:end-1);
+            t_edge1=obj.t-[dt(1),dt]/2;
+            t_edge2=obj.t+[dt,dt(end)]/2;
+            dt=t_edge2-t_edge1;
+            for i=1:(length(obj.t)-1)
+                [transit_times,weights_,number_of_particle_shallow(i)]=obj.get_ttds_bis(obj.t(i),t_out_groundwater,transit_times_groundwater);
+                [~,weighted_pdfs_shallow(i,:),mean_shallow(i),std_shallow(i)]=obj.compute_full_distribution(transit_times,weights_,time_support);
+                weighted_pdfs_deep(i,:)=1/tau_deep(i)*exp(-time_support/tau_deep(i));
+                weighted_pdfs(i,:)=(Q_out_deep(i)*weighted_pdfs_deep(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
+                Q_shallow(i)=sum(weights_/1000)/(dt(i));
+                mean_tot(i)=trapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600).*time_support/(24*365*3600));
+                std_tot(i)=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs(i,:)*24*365*3600)-mean_tot(i)^2);
+                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs_shallow(i,:)*(24*365*3600))));
+                median_shallow(i)=time_support(Index_)/(3600*24);
+                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600))));
+                median_tot(i)=time_support(Index_)/(3600*24);
+            end
+        end
+        
+        function transport_3compartments(run_soil,run_reg,run_bed)
+            obj_soil=transport.run_transport_simu(run_soil);
+            [obj_reg,DPSA_shallow,RF_shallow,x_S]=transport.run_transport_simu(run_reg);
+            %1st option
+            obj_shallow=obj_reg;
+            obj_shallow.weight(obj_reg.DP_out==1)=obj_soil.weight(obj_reg.DP_out==1);
+            obj_shallow.x_traj(obj_reg.DP_out==1,:)=obj_soil.x_traj(obj_reg.DP_out==1,:);
+            %2nd option
+%             obj_shallow=obj_reg;
+%             obj_shallow.weight=obj_shallow.weight(obj_reg.DP_out==0);
+%             obj_shallow.x_traj=obj_shallow.x_traj(obj_reg.DP_out==0,:);
+%             obj_shallow.N_inj=obj_shallow.N_inj(obj_reg.DP_out==0);
+%             obj_shallow.ET_out=obj_shallow.ET_out(obj_reg.DP_out==0);
+%             obj_shallow.DGW_out=obj_shallow.DGW_out(obj_reg.DP_out==0);
+%             obj_shallow.Seep_out=obj_shallow.Seep_out(obj_reg.DP_out==0);
+%             obj_shallow.DP_out=obj_shallow.DP_out(obj_reg.DP_out==0);
+%             obj_shallow.weight=[obj_shallow.weight;obj_soil.weight];
+%             obj_shallow.x_traj=[obj_shallow.x_traj;obj_soil.x_traj];
+%             obj_shallow.N_inj=[obj_shallow.N_inj;obj_soil.N_inj];
+%             obj_shallow.ET_out=[obj_shallow.ET_out;obj_soil.ET_out];
+%             obj_shallow.DGW_out=[obj_shallow.DGW_out;obj_soil.DGW_out];
+%             obj_shallow.Seep_out=[obj_shallow.Seep_out;obj_soil.Seep_out];
+%             obj_shallow.DP_out=[obj_shallow.DP_out;obj_soil.DP_out];
+            
+
+            % retrieve the particles essential properties for their travel inside the aquifer
+            [t_out_shallow,transit_times_shallow,x_fin_shallow]=obj_shallow.get_trajectory_properties;
+            
+            % exponential approximation for run_deep
+            [~,~,~,RF_spat_deep]=compute_DPSA_RF(run_bed.simulation_results,run_bed.boussinesq_simulation);
+            Q_out_deep=sum(RF_spat_deep);
+            Volume_deep=trapz(x_S,run_bed.simulation_results.S);
+            tau_deep=Volume_deep./Q_out_deep;
+            
+            time_support=logspace(-4,3,10001)*24*365*3600;%(0:0.001:10)*24*365*3600;
+            weighted_pdfs_shallow=nan(length(obj_shallow.t)-1,length(time_support));
+            weighted_pdfs_deep=nan(length(obj_shallow.t)-1,length(time_support));
+            weighted_pdfs=nan(length(obj_shallow.t)-1,length(time_support));
+            mean_shallow=nan(1,length(obj_shallow.t)-1);
+            std_shallow=nan(1,length(obj_shallow.t)-1);
+            mean_tot=nan(1,length(obj_shallow.t)-1);
+            std_tot=nan(1,length(obj_shallow.t)-1);
+            median_tot=nan(1,length(obj_shallow.t)-1);
+            median_shallow=nan(1,length(obj_shallow.t)-1);
+            delta_18O_synth=nan(1,length(obj_shallow.t)-1);
+
+            number_of_particle_shallow=nan(1,length(obj_shallow.t)-1);
+            Q_shallow=nan(1,length(obj_shallow.t)-1);
+            dt=obj_shallow.t(2:end)-obj_shallow.t(1:end-1);
+            t_edge1=obj_shallow.t-[dt(1),dt]/2;
+            t_edge2=obj_shallow.t+[dt,dt(end)]/2;
+            dt=t_edge2-t_edge1;
+            for i=1:(length(obj_shallow.t)-1)
+                [transit_times,weights_,number_of_particle_shallow(i)]=obj_shallow.get_ttds_bis(obj_shallow.t(i),t_out_shallow,transit_times_shallow);
+                [~,weighted_pdfs_shallow(i,:),mean_shallow(i),std_shallow(i)]=obj_shallow.compute_full_distribution(transit_times,weights_,time_support);
+                weighted_pdfs_deep(i,:)=1/tau_deep(i)*exp(-time_support/tau_deep(i));
+                weighted_pdfs(i,:)=(Q_out_deep(i)*weighted_pdfs_deep(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
+                Q_shallow(i)=sum(weights_/1000)/(dt(i));
+                mean_tot(i)=trapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600).*time_support/(24*365*3600));
+                std_tot(i)=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs(i,:)*24*365*3600)-mean_tot(i)^2);
+                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs_shallow(i,:)*(24*365*3600))));
+                median_shallow(i)=time_support(Index_)/(3600*24);
+                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600))));
+                median_tot(i)=time_support(Index_)/(3600*24);
+                % under devt
+                AA=(obj_shallow.t(i))/(24*3600)-time_support/(24*3600);
+                BB=datetime(datestr(AA));
+                delta_t=AA-datenum(datetime(year(BB),1,1,12,00,00));
+                Conc_in_delta_18O=-13.5-6.5*cos(delta_t/365*2*pi);
+                delta_18O_synth(i)=trapz(Conc_in_delta_18O.*weighted_pdfs(i,:));
+            end
+        end
+        
         function [obj,x_S,x_Q,width,velocity,Bool_sat,sol_simulated]=instantiate_transport_and_velocity_field(runs)
             sim_res=runs.simulation_results;
             bouss_sim=runs.boussinesq_simulation;
@@ -866,8 +1014,13 @@ classdef transport
             % Bool_sat computation
             relstor=bsxfun(@rdivide,sim_res.S,Smax);
             % first mesh is always considered as saturated (it is the river)
-            relstor(:,1)=1;
+            relstor(1,:)=1;
             Bool_sat=relstor>=0.999925;%0.99995;%0.99999;%0.9999;%0.999;
+            % alternative
+%             [~,~,DP_spat,RF_spat]=compute_DPSA_RF(sim_res,bouss_sim);
+%             Bool_sat=DP_spat>0;
+%             Bool_sat(1,:)=1;
+            
             
             %             spacing_=1*24*3600;
             spacing_=-1;
@@ -886,6 +1039,22 @@ classdef transport
             end
             velocity(isnan(velocity))=0;
             sol_simulated=bouss_sim.sol_simulated;
+        end
+        
+        function [obj,DPSA_shallow,RF_shallow,x_S]=run_transport_simu(run_boussinesq)
+            [obj,x_S,x_Q,width,velocity,Bool_sat,sol_simulated]=transport.instantiate_transport_and_velocity_field(run_boussinesq);
+            block_size=length(x_S);
+            
+            [DPSA_shallow,RF_shallow,DP_spat,RF_spat]=compute_DPSA_RF(run_boussinesq.simulation_results,run_boussinesq.boussinesq_simulation);
+            Subsurface_flux=run_boussinesq.simulation_results.Q;
+            
+            % compute the trajectories inside the aquifer
+            obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q);
+            obj=obj.cut_trajectory_saturated_areas(Bool_sat);
+            dx=x_Q(2:end)-x_Q(1:end-1);
+            obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+%             obj=obj.cut_trajectory_groundwater(sol_simulated,x_Q);
+            obj=obj.update_DGW(x_Q);
         end
         
         function obj=post_transport(folder_dir)
