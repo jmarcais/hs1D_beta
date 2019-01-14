@@ -142,9 +142,7 @@ classdef simulation_set
                 end
             end
         end
-    end
-    
-    methods(Access=public)    
+      
         function output_list_directory=get_inputs(obj,directory,type_of_inputs)
             if(nargin>=3)
                 directory=[directory,'\',type_of_inputs];
@@ -456,6 +454,56 @@ classdef simulation_set
             simulation_folder_path=strrep(simulation_folder_path, '\', '/');
             fprintf(fid, [num2str(i),'\t',simulation_folder_path,'\t',num2str(error),'\n']);
             fclose(fid);
+        end
+        
+        function runs_=run_simulation_from_struct(obj,x,f,k,width,slope,d,runs_below)
+             k=k*ones(size(x));
+             f=f*ones(size(x));
+                
+                if(sum(d<0)==0)
+                    hs1D=hillslope1D(1,f,k);
+                    hs1D=hs1D.set_spatial_parameters(x,width,slope,d);
+                    if(nargin<8)
+                        hydro_loc=obj.hydrologic_inputs_directory{1};
+                        [M,input_type]=obj.read_input_file(hydro_loc);
+                        t=M(:,1);
+                        recharge_chronicle=(M(:,2:end))';
+                        
+                        ratio_P_R=1.1588;%0.875;%.33;%/0.38;
+                        source_terms=source('data_based');
+%                         [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                        time_2006_bis=time_properties(t(1),t(end),length(t),'sec');
+                        time_2006_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
+                        source_terms.time=time_2006_1;
+                        source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle*ratio_P_R,(time_2006_1.get_properties));
+                        source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
+                        
+                        odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',30*3600*24);
+                        ratio_P_R=1;
+                    else
+                        [~,w_1]=get_resampled_variables(runs_below.boussinesq_simulation.discretization);
+                        [~,~,DPSA_spat_bed]=compute_DPSA_RF(runs_below.simulation_results,runs_below.boussinesq_simulation);
+                        qs1=DPSA_spat_bed;
+                        dx_Q=runs_below.simulation_results.x_Q(2:end)-runs_below.simulation_results.x_Q(1:end-1);
+                        qs1=bsxfun(@rdivide,qs1,w_1.*dx_Q);
+                        time_2006_2=time_properties(runs_below.simulation_results.t(1),runs_below.simulation_results.t(end),length(runs_below.simulation_results.t),'sec');
+                        source_terms=source('data_based');
+                        source_terms.time=time_2006_2;
+                        source_terms.recharge_chronicle=qs1;
+                        source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
+                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);
+                    end
+                    
+                    ratio_P_R=1;
+                    percentage_loaded=0;
+                    recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                    presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
+                    % run transient simulation 
+                    runs_=runs;
+                    solver_options=runs_.set_solver_options(odeset_struct);
+                    runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
+                end
         end
     end
     
@@ -799,7 +847,7 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
             tic
-            range_= 1:1500;%4332:4505; % 1531:1704; %1:1465;%1:8759; %
+            range_=1:1500;% 4332:4505; % 1531:1704; %1:1465;%1:8759; %
             if(nargin<4)
                 f1=0.2;
             end
@@ -891,6 +939,12 @@ classdef simulation_set
                     t=M(:,1);
                     recharge_chronicle=(M(:,2:end))';
                     
+% %                     time_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
+% %                     source_terms=source('data_based');
+% %                     source_terms.time=time_1;
+% %                     source_terms.recharge_chronicle=interp1((t)',(M(:,2:end))',(time_1.get_properties));
+% %                     source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
+                    
                     ratio_P_R=1;%0.875;%.33;%/0.38;
                     source_terms=source('data_based');
                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
@@ -901,7 +955,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24/10);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',30*3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
@@ -911,10 +965,10 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'full');
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'full');
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
                     slope_angle_top=interpn(x,slope_angle,x_Q1);
@@ -1006,7 +1060,111 @@ classdef simulation_set
 
         end
         
-        function simulation_complete(k_bed,f_bed,k_soil,f_soil,file_path)
+        function simulation_3compartments(f_bed,k_bed,f_reg,k_reg,alpha_slope_reg,f_soil,k_soil,d_soil_init,file_path)
+                occurence_slash=strfind(file_path,'\');
+                folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
+                
+                
+                obj=simulation_set(folder_root);
+                obj=obj.instantiate_all_inputs_directory;
+                
+                
+                % locations of different inputs file
+                hydro_loc=obj.hydrologic_inputs_directory{1};
+                morpho_loc=obj.morphologic_inputs_directory{1};
+                
+                % 1/ set structure file
+                M=obj.read_input_file(morpho_loc);
+                x=M(:,1); width=M(:,2); slope_angle=M(:,3); z=M(:,4);
+                
+                z_land_surface=z(1)+cumtrapz(x,slope_angle);
+                slope_bottom_soil=slope_angle;
+                z_bottom_soil=z_land_surface-d_soil_init;
+                d_soil=z_land_surface-z_bottom_soil;
+                slope_bottom_regolith=slope_angle; 
+                z_bottom_regolith=z_bottom_soil-alpha_slope_reg;
+                d_reg=z_bottom_soil-z_bottom_regolith;
+%                 slope_bottom_regolith=(trapz(x,width.*slope_angle)/trapz(x,width)/alpha_slope_reg)*ones(size(x)); 
+%                 z_bottom_regolith=z_bottom_soil(1)+cumtrapz(x,slope_bottom_regolith);
+%                 d_reg=z_bottom_soil-z_bottom_regolith;
+                slope_bottom_bedrock=(0)*ones(size(x));
+                z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock)-2.7707;
+                d_bed=z_bottom_regolith-z_bottom_bedrock;
+                
+                figure; hold on
+                plot(x,z_bottom_bedrock)
+                plot(x,z_bottom_regolith)
+                plot(x,z_bottom_soil)
+                plot(x,z_land_surface)
+                
+                % 2/ run the boussinesq simulations
+                tic
+                run_bedrock=obj.run_simulation_from_struct(x,f_bed,k_bed,width,slope_bottom_bedrock,d_bed);
+                toc
+                run_regolith=obj.run_simulation_from_struct(x,f_reg,k_reg,width,slope_bottom_regolith,d_reg,run_bedrock);
+                toc
+                run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,width,slope_bottom_soil,d_soil,run_regolith);
+                toc
+                
+                [DPSA_soil,RF_soil]=compute_DPSA_RF(run_soil.simulation_results,run_soil.boussinesq_simulation);
+                [~,RF_reg]=compute_DPSA_RF(run_regolith.simulation_results,run_regolith.boussinesq_simulation);
+                [~,RF_bed]=compute_DPSA_RF(run_bedrock.simulation_results,run_bedrock.boussinesq_simulation);
+                t=datetime(datestr(run_bedrock.simulation_results.t/(24*3600)));
+                figure; hold on
+                plot(t,RF_bed)
+                plot(t,RF_bed+RF_reg)
+                plot(t,RF_bed+RF_reg+RF_soil)
+                plot(t,RF_bed+RF_reg+RF_soil+DPSA_soil)
+        end
+        
+        function simulation_2compartments_bis(f_bed,k_bed,f_soil,k_soil,d_soil_init,file_path)
+                occurence_slash=strfind(file_path,'\');
+                folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
+                
+                
+                obj=simulation_set(folder_root);
+                obj=obj.instantiate_all_inputs_directory;
+                
+                
+                % locations of different inputs file
+                hydro_loc=obj.hydrologic_inputs_directory{1};
+                morpho_loc=obj.morphologic_inputs_directory{1};
+                
+                % 1/ set structure file
+                M=obj.read_input_file(morpho_loc);
+                x=M(:,1); width=M(:,2); slope_angle=M(:,3); z=M(:,4);
+                
+                z_land_surface=z(1)+cumtrapz(x,slope_angle);
+                slope_bottom_soil=slope_angle;
+                z_bottom_soil=z_land_surface-d_soil_init;
+                d_soil=z_land_surface-z_bottom_soil;
+               
+                slope_bottom_bedrock=(trapz(x,width.*slope_angle)/trapz(x,width)/1.3)*ones(size(x));%(0)*ones(size(x));
+                z_bottom_bedrock=z_bottom_soil(1)+cumtrapz(x,slope_bottom_bedrock);
+                d_bed=z_bottom_soil-z_bottom_bedrock;
+                
+                figure; hold on
+                plot(x,z_bottom_bedrock)
+                plot(x,z_bottom_soil)
+                plot(x,z_land_surface)
+                
+                % 2/ run the boussinesq simulations
+                tic
+                run_bedrock=obj.run_simulation_from_struct(x,f_bed,k_bed,width,slope_bottom_bedrock,d_bed);
+                toc
+                run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,width,slope_bottom_soil,d_soil,run_bedrock);
+                toc
+                
+                [DPSA_soil,RF_soil]=compute_DPSA_RF(run_soil.simulation_results,run_soil.boussinesq_simulation);
+                [~,RF_bed]=compute_DPSA_RF(run_bedrock.simulation_results,run_bedrock.boussinesq_simulation);
+                t=datetime(datestr(run_bedrock.simulation_results.t/(24*3600)));
+                figure; hold on
+                plot(t,RF_bed)
+                plot(t,RF_bed+RF_soil)
+                plot(t,RF_bed+RF_soil+DPSA_soil)
+        end
+        
+        function simulation_2compartments(k_bed,f_bed,k_soil,f_soil,file_path)
             soil_coef=1;
             bound_river_soil='empty';
             [~,~,Q_month,~,run_obj]=simulation_set.run_simulation_rooting(k_bed,soil_coef,file_path,f_bed);
@@ -1056,10 +1214,11 @@ classdef simulation_set
             ratio_P_R=1;
             state_values_initial=obj2.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river_soil);
             presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
-            odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600*24);%odeset('RelTol',2.5e-14,'AbsTol',1e-12);%1e-10);%,'Refine',-1);
-            solver_options=run_obj.set_solver_options(odeset_struct);
+            
             % run transient simulation
             run_obj2=runs;
+            odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600*24);%odeset('RelTol',2.5e-14,'AbsTol',1e-12);%1e-10);%,'Refine',-1);
+            solver_options=run_obj2.set_solver_options(odeset_struct);
             run_obj2=run_obj2.run_simulation(hs1D,seep,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,bound_river_soil);
             toc
             
@@ -1068,18 +1227,20 @@ classdef simulation_set
             [DPSA_soil,RF_soil,DPSA_spat_soil,RF_spat_soil]=compute_DPSA_RF(run_obj2.simulation_results,run_obj2.boussinesq_simulation);
             
             
-            GW_bed=-run_obj.simulation_results.Q(2,:);
-            Flow_bed=GW_bed+RF_bed;
-            GW_reg=-run_obj2.simulation_results.Q(2,:);
-            Flow_reg=GW_reg+RF_soil;%-RF_bed;
-            Flow_soil=DPSA_soil+run_obj2.boussinesq_simulation.source_terms.recharge_chronicle(1,:)*(x_Q1(2)-x_Q1(1))*w_1(1);
+%             GW_bed=-run_obj.simulation_results.Q(2,:);
+%             Flow_bed=GW_bed+RF_bed;
+            Flow_bed=RF_bed;
+%             GW_reg=-run_obj2.simulation_results.Q(2,:);
+%             Flow_reg=GW_reg+RF_soil;%-RF_bed;
+            Flow_reg=RF_soil;%-RF_bed;
+            Flow_soil=DPSA_soil;%+run_obj2.boussinesq_simulation.source_terms.recharge_chronicle(1,:)*(x_Q1(2)-x_Q1(1))*w_1(1);
             
             figure; hold on
             plot(time_input(1:1500),Q_output(1:1500))
             plot(t,Q_month)
             plot(t,Flow_bed+Flow_reg+Flow_soil)
         end
-                 
+        
         function [Q_out,DSi_out]=run_sim_transport(k1,d1,d2)
 %             folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\PF';
 %             folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Synthetic';
