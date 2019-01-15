@@ -988,10 +988,10 @@ classdef transport
                 median_tot(i)=time_support(Index_)/(3600*24);
                 % under devt
                 AA=(obj_shallow.t(i))/(24*3600)-time_support/(24*3600);
-                BB=datetime(datestr(AA));
+                BB=datetime(datestr(AA))';
                 delta_t=AA-datenum(datetime(year(BB),1,1,12,00,00));
                 Conc_in_delta_18O=-13.5-6.5*cos(delta_t/365*2*pi);
-                delta_18O_synth(i)=trapz(Conc_in_delta_18O.*weighted_pdfs(i,:));
+                delta_18O_synth(i)=trapz(time_support,Conc_in_delta_18O.*weighted_pdfs(i,:));
             end
         end
         
