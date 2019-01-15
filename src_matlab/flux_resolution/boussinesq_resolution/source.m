@@ -90,22 +90,47 @@ classdef source
                     size_=size(obj.recharge_chronicle);
                     if(size_(1)>1)
                        if(length(t)==1)
-                           Index=floor((t-t_chronicle(1))/(t_chronicle(2)-t_chronicle(1)))+1;
-%                            if(Index>length(t_chronicle))
-%                                 Index=length(t_chronicle);
-%                                 t=t_chronicle(end);
-%                            end
-                           Identif_Index=Index+(t-t_chronicle(Index))/(t_chronicle(2)-t_chronicle(1));
-                           Recharge=ScaleTime((obj.recharge_chronicle)',Identif_Index);
+% %                            Index=floor((t-t_chronicle(1))/(t_chronicle(2)-t_chronicle(1)))+1;
+% % %                            if(Index>length(t_chronicle))
+% % %                                 Index=length(t_chronicle);
+% % %                                 t=t_chronicle(end);
+% % %                            end
+% %                            Identif_Index=Index+(t-t_chronicle(Index))/(t_chronicle(2)-t_chronicle(1));
+% %                            Recharge=ScaleTime((obj.recharge_chronicle)',Identif_Index);
+                           
+                           
+                            idx=find_idx(t,t_chronicle);
+                            Rech1=obj.recharge_chronicle(:,floor(idx));
+                            Rech2=obj.recharge_chronicle(:,ceil(idx)); 
+                            prop_=(idx-floor(idx));%/(ceil(idx)-floor(idx));
+                            Recharge=Rech1*(1-prop_)+prop_*Rech2;
+                            
+% % % % % % %                            Bool_inf=t-t_chronicle>0;
+% % % % % % %                            Bool_sup=t_chronicle-t>0;
+% % % % % % %                            Bool_eq=t_chronicle-t==0;
+% % % % % % %                            if(sum(Bool_eq)~=0)
+% % % % % % %                                Recharge=obj.recharge_chronicle(:,Bool_eq);
+% % % % % % %                            else
+% % % % % % %                                t1=t_chronicle(Bool_inf); 
+% % % % % % %                                t2=t_chronicle(Bool_sup);
+% % % % % % %                                t1=t1(end);
+% % % % % % %                                t2=t2(1);
+% % % % % % %                                prop_=(t-t1)/(t2-t1);
+% % % % % % %                                Rech1=obj.recharge_chronicle(:,Bool_inf); Rech1=Rech1(:,end);
+% % % % % % %                                Rech2=obj.recharge_chronicle(:,Bool_sup); Rech2=Rech2(:,1);
+% % % % % % %                                Recharge=Rech1*(1-prop_)+prop_*Rech2;
+% % % % % % %                            end
 %                            Recharge=interp1q(t_chronicle',(obj.recharge_chronicle)',t');
                        else
                            Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t');
+                           Recharge=Recharge'; 
                        end
                     else
 %                         Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t','spline');
                         Recharge=nakeinterp1(t_chronicle',(obj.recharge_chronicle)',t');
+                        Recharge=Recharge'; 
                     end
-                    Recharge=Recharge'; 
+                    
 % % % %                     Recharge=interpn(t_chronicle,obj.recharge_chronicle,t,'linear');
 % % %                     if(length(t)>1 && length(t)<length(t_chronicle) && sum(t_chronicle(1:length(t))-t)==0)
 % % %                         fprintf('WARNING: in compute_recharge_rate method time_results has not the same size as t_chronicle \n');
