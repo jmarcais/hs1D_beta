@@ -42,7 +42,7 @@ classdef hillslope1D
         function obj=set_spatial_parameters(obj,x,w,angle,soil_depth)
             obj.x=x;
             obj.w=w;
-            obj.i=atan(angle);
+            obj.i=angle;
             if(nargin>4)
                 obj.soil_depth=soil_depth;
             end
@@ -133,7 +133,7 @@ classdef hillslope1D
                 obj.R2=sum((obj.z_predicted-mean(obj.z)).^2)/sum((obj.z-mean(obj.z)).^2);
 %                 x=[2*obj.x(1)-obj.x(2);obj.x;2*obj.x(end)-obj.x(end-1)];
 %                 z=[2*obj.z_predicted(1)-obj.z_predicted(2);obj.z_predicted;2*obj.z_predicted(end)-obj.z_predicted(end-1)];
-                obj.i=(z2-z3)/2;
+                obj.i=atan((z2-z3)/2);
             else
                 Idstring=num2str(obj.Id);
                 fprintf(['cannot transform to splined slope for hillslope ',Idstring ,' \n']);
