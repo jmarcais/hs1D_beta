@@ -462,7 +462,7 @@ classdef simulation_set
                 
                 if(sum(d<0)==0)
                     hs1D=hillslope1D(1,f,k);
-                    hs1D=hs1D.set_spatial_parameters(x,width,slope,d);%hs1D=hs1D.set_spatial_parameters(x./cos(slope),width,slope,d.*cos(slope));%
+                    hs1D=hs1D.set_spatial_parameters(x./cos(slope),width,slope,d.*cos(slope));%hs1D=hs1D.set_spatial_parameters(x,width,slope,d);%
                     if(nargin<8)
                         hydro_loc=obj.hydrologic_inputs_directory{1};
                         [M,input_type]=obj.read_input_file(hydro_loc);
@@ -1149,6 +1149,8 @@ classdef simulation_set
             h_reg=bsxfun(@rdivide,run_regolith.simulation_results.S,f_reg.*w_reg);
             h_soil=bsxfun(@rdivide,run_soil.simulation_results.S,f_soil.*w_soil);
             
+            Volume_soil=trapz(x_S_soil,run_soil.simulation_results.S);
+            time_step_wettest=find(Volume_soil==max(Volume_soil));
             
             angle_soil=interpn(x_Q_soil,angle_soil,x_S_soil);
             angle_reg=interpn(x_Q_reg,angle_reg,x_S_reg);
@@ -1166,9 +1168,13 @@ classdef simulation_set
             plot(x_S_reg,z_bottom_reg,'Color',[0.2500    0.2500    0.2500])
             plot(x_S_bed,z_bottom_bed,'Color',[0.2500    0.2500    0.2500])
             
-            plot(x_S_bed,z_bottom_bed+h_bed(:,(h_bed(8,:)==max(h_bed(8,:)))),'Color',[ 0         0    1.0000])
-            plot(x_S_reg,z_bottom_reg+h_reg(:,(h_reg(8,:)==max(h_reg(8,:)))),'Color',[ 0    0.4470    0.7410])
-            plot(x_S_soil,z_bottom_soil+h_soil(:,(h_soil(8,:)==max(h_soil(8,:)))),'Color',[0.3010    0.7450    0.9330])
+            plot(x_S_bed,z_bottom_bed+h_bed(:,time_step_wettest),'Color',[ 0         0    1.0000])
+            plot(x_S_reg,z_bottom_reg+h_reg(:,time_step_wettest),'Color',[ 0    0.4470    0.7410])
+            plot(x_S_soil,z_bottom_soil+h_soil(:,time_step_wettest),'Color',[0.3010    0.7450    0.9330])
+            
+%             plot(x_S_bed,z_bottom_bed+h_bed(:,(h_bed(8,:)==max(h_bed(8,:)))),'Color',[ 0         0    1.0000])
+%             plot(x_S_reg,z_bottom_reg+h_reg(:,(h_reg(8,:)==max(h_reg(8,:)))),'Color',[ 0    0.4470    0.7410])
+%             plot(x_S_soil,z_bottom_soil+h_soil(:,(h_soil(8,:)==max(h_soil(8,:)))),'Color',[0.3010    0.7450    0.9330])
         end
         
         function simulation_2compartments_bis(f_bed,k_bed,f_soil,k_soil,d_soil_init,file_path)
