@@ -233,51 +233,23 @@ classdef boussinesq_simulation
         % Darcy equation
         function Q_from_S=compute_Q_from_S(obj,y)
             B=obj.discretization.B;
-            Omega=obj.discretization.Omega;
+            Q_from_S=obj.discretization.Omega; % Omega is directly in Q_from_S to gain speed
             block_size=obj.discretization.Nx;
-            D=diag(ones(block_size,1));
-            D=[D;zeros(1,block_size)];
-%             Omega2=obj.discretization.Omega2;
-%             [f,k]=obj.hydraulic_properties.get_hydraulic_properties;
+            D=sparse(1:block_size,1:block_size,ones(block_size,1),block_size+1,block_size); % sparse matrix, size: block_size x (block_size+1) with 1 on the first diagonal
             [~,w,~,angle,~,f,k,f_edges]=obj.discretization.get_resampled_variables;
             
             
             % Compute darcy flux from one box to another with variable angle
-% % %             Q_from_S=k./f_edges.*(cos(angle).*(B*(y(1:block_size)./(f.*w)))+sin(angle));%.*(Omega*(y(1:block_size)./(f*w.*soil_depth))>0);%.00001); ... 
-% % % %                 +(Omega*(y(1:(length(obj.x)))./(obj.f*obj.w.*obj.soil_depth))<=0.00001)*0;
-% % % %             coef=(y(1:block_size))>0;
-% % % %             coef=coef(2:end)-coef(1:end-1);
-% % % %             coef=coef==-1; coef=1-coef;
-% % % %             Q_from_S=Q_from_S.*[1;coef;1];
-% % %             Q_from_S=sparse(diag(Q_from_S));
-% % %             Q_from_S=Q_from_S*Omega;
-            
             Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
-            Q1_from_S=sparse(diag(Q1_from_S)*Omega);
-            Q2_from_S=k./f_edges.*sin(angle);
-            Q2_from_S=sparse(diag(Q2_from_S)*D);
-            Q_from_S=Q1_from_S+Q2_from_S;
-%  other try
-%             coef=(y(1:block_size))>0;
-%             coef=coef(2:end);
-%             coef2=1-coef;
-%             coef=[1;coef;1];  coef2=[1;coef2;1];
-%             C1=bsxfun(@times,Omega,coef);
-%             C2=bsxfun(@times,Omega2,coef2);
-%             Q_from_S=Q_from_S*(C1+C2);
-%
-%             Q_from_S(end,:)=0;
+            Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;%
+            Q1_from_S=k./f_edges.*sin(angle);
+            Q2_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
+            Q_from_S=Q_from_S+Q2_from_S;
 
             % put boundary conditions on Q in the matrix
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             Q_from_S(1,:)=(1-Edges(3))*Q_from_S(1,:);
             Q_from_S(block_size+1,:)=(1-Edges(4))*Q_from_S(block_size+1,:);
-            
-%             bound_cond_matrix=eye(block_size+1);
-%             bound_cond_matrix(1,1)=1-Edges(3);
-%             bound_cond_matrix(block_size+1,block_size+1)=1-Edges(4);
-%             Q_from_S=sparse(bound_cond_matrix)*Q_from_S;
-%             Q_from_S=sparse(Q_from_S);
         end
         
         function QS_from_Q=compute_QS_from_Q(obj,y,t)
