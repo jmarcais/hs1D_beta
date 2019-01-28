@@ -153,6 +153,7 @@ classdef transport
 %                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t,y);
 %                 Velocity_reg = @(t,y) interp2(T,XQ,velocity,t,y,'linear',0);
                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t*ones(size(y)),y,2);
+%                 Velocity_reg= @(t,y) transport.velocity_field(obj.t,x_Q,velocity,t,y);
                 S_mat=sparse(diag(ones(block_size,1)));
                 events=@(t,y)obj.eventfun(t,y,x_Q(2));
                 options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events);
@@ -1095,6 +1096,25 @@ classdef transport
                     clear transport runs1
                 end
             end
+        end
+        
+        function Velocity=velocity_field(T,XQ,velocity,t,y)
+            % 
+            idx_time=find_idx(t,T);
+            idx_space=find_idx(y,XQ);
+            %
+            Velocity_1=velocity(floor(idx_space),floor(idx_time));
+            Velocity_2=velocity(floor(idx_space),ceil(idx_time));
+            Velocity_3=velocity(ceil(idx_space),floor(idx_time));
+            Velocity_4=velocity(ceil(idx_space),ceil(idx_time));
+            prop_time=(idx_time-floor(idx_time));
+            prop_space=(idx_space-floor(idx_space));
+            prop_1=(1-prop_time).*(1-prop_space);
+            prop_2=(prop_time).*(1-prop_space);
+            prop_3=(1-prop_time).*(prop_space);
+            prop_4=(prop_time).*(prop_space);
+            
+            Velocity=Velocity_1.*prop_1+Velocity_2.*prop_2+Velocity_3.*prop_3+Velocity_4.*prop_4;
         end
         
         function [mean_,std_]=compute_mean(time_support,weighted_pdfs)
