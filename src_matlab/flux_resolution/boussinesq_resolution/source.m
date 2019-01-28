@@ -104,24 +104,8 @@ classdef source
                             Rech2=obj.recharge_chronicle(:,ceil(idx)); 
                             prop_=(idx-floor(idx));%/(ceil(idx)-floor(idx));
                             Recharge=Rech1*(1-prop_)+prop_*Rech2;
-                            
-% % % % % % %                            Bool_inf=t-t_chronicle>0;
-% % % % % % %                            Bool_sup=t_chronicle-t>0;
-% % % % % % %                            Bool_eq=t_chronicle-t==0;
-% % % % % % %                            if(sum(Bool_eq)~=0)
-% % % % % % %                                Recharge=obj.recharge_chronicle(:,Bool_eq);
-% % % % % % %                            else
-% % % % % % %                                t1=t_chronicle(Bool_inf); 
-% % % % % % %                                t2=t_chronicle(Bool_sup);
-% % % % % % %                                t1=t1(end);
-% % % % % % %                                t2=t2(1);
-% % % % % % %                                prop_=(t-t1)/(t2-t1);
-% % % % % % %                                Rech1=obj.recharge_chronicle(:,Bool_inf); Rech1=Rech1(:,end);
-% % % % % % %                                Rech2=obj.recharge_chronicle(:,Bool_sup); Rech2=Rech2(:,1);
-% % % % % % %                                Recharge=Rech1*(1-prop_)+prop_*Rech2;
-% % % % % % %                            end
-%                            Recharge=interp1q(t_chronicle',(obj.recharge_chronicle)',t');
                        else
+                           % #JM Is there a way to improve the speed of simulation with find_idx 
                            Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t');
                            Recharge=Recharge'; 
                        end
