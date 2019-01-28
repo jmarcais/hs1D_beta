@@ -160,7 +160,7 @@ classdef transport
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
-                if(size_row*size_column<5e9)
+                if(size_row*size_column<15e9)
 % % %#20180116                                             obj.x_traj=nan(size_row,size_column);
 %                     obj.x_traj=sparse(size_row,size_column);
                     mat_pos_allocate=cell(length(obj.t_inj_pos),1);
@@ -922,33 +922,34 @@ classdef transport
             end
         end
         
-        function transport_3compartments(run_soil,run_reg,run_bed)
+        function [obj_shallow,obj_reg,obj_soil,time_support,weighted_pdfs,weighted_pdfs_shallow,weighted_pdfs_deep_approx,...
+                weighted_pdfs_reg,weighted_pdfs_soil]=transport_3compartments(run_soil,run_reg,run_bed)
+            tic
             obj_soil=transport.run_transport_simu(run_soil);
+            toc
             [obj_reg,DPSA_shallow,RF_shallow,x_S]=transport.run_transport_simu(run_reg);
-            %1st option
+            toc
+            
+            
             obj_shallow=obj_reg;
             obj_shallow.weight(obj_reg.DP_out==1)=obj_soil.weight(obj_reg.DP_out==1);
             obj_shallow.x_traj(obj_reg.DP_out==1,:)=obj_soil.x_traj(obj_reg.DP_out==1,:);
-            %2nd option
-%             obj_shallow=obj_reg;
-%             obj_shallow.weight=obj_shallow.weight(obj_reg.DP_out==0);
-%             obj_shallow.x_traj=obj_shallow.x_traj(obj_reg.DP_out==0,:);
-%             obj_shallow.N_inj=obj_shallow.N_inj(obj_reg.DP_out==0);
-%             obj_shallow.ET_out=obj_shallow.ET_out(obj_reg.DP_out==0);
-%             obj_shallow.DGW_out=obj_shallow.DGW_out(obj_reg.DP_out==0);
-%             obj_shallow.Seep_out=obj_shallow.Seep_out(obj_reg.DP_out==0);
-%             obj_shallow.DP_out=obj_shallow.DP_out(obj_reg.DP_out==0);
-%             obj_shallow.weight=[obj_shallow.weight;obj_soil.weight];
-%             obj_shallow.x_traj=[obj_shallow.x_traj;obj_soil.x_traj];
-%             obj_shallow.N_inj=[obj_shallow.N_inj;obj_soil.N_inj];
-%             obj_shallow.ET_out=[obj_shallow.ET_out;obj_soil.ET_out];
-%             obj_shallow.DGW_out=[obj_shallow.DGW_out;obj_soil.DGW_out];
-%             obj_shallow.Seep_out=[obj_shallow.Seep_out;obj_soil.Seep_out];
-%             obj_shallow.DP_out=[obj_shallow.DP_out;obj_soil.DP_out];
             
 
+            % transport for run_deep
+            [obj_deep,DPSA_deep,RF_deep]=transport.run_transport_simu(run_bed);
+            toc
+            % transport total
+            obj_tot=obj_deep;
+            obj_tot.weight(obj_deep.DP_out==1)=obj_shallow.weight(obj_deep.DP_out==1);
+            obj_tot.x_traj(obj_deep.DP_out==1,:)=obj_shallow.x_traj(obj_deep.DP_out==1,:);
+            [t_out_gw,transit_times_gw]=obj_deep.get_trajectory_properties;
+            [t_out_tot,transit_times_tot]=obj_tot.get_trajectory_properties;
+            
             % retrieve the particles essential properties for their travel inside the aquifer
             [t_out_shallow,transit_times_shallow,x_fin_shallow]=obj_shallow.get_trajectory_properties;
+            [t_out_reg,transit_times_reg]=obj_shallow.get_trajectory_properties;
+            [t_out_soil,transit_times_soil]=obj_shallow.get_trajectory_properties;
             
             % exponential approximation for run_deep
             [~,~,~,RF_spat_deep]=compute_DPSA_RF(run_bed.simulation_results,run_bed.boussinesq_simulation);
@@ -959,14 +960,18 @@ classdef transport
             time_support=logspace(-4,3,10001)*24*365*3600;%(0:0.001:10)*24*365*3600;
             weighted_pdfs_shallow=nan(length(obj_shallow.t)-1,length(time_support));
             weighted_pdfs_deep=nan(length(obj_shallow.t)-1,length(time_support));
+            weighted_pdfs_deep_approx=nan(length(obj_shallow.t)-1,length(time_support));
             weighted_pdfs=nan(length(obj_shallow.t)-1,length(time_support));
             mean_shallow=nan(1,length(obj_shallow.t)-1);
             std_shallow=nan(1,length(obj_shallow.t)-1);
-            mean_tot=nan(1,length(obj_shallow.t)-1);
-            std_tot=nan(1,length(obj_shallow.t)-1);
-            median_tot=nan(1,length(obj_shallow.t)-1);
-            median_shallow=nan(1,length(obj_shallow.t)-1);
-            delta_18O_synth=nan(1,length(obj_shallow.t)-1);
+            
+            weighted_pdfs_soil=nan(length(obj_shallow.t)-1,length(time_support));
+            weighted_pdfs_reg=nan(length(obj_shallow.t)-1,length(time_support));
+% %             mean_tot=nan(1,length(obj_shallow.t)-1);
+% %             std_tot=nan(1,length(obj_shallow.t)-1);
+% %             median_tot=nan(1,length(obj_shallow.t)-1);
+% %             median_shallow=nan(1,length(obj_shallow.t)-1);
+% %             delta_18O_synth=nan(1,length(obj_shallow.t)-1);
 
             number_of_particle_shallow=nan(1,length(obj_shallow.t)-1);
             Q_shallow=nan(1,length(obj_shallow.t)-1);
@@ -977,21 +982,36 @@ classdef transport
             for i=1:(length(obj_shallow.t)-1)
                 [transit_times,weights_,number_of_particle_shallow(i)]=obj_shallow.get_ttds_bis(obj_shallow.t(i),t_out_shallow,transit_times_shallow);
                 [~,weighted_pdfs_shallow(i,:),mean_shallow(i),std_shallow(i)]=obj_shallow.compute_full_distribution(transit_times,weights_,time_support);
-                weighted_pdfs_deep(i,:)=1/tau_deep(i)*exp(-time_support/tau_deep(i));
-                weighted_pdfs(i,:)=(Q_out_deep(i)*weighted_pdfs_deep(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
+                
+                [transit_times,weights_]=obj_reg.get_ttds_bis(obj_reg.t(i),t_out_reg,transit_times_reg);
+                [~,weighted_pdfs_reg(i,:)]=obj_reg.compute_full_distribution(transit_times,weights_,time_support);
+                
+                 [transit_times,weights_]=obj_soil.get_ttds_bis(obj_soil.t(i),t_out_soil,transit_times_soil);
+                [~,weighted_pdfs_soil(i,:)]=obj_soil.compute_full_distribution(transit_times,weights_,time_support);
+                
+                [transit_times,weights_]=obj_deep.get_ttds_bis(obj_deep.t(i),t_out_gw,transit_times_gw);
+                [~,weighted_pdfs_deep(i,:)]=obj_deep.compute_full_distribution(transit_times,weights_,time_support);
+                
+                weighted_pdfs_deep_approx(i,:)=1/tau_deep(i)*exp(-time_support/tau_deep(i));
+%                 weighted_pdfs(i,:)=(Q_out_deep(i)*weighted_pdfs_deep_approx(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
                 Q_shallow(i)=sum(weights_/1000)/(dt(i));
-                mean_tot(i)=trapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600).*time_support/(24*365*3600));
-                std_tot(i)=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs(i,:)*24*365*3600)-mean_tot(i)^2);
-                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs_shallow(i,:)*(24*365*3600))));
-                median_shallow(i)=time_support(Index_)/(3600*24);
-                [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600))));
-                median_tot(i)=time_support(Index_)/(3600*24);
+                
+                [transit_times,weights_]=obj_tot.get_ttds_bis(obj_tot.t(i),t_out_tot,transit_times_tot);
+                [~,weighted_pdfs(i,:)]=obj_tot.compute_full_distribution(transit_times,weights_,time_support);
+                
+                
+% %                 mean_tot(i)=trapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600).*time_support/(24*365*3600));
+% %                 std_tot(i)=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs(i,:)*24*365*3600)-mean_tot(i)^2);
+% %                 [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs_shallow(i,:)*(24*365*3600))));
+% %                 median_shallow(i)=time_support(Index_)/(3600*24);
+% %                 [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600))));
+% %                 median_tot(i)=time_support(Index_)/(3600*24);
                 % under devt
-                AA=(obj_shallow.t(i))/(24*3600)-time_support/(24*3600);
-                BB=datetime(datestr(AA))';
-                delta_t=AA-datenum(datetime(year(BB),1,1,12,00,00));
-                Conc_in_delta_18O=-13.5-6.5*cos(delta_t/365*2*pi);
-                delta_18O_synth(i)=trapz(time_support,Conc_in_delta_18O.*weighted_pdfs(i,:));
+% %                 AA=(obj_shallow.t(i))/(24*3600)-time_support/(24*3600);
+% %                 BB=datetime(datestr(AA))';
+% %                 delta_t=AA-datenum(datetime(year(BB),1,1,12,00,00));
+% %                 Conc_in_delta_18O=-13.5-6.5*cos(delta_t/365*2*pi);
+% %                 delta_18O_synth(i)=trapz(time_support,Conc_in_delta_18O.*weighted_pdfs(i,:));
             end
         end
         
@@ -1075,6 +1095,21 @@ classdef transport
                     clear transport runs1
                 end
             end
+        end
+        
+        function [mean_,std_]=compute_mean(time_support,weighted_pdfs)
+            mean_=trapz(time_support/(24*365*3600),weighted_pdfs*(24*365*3600).*time_support/(24*365*3600),2);
+            std_=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs*24*365*3600,2)-mean_.^2);
+        end
+        
+        function median_=compute_median(time_support,weighted_pdfs)
+            [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs*(24*365*3600),2)),[],2);
+            median_=time_support(Index_)/(3600*24);
+        end
+        
+        function Solute=compute_solute(time_support,weighted_pdfs,k,Ceq,C1)
+            Solute_discretized=C1+Ceq*(1-exp(-time_support*k/Ceq));
+            Solute=trapz(time_support/(24*365*3600),weighted_pdfs*(24*365*3600).*Solute_discretized,2);
         end
     end
 end
