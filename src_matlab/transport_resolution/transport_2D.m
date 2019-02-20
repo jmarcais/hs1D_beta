@@ -114,39 +114,24 @@ classdef transport_2D
                 load(fullfile(folder_mex_option,'x_inj.mat'));
                 obj.x_traj=solve_ode_trajectory(Velocity_2,t_inj,x_inj);
             else
-% % %                 Storage=@(t,y) nakeinterp1(x_S,deval(sol_simulated,t,1:block_size),y);
-% % %                 
-% % %                 Flux_reg=@(t,y) nakeinterp1([-1;x_Q],[0;deval(sol_simulated,t,block_size+1:2*block_size+1)],y);
-% % %                 Storage_reg=@(t,y) Storage(t,y)+1e-3.*double(Storage(t,y)<=0);
-% % %                 Velocity_reg=@(t,y) Flux_reg(t,y)./Storage_reg(t,y);
-                % option 1
-% %                 [T,XQ]=meshgrid(obj.t,x_Q);
-% %                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t*ones(size(y)),y,2);
-%                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t,y);
-%                 Velocity_reg = @(t,y) interp2(T,XQ,velocity,t,y,'linear',0);
 
-                % option 2
-%                 Velocity_2D= @(t,y) transport_2D.velocity_field_2D(obj.t,x_Q,velocity,hydraulic_head_gradient,recharge,hydraulic_head,t,y);
+                % define the velocity vector V = [(Vx)_i , (Vz)_i] with i between 1 and N_x, the number of discretized elements
                 integrated_parsec=(-recharge+velocity.*hydraulic_head_gradient)./(0.001+hydraulic_head);
                 integrated_parsec(1,:)=0;
-                Velocity_2D= @(t,y) transport_2D.velocity_field_2D_2(obj.t,x_Q,velocity,integrated_parsec,t,y);
+                Velocity_2D= @(t,y) transport_2D.velocity_field_2D(obj.t,x_Q,velocity,integrated_parsec,t,y);
                 
+                % reinterpolate the hydraulic head on x_S for informing the initial conditions solving (particles are injected at the water table
                 hydraulic_head2=interp1(x_Q,hydraulic_head,x_S);
-                % option 3
-%                 [XQ,T]=ndgrid(x_Q,obj.t);
-%                 F = griddedInterpolant(XQ,T,velocity);
-%                 Velocity_reg= @(t,y) F(y,t*ones(size(y)));
                 
-                S_mat=sparse(diag(ones(block_size,1)));
+                % define a stop event when particles cross the river boundary
+                S_mat=sparse(diag(ones(block_size,1))); %#JMIPG check if S_mat is still necessary
                 events=@(t,y) obj.eventfun(t,y,x_Q(2));
-                options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events);
+                options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events); %#JMIPG check if the vectorized option improves efficiency
 
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<15e9)
-% % %#20180116                                             obj.x_traj=nan(size_row,size_column);
-%                     obj.x_traj=sparse(size_row,size_column);
                     mat_pos_allocate=cell(length(obj.t_inj_pos),1);
                     mat_pos_allocate_z=cell(length(obj.t_inj_pos),1);
                     for i=1:length(obj.t_inj_pos)
@@ -1123,70 +1108,7 @@ classdef transport_2D
             Velocity=Velocity_1.*prop_1+Velocity_2.*prop_2+Velocity_3.*prop_3+Velocity_4.*prop_4;
         end
         
-        function Velocity=velocity_field_2D(T,XQ,velocity,hydr_head_gradient,recharge,hydr_head,t,y)
-            block_size=length(y)/2;
-            x=y(1:block_size);
-            z=y(block_size+1:end);
-            % 
-            idx_time=find_idx(t,T);
-            idx_space=find_idx(x,XQ);
-            prop_time=(idx_time-floor(idx_time));
-            prop_space=(idx_space-floor(idx_space));
-            % horizontal velocity computation
-            Velocity_1=velocity(floor(idx_space),floor(idx_time));
-            Velocity_2=velocity(floor(idx_space),ceil(idx_time));
-            Velocity_3=velocity(ceil(idx_space),floor(idx_time));
-            Velocity_4=velocity(ceil(idx_space),ceil(idx_time));
-            
-            prop_1=(1-prop_time).*(1-prop_space);
-            prop_2=(prop_time).*(1-prop_space);
-            prop_3=(1-prop_time).*(prop_space);
-            prop_4=(prop_time).*(prop_space);
-            
-            Velocity_horiz=Velocity_1.*prop_1+Velocity_2.*prop_2+Velocity_3.*prop_3+Velocity_4.*prop_4;
-            
-            %hydraulic gradient computation
-            hydr_head_gradient_1=hydr_head_gradient(floor(idx_space),floor(idx_time));
-            hydr_head_gradient_2=hydr_head_gradient(floor(idx_space),ceil(idx_time));
-            hydr_head_gradient_3=hydr_head_gradient(ceil(idx_space),floor(idx_time));
-            hydr_head_gradient_4=hydr_head_gradient(ceil(idx_space),ceil(idx_time));
-            hydr_head_gradient=hydr_head_gradient_1.*prop_1+hydr_head_gradient_2.*prop_2+hydr_head_gradient_3.*prop_3+hydr_head_gradient_4.*prop_4;
-            
-            % hydraulic head computation
-            hydr_head_1=hydr_head(floor(idx_space),floor(idx_time));
-            hydr_head_2=hydr_head(floor(idx_space),ceil(idx_time));
-            hydr_head_3=hydr_head(ceil(idx_space),floor(idx_time));
-            hydr_head_4=hydr_head(ceil(idx_space),ceil(idx_time));
-            hydr_head=hydr_head_1.*prop_1+hydr_head_2.*prop_2+hydr_head_3.*prop_3+hydr_head_4.*prop_4;
-            
-            % recharge computation
-%             Recharge_1=recharge(floor(idx_space),floor(idx_time));
-%             Recharge_2=recharge(floor(idx_space),ceil(idx_time));
-%             Recharge_3=recharge(ceil(idx_space),floor(idx_time));
-%             Recharge_4=recharge(ceil(idx_space),ceil(idx_time));
-            Recharge_1=recharge(floor(idx_time));
-            Recharge_2=recharge(ceil(idx_time));
-            prop_1=(1-prop_time);
-            prop_2=(prop_time);
-            Recharge=Recharge_1.*prop_1+Recharge_2.*prop_2;%+Recharge_3.*prop_3+Recharge_4.*prop_4;
-                        
-%             Velocity_vert=z./(0.0001+hydr_head).*(-Recharge+hydr_head_gradient.*Velocity_horiz); %small values inserted so that Vertical_velocity is never infinite
-            if(hydr_head~=0)
-                Velocity_vert=z./(hydr_head).*(-Recharge+hydr_head_gradient.*Velocity_horiz);
-            else
-                Velocity_vert=0;
-            end
-            if(isnan(Velocity_vert))
-                AA=1;
-            end
-            if(isnan(hydr_head))
-                AA=1;
-            end
-            
-            Velocity=[Velocity_horiz;Velocity_vert];
-        end
-        
-        function Velocity=velocity_field_2D_2(T,XQ,velocity,integrated_parsec,t,y) % integrated_parsec = ( - recharge + velocity_horiz .* grad_h)./ h;
+        function Velocity=velocity_field_2D(T,XQ,velocity,integrated_parsec,t,y) % integrated_parsec = ( - recharge + velocity_horiz .* grad_h)./ h;
             block_size=length(y)/2;
             x=y(1:block_size);
             z=y(block_size+1:end);
