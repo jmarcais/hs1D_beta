@@ -914,10 +914,16 @@ classdef transport_2D
             hydraulic_head(end,:)=2*hydraulic_head(end-1,:)-hydraulic_head(end-2,:);
             
             % compute the trajectories inside the aquifer
+            % option 1 all integrated
             obj=obj.compute_trajectories2(velocity,block_size,x_S,x_Q,recharge,hydraulic_head,hydraulic_head_gradient,Bool_sat);
-            obj=obj.cut_trajectory_saturated_areas(Bool_sat);
+            obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
             
-            obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+            % option 2 all separated
+%             obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q,recharge,hydraulic_head,hydraulic_head_gradient);
+%             obj=obj.cut_trajectory_saturated_areas(Bool_sat);
+%             
+%             obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
+
 %             obj=obj.cut_trajectory_groundwater(sol_simulated,x_Q);
             obj=obj.update_DGW(x_Q);
             
