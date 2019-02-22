@@ -323,7 +323,7 @@ classdef source
             string_char=sprintf('t(s)\trecharge_chronicle(m.s-1)\n');
             fprintf(fid, string_char);
             fclose(fid);
-            dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
+            dlmwrite(filename,M, '-append', 'precision', '%.10E','delimiter','\t');
             save([file_output,'\source.mat'],'obj');
             obj.plot_save_recharge_chronicle(file_output,t);
             close all;
