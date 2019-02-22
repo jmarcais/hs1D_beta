@@ -1,11 +1,10 @@
 classdef boussinesq_simulation
 % class storing the different object in order to make run a boussinesq simulation for different conditions
     properties(Access=public)
-        discretization          % space_discretization object contains also the spatial properties of your hillslopes (x, width function w and soil_depth) 
+        discretization          % space_discretization object contains also the spatial properties of your hillslopes (x_S, x_Q, width function w, soil_depth, angle, f, k) 
         source_terms            % source object containing the time properties and the recharge related to it
         boundary_cond           % boundary_conditions object containing the time of boundary on xmin & xmax (Q fixed, S fixed or free condtions)
         initial_conditions      % initial conditions for S, Q & QS
-        %hydraulic_properties    % contains the hydraulic properties of the hillslope: porosity f, hydraulic conductivity k and slope angle i
         ratio_P_R               % ratio Recharge over Precipitation
         sol_simulated           % contains all the information provided by ode15s
     end
@@ -29,11 +28,6 @@ classdef boussinesq_simulation
             obj.initial_conditions=obj.set_initial_conditions(percentage_loaded,t_initial,Sinitial);
         end
         
-%         function obj=set_hydraulic_properties(obj,hs1D)
-%             [f,k]=hs1D.get_hydraulic_properties;
-%             obj.hydraulic_properties=hydraulic_properties(f,k);
-%         end
-        
         function initial_conditions=set_initial_conditions(obj,percentage_loaded,t_initial,Sinitial)
             if(nargin<4)
                 Sinitial=nan;
@@ -56,7 +50,6 @@ classdef boussinesq_simulation
                     fprintf('Error: length of the assigned initial state values of the simulation are not of the good length \n');
                 end
             else
-%                 [f,~]=obj.hydraulic_properties.get_hydraulic_properties;
                 [~,w,soil_depth,~,~,f]=obj.discretization.get_resampled_variables;
                 Smax=f.*w.*soil_depth;
                 if(percentage_loaded==-2 && isnan(Sinitial))
@@ -268,7 +261,6 @@ classdef boussinesq_simulation
         
         function dSdt_from_leakage=compute_deep_dSdt_from_leakage(obj,y)
             [~,~,~,~,~,f,k]=obj.discretization.get_resampled_variables;
-%             [f,k]=obj.hydraulic_properties.get_hydraulic_properties;
             Recharge_deep_spatialized=obj.compute_deep_recharge(y,k,f);
             dx=obj.discretization.compute_dx;
             k2=1/3600/10;
@@ -278,7 +270,6 @@ classdef boussinesq_simulation
         function Recharge_rate_spatialized=compute_source_term_spatialized(obj,y,t)
             block_size=obj.discretization.Nx;
             [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
-%             [f,k]=obj.hydraulic_properties.get_hydraulic_properties;
             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
             Recharge_rate_spatialized=Recharge_rate.*w;
             Thresh=threshold_function(y(1:block_size)./(f.*d.*w));
@@ -319,11 +310,7 @@ classdef boussinesq_simulation
         end
         
         function OUT=alpha(obj,y,t)
-%             if(t>2.159999e+05)
-%                 AA=1;
-%             end
             block_size=obj.discretization.Nx;
-%             [f,~]=obj.hydraulic_properties.get_hydraulic_properties;
             [~,w,soil_depth,~,~,f]=obj.discretization.get_resampled_variables;
             
             Thresh=threshold_function(y(1:block_size)./(f.*soil_depth.*w));
@@ -456,7 +443,6 @@ classdef boussinesq_simulation
         
         function ETR_OUT=compute_ETR_OUT(obj,t,S)
             [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
-%             [f,~]=obj.hydraulic_properties.get_hydraulic_properties;
             ETP_rate=obj.source_terms.compute_ETP_rate(t);
             if(~isnan(ETP_rate))
                 ETP_rate_spatialized=bsxfun(@times,ETP_rate,w);
