@@ -196,7 +196,8 @@ classdef transport_1D
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<15e9)
-                    mat_pos_allocate_x=cell(length(obj.t_inj_pos),1);%zeros(size_row*size_column,3);%[];%
+                    mat_pos_allocate_x=cell(length(obj.t)-1,1);%zeros(size_row*size_column,3);%[];%
+                    mat_pos_tags=cell(length(obj.t)-1,1);
                     for i=1:(length(obj.t)-1)
                         % %                         i=obj.t_inj_pos(i);
                         % %                         size_N=size(obj.N);
@@ -238,6 +239,7 @@ classdef transport_1D
                             % store x trajectories
                             x_traj_temp=x_traj_temp(:);
                             mat_pos_allocate_x{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
+                            mat_pos_tags{i}=[Bool_inj_nonsat,Bool_inj_sat];
                         end
                         % #JM comment to gain speed
                          fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
@@ -246,6 +248,10 @@ classdef transport_1D
                     % rebuild the (x,z) trajectories in the trajectory matrix
                     mat_pos_allocate_x=vertcat(mat_pos_allocate_x{:});
                     obj.x_traj=sparse(mat_pos_allocate_x(:,1),mat_pos_allocate_x(:,2),mat_pos_allocate_x(:,3),size_row,size_column);
+                    
+                    mat_pos_tags=vertcat(mat_pos_tags{:});
+                    obj.DGW_out=mat_pos_tags(:,1);
+                    obj.DP_out=mat_pos_tags(:,2);
                 else
                     fprintf('Warning due to memory allocation problems, x_traj will be in cell format \n');
                     %%%%%%% This would be where stands the code if there is an interest in developing cell format trajectories
@@ -526,7 +532,7 @@ classdef transport_1D
             % Tags position in the matrix trajectories to delete
             Position_to_tag_before_deletion=[0,0];
 
-            for i=1:length(obj.t)
+            for i=1:(length(obj.t)-1)
                 % not considering the "seepage" coming out the river as it is not real seepage
                 
                 Seepage_pos=find(Seepage(:,i)>0);
@@ -542,7 +548,7 @@ classdef transport_1D
                     pos_=Seepage_pos(end-j+1); %pos_=Seepage_pos(j); %
                     Seep_m3s=Seep_m3s+Seepage(pos_,i);
                     
-                    particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));
+                    particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)) & (obj.x_traj(:,i+1)~=0));%find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));%
                     particle_subject_to_seep = setdiff(particle_subject_to_seep,Position_to_tag_before_deletion(:,1));
                     Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
                     pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
@@ -589,6 +595,8 @@ classdef transport_1D
             [I,J,S]=find(obj.x_traj);
             keep=J<=Position_to_tag_before_deletion2(I,2);
             obj.x_traj=sparse(I(keep), J(keep), S(keep) ,size_row,size_column);
+            obj.DGW_out(Position_to_tag_before_deletion(:,1))=obj.DGW_out(Position_to_tag_before_deletion(:,1))-1;
+            obj.Seep_out(Position_to_tag_before_deletion(:,1))=obj.Seep_out(Position_to_tag_before_deletion(:,1))+1;
             
 %             obj.x_traj(Position_to_tag_before_deletion)=Inf;
 %             indexes_traj_to_delete = cumsum(obj.x_traj,2);
