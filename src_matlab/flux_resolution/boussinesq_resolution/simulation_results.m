@@ -494,7 +494,9 @@ classdef simulation_results
             DPES_tot=sum(DPES_spatialized);
         end
         
-        function [DPSA,RF,DPSA_spat,RF_spat]=compute_DPSA_RF(obj,bouss_sim)
+        % Compute Direct Precipitations on Saturated Areas (DPSA) and Return Flow (RF) in m3/s aggregated 
+        % at the hillslope scale and also their spatialized counterparts (at the scale of a discretized elements
+        function [DPSA,RF,DPSA_spat,RF_spat]=compute_DPSA_RF(obj,bouss_sim) % unit m3/s
             t=obj.t; S=obj.S; Q=obj.Q; QS=obj.QS;
             DPSA_spat=nan(size(obj.S));
             RF_spat=nan(size(obj.S));
@@ -517,6 +519,15 @@ classdef simulation_results
             
             DPSA=sum(DPSA_spat);
             RF=sum(RF_spat);
+        end
+        
+        % Flux_in Flux_in_spat
+        function [Flux_in,Flux_in_spat]=compute_infiltration(obj,bouss_sim)
+            Flux_in_spat=bouss_sim.compute_source_term_spatialized_vectorized(obj.t,obj.S);
+            dx=obj.x_Q(2:end)-obj.x_Q(1:end-1);
+            dx_QS=diag(dx);
+            Flux_in_spat=dx_QS*Flux_in_spat;
+            Flux_in=sum(Flux_in_spat);
         end
         
         function Q_diff_spatialized=compute_Q_difference_spatialized(obj)
