@@ -461,6 +461,7 @@ classdef transport_2D
                         obj.z_traj(Particle_Position_to_delete,i+1:end)=0;
                     end
                 end
+                fprintf(strcat(num2str(i),'/',num2str(length(obj.t)),'\n'));
                 
 %                 Distance=pdist2(obj.x_traj(:,i),x_S);
 %                 [Value_,Distance_pos]=nanmin(Distance,[],2);
@@ -469,6 +470,181 @@ classdef transport_2D
 %                 Seepage_proportion_x_traj(~isnan(Distance_pos))=Seepage_proportion(Distance_pos(~isnan(Distance_pos)));
 %                 seepage_proportion=deval(sol_simulated,t,2*block_size+2:3*block_size+1)
             end
+        end
+        
+        function obj=cut_trajectory_ET_seep_old(obj,block_size,x_S,x_Q,w,RF_spat,x_traj_soil)
+            Seepage=RF_spat;
+            Seepage(Seepage<0)=0;
+            Seepage(1,:)=0;
+            NetPrecip=obj.N;
+            dx_Q=x_Q(2:end)-x_Q(1:end-1);
+            area_spatialized=w.*dx_Q;
+            if(size(obj.N,1)==1)
+                NetPrecip=area_spatialized*NetPrecip;
+            else
+                NetPrecip=bsxfun(@times,NetPrecip,area_spatialized);
+            end
+            NetPrecip(1,:)=0;
+
+            %#JM_IPGP #JM test if the normalization should happen to the volume
+            dt=obj.t(2:end)-obj.t(1:end-1);
+            t_edge1=obj.t-[dt(1),dt]/2;
+            t_edge2=obj.t+[dt,dt(end)]/2;
+            dt=t_edge2-t_edge1;
+
+            for i=1000:1100
+                % not considering the "seepage" coming out the river as it is not real seepage
+                
+                Seepage_pos=find(Seepage(:,i)>0);
+                Particle_Position_to_delete=[];
+                Seep_m3s=0;
+                for j=1:length(Seepage_pos)
+                    if(~isempty(Particle_Position_to_delete))
+%                         Seep_prop=Seep_prop+Seepage_proportion(pos_,i);
+%                     else
+                        Seep_m3s=Seep_m3s-Weight_cum(Weight_cum<=Seep_m3s);
+                        Seep_m3s=Seep_m3s(end);
+                    end
+                    pos_=Seepage_pos(end-j+1); %pos_=Seepage_pos(j); %
+                    Seep_m3s=Seep_m3s+Seepage(pos_,i);
+                    
+                    particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));
+                    Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
+                    pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
+                    Initial_infiltration_point=x_S(pos_2);
+                    [~,Index_]=sort(Initial_infiltration_point);
+                    Weight_cum=cumsum(Weight_partial(Index_));
+                    Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
+                    obj.Seep_out(Particle_Position_to_delete)=obj.Seep_out(Particle_Position_to_delete)+1;
+                    obj.DGW_out(Particle_Position_to_delete)=0;
+                    
+                    if(nargin>6)% && ~isnan(x_traj_soil))
+                        obj.x_traj(Particle_Position_to_delete,i+1:end)=x_traj_soil(Particle_Position_to_delete,i+1:end);
+                    else
+                        obj.x_traj(Particle_Position_to_delete,i+1:end)=0;
+                        obj.z_traj(Particle_Position_to_delete,i+1:end)=0;
+                    end
+                end
+                fprintf(strcat(num2str(i),'/',num2str(length(obj.t)),'\n'));
+                
+%                 Distance=pdist2(obj.x_traj(:,i),x_S);
+%                 [Value_,Distance_pos]=nanmin(Distance,[],2);
+%                 Distance_pos(isnan(Value_))=nan;
+%                 Seepage_proportion_x_traj=nan(size(Distance_pos));
+%                 Seepage_proportion_x_traj(~isnan(Distance_pos))=Seepage_proportion(Distance_pos(~isnan(Distance_pos)));
+%                 seepage_proportion=deval(sol_simulated,t,2*block_size+2:3*block_size+1)
+            end
+        end
+        
+        % analyze particle paths present in the same element of the hillslope at a given time. If seepage is occuring in this element
+        % then a certain number of particle is exiting the medium according to the ratio of seepage vs total flow the element is experiencing
+%1         function obj=cut_trajectory_seepage(obj,Discretized_Aquifer_Volume,block_size,x_S,x_Q,w,RF_spat,Subsurface_flux,x_traj_soil)
+        function obj=cut_trajectory_ET_seep(obj,block_size,x_S,x_Q,w,RF_spat,x_traj_soil)
+            Seepage=RF_spat;
+            Seepage(Seepage<0)=0;
+            Seepage(1,:)=0;
+            NetPrecip=obj.N;
+            dx_Q=x_Q(2:end)-x_Q(1:end-1);
+            area_spatialized=w.*dx_Q;
+            if(size(obj.N,1)==1)
+                NetPrecip=area_spatialized*NetPrecip;
+            else
+                NetPrecip=bsxfun(@times,NetPrecip,area_spatialized);
+            end
+            NetPrecip(1,:)=0;
+
+            %#JM_IPGP #JM test if the normalization should happen to the volume
+            dt=obj.t(2:end)-obj.t(1:end-1);
+            t_edge1=obj.t-[dt(1),dt]/2;
+            t_edge2=obj.t+[dt,dt(end)]/2;
+            dt=t_edge2-t_edge1;
+            
+            % Tags position in the matrix trajectories to delete
+            Position_to_tag_before_deletion=[0,0];
+
+            for i=1:length(obj.t)
+                % not considering the "seepage" coming out the river as it is not real seepage
+                
+                Seepage_pos=find(Seepage(:,i)>0);
+                Particle_Position_to_delete=[];
+                Seep_m3s=0;
+                for j=1:length(Seepage_pos)
+                    if(~isempty(Particle_Position_to_delete))
+%                         Seep_prop=Seep_prop+Seepage_proportion(pos_,i);
+%                     else
+                        Seep_m3s=Seep_m3s-Weight_cum(Weight_cum<=Seep_m3s);
+                        Seep_m3s=Seep_m3s(end);
+                    end
+                    pos_=Seepage_pos(end-j+1); %pos_=Seepage_pos(j); %
+                    Seep_m3s=Seep_m3s+Seepage(pos_,i);
+                    
+                    particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));
+                    particle_subject_to_seep = setdiff(particle_subject_to_seep,Position_to_tag_before_deletion(:,1));
+                    Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
+                    pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
+                    Initial_infiltration_point=x_S(pos_2);
+                    [~,Index_]=sort(Initial_infiltration_point);
+                    Weight_cum=cumsum(Weight_partial(Index_));
+                    Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
+                    Position_to_tag_before_deletion=[Position_to_tag_before_deletion;[Particle_Position_to_delete,i*ones(size(Particle_Position_to_delete))]];
+%                     obj.Seep_out(Particle_Position_to_delete)=obj.Seep_out(Particle_Position_to_delete)+1;
+%                     obj.DGW_out(Particle_Position_to_delete)=0;
+%                     
+%                     if(nargin>6)% && ~isnan(x_traj_soil))
+%                         obj.x_traj(Particle_Position_to_delete,i+1:end)=x_traj_soil(Particle_Position_to_delete,i+1:end);
+%                     else
+%                         obj.x_traj(Particle_Position_to_delete,i+1:end)=0;
+%                         obj.z_traj(Particle_Position_to_delete,i+1:end)=0;
+%                     end
+                end
+                fprintf(strcat(num2str(i),'/',num2str(length(obj.t)),'\n'));
+                
+%                 Distance=pdist2(obj.x_traj(:,i),x_S);
+%                 [Value_,Distance_pos]=nanmin(Distance,[],2);
+%                 Distance_pos(isnan(Value_))=nan;
+%                 Seepage_proportion_x_traj=nan(size(Distance_pos));
+%                 Seepage_proportion_x_traj(~isnan(Distance_pos))=Seepage_proportion(Distance_pos(~isnan(Distance_pos)));
+%                 seepage_proportion=deval(sol_simulated,t,2*block_size+2:3*block_size+1)
+            end
+%             Position_to_tag_before_deletion=vertcat(Position_to_tag_before_deletion{:});
+
+            
+            % option 1
+%             Position_to_tag_before_deletion=Position_to_tag_before_deletion(2:end,:);
+% %             Position_to_tag_before_deletion_index=sub2ind(size(obj.x_traj),Position_to_tag_before_deletion(:,1),Position_to_tag_before_deletion(:,2));
+%             [size_row,size_column]=size(obj.x_traj);
+%             size_to_allocate=ceil((size_column-mean(Position_to_tag_before_deletion(:,2))+1)*length(Position_to_tag_before_deletion(:,2)));
+%             AA=sparse(Position_to_tag_before_deletion(:,1),Position_to_tag_before_deletion(:,2),1,size_row,size_column,size_to_allocate);
+%             AA=logical(cumsum(AA,2));
+%             obj.x_traj(AA)=0;
+%             obj.z_traj(AA)=0;
+            
+            % option 2
+            Position_to_tag_before_deletion=Position_to_tag_before_deletion(2:end,:);
+            [size_row,size_column]=size(obj.x_traj);
+            Position_to_tag_before_deletion2=[(1:1:size_row)',ones(size_row,1)*size_column];
+            Position_to_tag_before_deletion2(Position_to_tag_before_deletion(:,1),2)=Position_to_tag_before_deletion(:,2);
+            [I,J,S]=find(obj.x_traj);
+            keep=J<=Position_to_tag_before_deletion2(I,2);
+            obj.x_traj=sparse(I(keep), J(keep), S(keep) ,size_row,size_column);
+            [I_z,J_z,S_z]=find(obj.x_traj);
+            obj.z_traj=sparse(I_z(keep), J_z(keep), S_z(keep) ,size_row,size_column);
+            
+%             obj.x_traj(Position_to_tag_before_deletion)=Inf;
+%             indexes_traj_to_delete = cumsum(obj.x_traj,2);
+%             indexes_traj_to_delete = indexes_traj_to_delete==Inf;
+%             obj.x_traj(indexes_traj_to_delete)=0;
+%             obj.z_traj(indexes_traj_to_delete)=0;
+            
+%             Position_to_tag_before_deletion2=[];
+%             size_1=size(Position_to_tag_before_deletion);
+%             for i=1:size_1(1)
+%                 Position_to_tag_before_deletion2=[Position_to_tag_before_deletion2;...
+%                     [Position_to_tag_before_deletion(i,1)*ones(length(obj.t)-Position_to_tag_before_deletion(i,2)+1,1),(Position_to_tag_before_deletion(i,2):length(obj.t))']];
+%             end
+%             Position_to_tag_before_deletion2=sub2ind(size(obj.x_traj),Position_to_tag_before_deletion2(:,1),Position_to_tag_before_deletion2(:,2));
+%             obj.x_traj(Position_to_tag_before_deletion2)=0;
+%             obj.z_traj(Position_to_tag_before_deletion2)=0;
         end
         
         function obj=cut_trajectory_groundwater(obj,sol_simulated,x_Q)
