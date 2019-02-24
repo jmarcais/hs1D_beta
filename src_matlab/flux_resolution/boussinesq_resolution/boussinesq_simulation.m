@@ -154,7 +154,9 @@ classdef boussinesq_simulation
            
         end
         
-        function [DPSA_spat,RF_spat]=partition_DPSA_RF(obj,S,Q,t)
+        % Compute Direct Precipitations on Saturated Areas (DPSA) and Return Flow (RF) in m2/s aggregated 
+        % at the hillslope scale and also their spatialized counterparts (at the scale of a discretized elements
+        function [DPSA_spat,RF_spat]=partition_DPSA_RF(obj,S,Q,t) % unit m2/s
             block_size=obj.discretization.Nx;
             % return flow
             RF_spat=obj.compute_QS_from_Q(S,t)*Q;
@@ -354,14 +356,6 @@ classdef boussinesq_simulation
                 dS(:,j)=dy(1:block_size);
             end
         end
-        
-        function Flux_in_vector=compute_source_term_spatialized_vectorized(obj,t,y)
-            block_size=obj.discretization.Nx;
-            Flux_in_vector=nan(block_size,length(t));
-            for j=1:length(t)
-                Flux_in_vector(:,j)=obj.compute_source_term_spatialized(y(:,j),t(j));
-            end
-        end
     end
     
     %% Test functions
@@ -428,7 +422,16 @@ classdef boussinesq_simulation
         end
     end
     
-    methods(Access=public)
+    methods(Access=public)     
+        % infiltration (Flux_in_spat) in m2/s
+        function Flux_in_spat=compute_source_term_spatialized_vectorized(obj,t,y)
+            block_size=obj.discretization.Nx;
+            Flux_in_spat=nan(block_size,length(t));
+            for j=1:length(t)
+                Flux_in_spat(:,j)=obj.compute_source_term_spatialized(y(:,j),t(j));
+            end
+        end
+        
         function N_in=compute_recharge_total(obj,t)
             N_in=obj.source_terms.compute_recharge_rate(t);
             [~,w,~,~]=obj.discretization.get_resampled_variables;
