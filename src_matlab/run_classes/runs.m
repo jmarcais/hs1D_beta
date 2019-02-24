@@ -97,10 +97,13 @@ classdef runs
                 [discretization,obj]=obj.set_space_discretization(Nx,discretization_type);%,xcustom);
             else
                 Nx=100;
+%                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
+%                 x2=logspace(log10(10),log10(x(end)),50); x=[0;1;5;x2']; %x=[x(1);x2'];
+%                 x=[x(1);5;x(2:end)];
 %                 xcustom=[0,60,180,300,420,540,660,780,900,1020,1140,1260,1380,1500,1620,1740,1860,1980,2100,2220,2340,2460,2580,2700,2820,2940,3000]/3;%[0,30,60,90,120,160,608,1056,1504,1952,2400];
 % % % %                 xcustom=[0,30,60,90,120,160,420,680,940,1200,1460,1720,1980,2240,2500];
-                discretization_type='lin';%'custom';      % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
-                [discretization,obj]=obj.set_space_discretization(Nx,discretization_type);%,xcustom);
+                discretization_type='custom'; 'lin';%     % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
+                [discretization,obj]=obj.set_space_discretization(Nx,discretization_type,x');%,xcustom);
             end
             % Number of points in the discretization scheme so Nx points to compute S & qS and (Nx+1) points to compute Q
 %             Nx=40;
