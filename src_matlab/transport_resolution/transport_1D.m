@@ -1235,7 +1235,7 @@ classdef transport_1D
             relstor=bsxfun(@rdivide,sim_res.S,Smax);
             % first mesh is always considered as saturated (it is the river)
             relstor(1,:)=1;
-            Bool_sat=relstor>=0.999925;%0.99995;%0.99999;%0.9999;%0.999;
+            Bool_sat=relstor>=0.99995;%0.99999;%0.9999;%0.999;0.999925;%
             % alternative
 %             [~,~,DP_spat,RF_spat]=compute_DPSA_RF(sim_res,bouss_sim);
 %             Bool_sat=DP_spat>0;
