@@ -12,7 +12,6 @@ classdef transport_1D
         DGW     % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via deep groundwater
         RF    % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via seepage
         DPSA      % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via direct precipitations
-        DGW2
     end
     
     methods(Access=public)
@@ -283,7 +282,7 @@ classdef transport_1D
                 
                 % define a stop event for ode solving when particles cross the river boundary
                 S_mat=sparse(diag(ones(block_size,1))); %#JMIPG check if S_mat is still necessary
-                events=@(t,y) obj.eventfun(t,y,x_S(1)/100000);%x_Q(2));
+                events=@(t,y) obj.eventfun(t,y,x_S(1)/100);%x_Q(2));
                 options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events); %#JMIPG check if the vectorized option improves efficiency
                 
                 size_row=length(obj.t_inj)*length(obj.x);
@@ -627,9 +626,9 @@ classdef transport_1D
             obj.x_traj=sparse(I(keep), J(keep), S(keep) ,size_row,size_column);
             obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))...
                                                                                                     +obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1));
-            obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=0;
-            obj.DGW2=zeros(size(obj.DGW));
-            obj.DGW2(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1))=obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1));
+%             obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=0;
+            obj.DGW=zeros(size(obj.DGW));
+            obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1))=obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1));
         end
         
         function obj=cut_trajectory_groundwater(obj,sol_simulated,x_Q)
