@@ -8,10 +8,10 @@ classdef transport_1D
         N_inj       % [(size(t_inj)*N_x) x 1] array containing the recharge corresponding to individual trajectory
         x           % [N_x x 1] array containing the river distance aray x [m]
         weight      % [(size(t_inj)*N_x) x 1] array containing the weight to apply to the trajectories
-        ET      % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via ET
-        DGW     % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via deep groundwater
-        RF    % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via seepage
-        DPSA      % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via direct precipitations
+        ET          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via ET
+        DGW         % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via deep groundwater
+        RF          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via seepage
+        DPSA        % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via direct precipitations
     end
     
     methods(Access=public)
@@ -93,7 +93,7 @@ classdef transport_1D
             end
         end
         
-        % properties of transport object that informs about where particles exit
+        % properties of transport object that informs about where particles exit and / or where a certain proportion of it exits
         function obj=instantiate_exit_tags(obj,DPSA_prop,GW_prop)
             if(nargin<2)
                 obj.DGW=ones(size(obj.weight));
@@ -177,7 +177,7 @@ classdef transport_1D
             end
         end
         
-        function obj=compute_trajectories2(obj,velocity,block_size,x_S,x_Q,Bool_sat,folder_mex_option)
+        function obj=compute_trajectories_old(obj,velocity,block_size,x_S,x_Q,Bool_sat,folder_mex_option)
             %#JM to change in a future release threslhold should be defined outside the method
             threshold=0;
             obj.x=x_S;
@@ -510,73 +510,12 @@ classdef transport_1D
             end
         end
         
-        function obj=cut_trajectory_ET_seep_old(obj,block_size,x_S,x_Q,w,RF_spat,x_traj_soil)
-            Seepage=RF_spat;
-            Seepage(Seepage<0)=0;
-            Seepage(1,:)=0;
-            NetPrecip=obj.N;
-            dx_Q=x_Q(2:end)-x_Q(1:end-1);
-            area_spatialized=w.*dx_Q;
-            if(size(obj.N,1)==1)
-                NetPrecip=area_spatialized*NetPrecip;
-            else
-                NetPrecip=bsxfun(@times,NetPrecip,area_spatialized);
-            end
-            NetPrecip(1,:)=0;
-
-            %#JM_IPGP #JM test if the normalization should happen to the volume
-            dt=obj.t(2:end)-obj.t(1:end-1);
-            t_edge1=obj.t-[dt(1),dt]/2;
-            t_edge2=obj.t+[dt,dt(end)]/2;
-            dt=t_edge2-t_edge1;
-
-            for i=1000:1100
-                % not considering the "seepage" coming out the river as it is not real seepage
-                
-                Seepage_pos=find(Seepage(:,i)>0);
-                Particle_Position_to_delete=[];
-                Seep_m3s=0;
-                for j=1:length(Seepage_pos)
-                    if(~isempty(Particle_Position_to_delete))
-%                         Seep_prop=Seep_prop+Seepage_proportion(pos_,i);
-%                     else
-                        Seep_m3s=Seep_m3s-Weight_cum(Weight_cum<=Seep_m3s);
-                        Seep_m3s=Seep_m3s(end);
-                    end
-                    pos_=Seepage_pos(end-j+1); %pos_=Seepage_pos(j); %
-                    Seep_m3s=Seep_m3s+Seepage(pos_,i);
-                    
-                    particle_subject_to_seep=find((obj.x_traj(:,i)<=x_Q(pos_+1)) & (obj.x_traj(:,i)>x_Q(pos_)));
-                    Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
-                    pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
-                    Initial_infiltration_point=x_S(pos_2);
-                    [~,Index_]=sort(Initial_infiltration_point);
-                    Weight_cum=cumsum(Weight_partial(Index_));
-                    Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
-                    obj.RF(Particle_Position_to_delete)=obj.RF(Particle_Position_to_delete)+1;
-                    obj.DGW(Particle_Position_to_delete)=0;
-                    
-                    if(nargin>6)% && ~isnan(x_traj_soil))
-                        obj.x_traj(Particle_Position_to_delete,i+1:end)=x_traj_soil(Particle_Position_to_delete,i+1:end);
-                    else
-                        obj.x_traj(Particle_Position_to_delete,i+1:end)=0;
-                    end
-                end
-                fprintf(strcat(num2str(i),'/',num2str(length(obj.t)),'\n'));
-                
-%                 Distance=pdist2(obj.x_traj(:,i),x_S);
-%                 [Value_,Distance_pos]=nanmin(Distance,[],2);
-%                 Distance_pos(isnan(Value_))=nan;
-%                 Seepage_proportion_x_traj=nan(size(Distance_pos));
-%                 Seepage_proportion_x_traj(~isnan(Distance_pos))=Seepage_proportion(Distance_pos(~isnan(Distance_pos)));
-%                 seepage_proportion=deval(sol_simulated,t,2*block_size+2:3*block_size+1)
-            end
-        end
-        
         % analyze particle paths present in the same element of the hillslope at a given time. If seepage is occuring in this element
         % then a certain number of particle is exiting the medium according to the ratio of seepage vs total flow the element is experiencing
-%1         function obj=cut_trajectory_seepage(obj,Discretized_Aquifer_Volume,block_size,x_S,x_Q,w,RF_spat,Subsurface_flux,x_traj_soil)
-        function obj=cut_trajectory_ET_seep(obj,block_size,x_S,x_Q,w,RF_spat,x_traj_soil)
+        function obj=cut_trajectory_ET_RF(obj,block_size,x_S,x_Q,Flux_in_spat,RF_spat,x_traj_soil)
+            % not considering ET in the river ? To check #JM_IPGP
+            Flux_in_spat(1,:)=0;
+
             %#JM_IPGP #JM test if the normalization should happen to the volume
             dt=obj.t(2:end)-obj.t(1:end-1);
             t_edge1=obj.t-[dt(1),dt]/2;
@@ -584,9 +523,32 @@ classdef transport_1D
             dt=t_edge2-t_edge1;
             
             % Tags position in the matrix trajectories to delete
-            Position_to_tag_before_deletion=[0,0,0];
+            Position_to_tag_before_deletion=[0,0,0]; % last column enables to track for which flux the particle exits: 0=RF exit, 1=DGW exit, 2=ET exit
 
             for i=1:(length(obj.t)-1)
+                % "delete" the particles that are retrieved by ET
+                ET_pos=find(-Flux_in_spat(:,i)>0);
+                Particle_to_tag=[];
+                ET_m3s=0;
+                for j=1:length(ET_pos)
+                    if(~isempty(Particle_to_tag))
+                        ET_m3s=ET_m3s-Weight_cum_ET(Weight_cum_ET<=ET_m3s);
+                        ET_m3s=ET_m3s(end);
+                    end
+                    pos_ET=ET_pos(end-j+1); %pos_ET=ET_pos(j); % 
+                    ET_m3s=ET_m3s-Flux_in_spat(pos_ET,i);
+                    
+                    particle_subject_to_ET=find((obj.x_traj(:,i)<=x_Q(pos_ET+1)) & (obj.x_traj(:,i)>x_Q(pos_ET)) & (obj.DPSA~=1));
+                    particle_subject_to_ET = setdiff(particle_subject_to_ET,Position_to_tag_before_deletion(:,1));
+                    Weight_partial_ET=obj.weight(particle_subject_to_ET)/(1000*dt(i)).*obj.DGW(particle_subject_to_ET);
+                    pos_2_ET=mod(particle_subject_to_ET,block_size); pos_2_ET(pos_2_ET==0)=block_size;
+                    Initial_infiltration_point_ET=x_S(pos_2_ET);
+                    [~,Index_]=sort(Initial_infiltration_point_ET);
+                    Weight_cum_ET=cumsum(Weight_partial_ET(Index_));
+                    Particle_to_tag=particle_subject_to_ET(Index_(Weight_cum_ET<=ET_m3s));
+                    Position_to_tag_before_deletion=[Position_to_tag_before_deletion;[Particle_to_tag,ones(size(Particle_to_tag))*i,ones(size(Particle_to_tag))*2]];
+                end
+                
                 % not considering the "seepage" coming out the river as it is not real seepage
                 
                 Seepage_pos=find(RF_spat(:,i)>0);
@@ -626,6 +588,8 @@ classdef transport_1D
             obj.x_traj=sparse(I(keep), J(keep), S(keep) ,size_row,size_column);
             obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))...
                                                                                                     +obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1));
+            obj.ET(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==2,1))=obj.ET(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==2,1))...
+                                                                                                    +obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==2,1));
 %             obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=0;
             obj.DGW=zeros(size(obj.DGW));
             obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1))=obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==1,1));
@@ -1071,8 +1035,8 @@ classdef transport_1D
             [~,Flux_in_spat]=compute_infiltration(runs.simulation_results,runs.boussinesq_simulation);
             size_mat=size(DPSA_spat);
             DPSA_spat=reshape(DPSA_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
-            Flux_in_spat=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
-            DPSA_prop=DPSA_spat./Flux_in_spat;
+            Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            DPSA_prop=DPSA_spat./Flux_in_spat_reshaped;
             if(sum(DPSA_prop<0)>0)
                 fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop<0)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were negative (minimal values found:',num2str(DPSA_spat(DPSA_prop==min(DPSA_prop))),'). They have been replaced by 0.\n'));
                 DPSA_prop(DPSA_prop<0)=0;
@@ -1098,7 +1062,7 @@ classdef transport_1D
                 RF_spat(RF_spat<0)=0;
             end
 %             RF_spat(1,:)=0;
-            obj=obj.cut_trajectory_ET_seep(block_size,x_S,x_Q,width,RF_spat);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
+            obj=obj.cut_trajectory_ET_RF(block_size,x_S,x_Q,Flux_in_spat,RF_spat);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
             
             % option 2 all separated
 %             obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q,recharge,hydraulic_head,hydraulic_head_gradient);
