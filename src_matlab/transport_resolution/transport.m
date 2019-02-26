@@ -149,13 +149,22 @@ classdef transport
 % % %                 Flux_reg=@(t,y) nakeinterp1([-1;x_Q],[0;deval(sol_simulated,t,block_size+1:2*block_size+1)],y);
 % % %                 Storage_reg=@(t,y) Storage(t,y)+1e-3.*double(Storage(t,y)<=0);
 % % %                 Velocity_reg=@(t,y) Flux_reg(t,y)./Storage_reg(t,y);
-                [T,XQ]=meshgrid(obj.t,x_Q);
+                % option 1
+% %                 [T,XQ]=meshgrid(obj.t,x_Q);
+% %                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t*ones(size(y)),y,2);
 %                 Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t,y);
 %                 Velocity_reg = @(t,y) interp2(T,XQ,velocity,t,y,'linear',0);
-                Velocity_reg = @(t,y) qinterp2(T,XQ,velocity,t*ones(size(y)),y,2);
-%                 Velocity_reg= @(t,y) transport.velocity_field(obj.t,x_Q,velocity,t,y);
+
+                % option 2
+                Velocity_reg= @(t,y) transport.velocity_field(obj.t,x_Q,velocity,t,y);
+
+                % option 3
+%                 [XQ,T]=ndgrid(x_Q,obj.t);
+%                 F = griddedInterpolant(XQ,T,velocity);
+%                 Velocity_reg= @(t,y) F(y,t*ones(size(y)));
+                
                 S_mat=sparse(diag(ones(block_size,1)));
-                events=@(t,y)obj.eventfun(t,y,x_Q(2));
+                events=@(t,y) obj.eventfun(t,y,x_Q(2));
                 options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events);
 
                 size_row=length(obj.t_inj)*length(obj.x);
@@ -170,8 +179,12 @@ classdef transport
                         size_N=size(obj.N);
                         if(size_N(1)>1)
                             Bool_inj_spat=obj.N(:,pos_temp)>threshold;
-                            [~,traj_temp2] = ode45(Velocity_reg,obj.t(pos_temp:end),x_S(Bool_inj_spat),options_reg);
-                            traj_temp2=traj_temp2';
+                            if(max(x_S(Bool_inj_spat))>x_Q(2))
+                                [~,traj_temp2] = ode45(Velocity_reg,obj.t(pos_temp:end),x_S(Bool_inj_spat),options_reg);
+                                traj_temp2=traj_temp2';
+                            else
+                                traj_temp2=x_S(Bool_inj_spat);
+                            end
                             traj_temp=zeros(length(Bool_inj_spat),size(traj_temp2,2));
                             traj_temp(Bool_inj_spat,:)=traj_temp2;
                         else
@@ -194,7 +207,7 @@ classdef transport
                         bool_delete=traj_temp==0;
                         mat_pos_allocate{i}=mat_pos_allocate{i}(~bool_delete,:);
                         % #JM comment to gain speed
-% % %                         fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
+                        fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
                     end
                       mat_pos_allocate=vertcat(mat_pos_allocate{:});
 % %                     bool_delete=mat_pos_allocate(:,3)<1e-3;
@@ -203,7 +216,7 @@ classdef transport
 % % % % % % % % % % % % %                     obj.x_traj=sparse(mat_pos_allocate(1:90084959,1),mat_pos_allocate(1:90084959,2),mat_pos_allocate(1:90084959,3),size_row,size_column);
 % % % % % % % % % % % % %                     x_traj2=sparse(mat_pos_allocate((1+90084959):end,1),mat_pos_allocate((1+90084959):end,2),mat_pos_allocate((1+90084959):end,3),size_row,size_column);
 % % % % % % % % % % % % %                     obj.x_traj=obj.x_traj+x_traj2;
-%                     obj.x_traj=sparse(obj.x_traj);
+                    obj.x_traj=sparse(obj.x_traj);
                 else
                     fprintf('Warning due to memory allocation problems, x_traj will be in cell format \n');
                     obj.x_traj=cell(size_row,1);
@@ -219,7 +232,7 @@ classdef transport
                         traj_temp_cell=mat2cell(traj_temp2,row_cut,column_cut);
                         obj.x_traj(block_size*(i-1)+1:block_size*i)=traj_temp_cell;
                         % #JM comment to gain speed
-% % %                         fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
+                        fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
                     end
                 end
             end
@@ -416,6 +429,7 @@ classdef transport
 %                 Seepage_proportion_x_traj=nan(size(Distance_pos));
 %                 Seepage_proportion_x_traj(~isnan(Distance_pos))=Seepage_proportion(Distance_pos(~isnan(Distance_pos)));
 %                 seepage_proportion=deval(sol_simulated,t,2*block_size+2:3*block_size+1)
+                fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
             end
             % % %#20180116
             obj.x_traj=sparse(obj.x_traj);
@@ -837,7 +851,7 @@ classdef transport
 %             
 %         end
 
-        function obj=transport_with_rooting(runs,x,slope_angle,k_soil)
+        function [obj,t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=transport_with_rooting(runs,x,slope_angle,k_soil)
             [obj,x_S,x_Q,width,velocity,Bool_sat,sol_simulated]=transport.instantiate_transport_and_velocity_field(runs);
             block_size=length(x_S);
             
@@ -857,27 +871,27 @@ classdef transport
             
             % compute the typical travel time inside the subsurface (soil layer)
             
-            slope_angle1_top=interpn(x,slope_angle,x_S);
-            k_soil2=ones(size(x_S))*k_soil;
-            velocity_soil=k_soil2.*sin(slope_angle1_top);
-            travel_time_soil=cumtrapz(dx./velocity_soil);
-            travel_time_soil2=[0;travel_time_soil];
-            
-            % travel time of the particles inside the soil layer
-            transit_times_soil=interpn(x_Q,travel_time_soil2,full(x_fin_groundwater),'linear',0);
-            
-            % t_out_river : time at which the particles arrives finally inside the river 
-            t_out_river=cat(2,t_out_groundwater,transit_times_soil); 
-            t_out_river= nansum(t_out_river,2); 
-            t_out_river=interp1([obj.t,2*obj.t(end)-obj.t(end-1)],[obj.t,2*obj.t(end)-obj.t(end-1)],t_out_river,'nearest',nan);
-            transit_times_total=cat(2,transit_times_groundwater,transit_times_soil); transit_times_total= nansum(transit_times_total,2); 
-            
-            transit_times_total(obj.ET_out>0)=nan;
-            t_out_river(obj.ET_out>0)=nan;
-            t_out_groundwater(obj.ET_out>0)=nan;
-            transit_times_groundwater(obj.ET_out>0)=nan;
-            x_fin_groundwater(obj.ET_out>0)=nan;
-            transit_times_soil(obj.ET_out>0)=nan;
+% %             slope_angle1_top=interpn(x,slope_angle,x_S);
+% %             k_soil2=ones(size(x_S))*k_soil;
+% %             velocity_soil=k_soil2.*sin(slope_angle1_top);
+% %             travel_time_soil=cumtrapz(dx./velocity_soil);
+% %             travel_time_soil2=[0;travel_time_soil];
+% %             
+% %             % travel time of the particles inside the soil layer
+% %             transit_times_soil=interpn(x_Q,travel_time_soil2,full(x_fin_groundwater),'linear',0);
+% %             
+% %             % t_out_river : time at which the particles arrives finally inside the river 
+% %             t_out_river=cat(2,t_out_groundwater,transit_times_soil); 
+% %             t_out_river= nansum(t_out_river,2); 
+% %             t_out_river=interp1([obj.t,2*obj.t(end)-obj.t(end-1)],[obj.t,2*obj.t(end)-obj.t(end-1)],t_out_river,'nearest',nan);
+% %             transit_times_total=cat(2,transit_times_groundwater,transit_times_soil); transit_times_total= nansum(transit_times_total,2); 
+% %             
+% %             transit_times_total(obj.ET_out>0)=nan;
+% %             t_out_river(obj.ET_out>0)=nan;
+% %             t_out_groundwater(obj.ET_out>0)=nan;
+% %             transit_times_groundwater(obj.ET_out>0)=nan;
+% %             x_fin_groundwater(obj.ET_out>0)=nan;
+% %             transit_times_soil(obj.ET_out>0)=nan;
         end
         
         function transport_2compartments(run_shallow,run_deep)
@@ -938,14 +952,14 @@ classdef transport
             
 
             % transport for run_deep
-            [obj_deep,DPSA_deep,RF_deep]=transport.run_transport_simu(run_bed);
-            toc
-            % transport total
-            obj_tot=obj_deep;
-            obj_tot.weight(obj_deep.DP_out==1)=obj_shallow.weight(obj_deep.DP_out==1);
-            obj_tot.x_traj(obj_deep.DP_out==1,:)=obj_shallow.x_traj(obj_deep.DP_out==1,:);
-            [t_out_gw,transit_times_gw]=obj_deep.get_trajectory_properties;
-            [t_out_tot,transit_times_tot]=obj_tot.get_trajectory_properties;
+%             [obj_deep,DPSA_deep,RF_deep]=transport.run_transport_simu(run_bed);
+%             toc
+%             % transport total
+%             obj_tot=obj_deep;
+%             obj_tot.weight(obj_deep.DP_out==1)=obj_shallow.weight(obj_deep.DP_out==1);
+%             obj_tot.x_traj(obj_deep.DP_out==1,:)=obj_shallow.x_traj(obj_deep.DP_out==1,:);
+%             [t_out_gw,transit_times_gw]=obj_deep.get_trajectory_properties;
+%             [t_out_tot,transit_times_tot]=obj_tot.get_trajectory_properties;
             
             % retrieve the particles essential properties for their travel inside the aquifer
             [t_out_shallow,transit_times_shallow,x_fin_shallow]=obj_shallow.get_trajectory_properties;
@@ -955,6 +969,7 @@ classdef transport
             % exponential approximation for run_deep
             [~,~,~,RF_spat_deep]=compute_DPSA_RF(run_bed.simulation_results,run_bed.boussinesq_simulation);
             Q_out_deep=sum(RF_spat_deep);
+            Q_out_deep(Q_out_deep<0)=0;
             Volume_deep=trapz(x_S,run_bed.simulation_results.S);
             tau_deep=Volume_deep./Q_out_deep;
             
@@ -963,8 +978,8 @@ classdef transport
             weighted_pdfs_deep=nan(length(obj_shallow.t)-1,length(time_support));
             weighted_pdfs_deep_approx=nan(length(obj_shallow.t)-1,length(time_support));
             weighted_pdfs=nan(length(obj_shallow.t)-1,length(time_support));
-            mean_shallow=nan(1,length(obj_shallow.t)-1);
-            std_shallow=nan(1,length(obj_shallow.t)-1);
+            weighted_pdfs2=nan(length(obj_shallow.t)-1,length(time_support));
+            
             
             weighted_pdfs_soil=nan(length(obj_shallow.t)-1,length(time_support));
             weighted_pdfs_reg=nan(length(obj_shallow.t)-1,length(time_support));
@@ -982,7 +997,7 @@ classdef transport
             dt=t_edge2-t_edge1;
             for i=1:(length(obj_shallow.t)-1)
                 [transit_times,weights_,number_of_particle_shallow(i)]=obj_shallow.get_ttds_bis(obj_shallow.t(i),t_out_shallow,transit_times_shallow);
-                [~,weighted_pdfs_shallow(i,:),mean_shallow(i),std_shallow(i)]=obj_shallow.compute_full_distribution(transit_times,weights_,time_support);
+                [~,weighted_pdfs_shallow(i,:)]=obj_shallow.compute_full_distribution(transit_times,weights_,time_support);
                 
                 [transit_times,weights_]=obj_reg.get_ttds_bis(obj_reg.t(i),t_out_reg,transit_times_reg);
                 [~,weighted_pdfs_reg(i,:)]=obj_reg.compute_full_distribution(transit_times,weights_,time_support);
@@ -990,16 +1005,16 @@ classdef transport
                  [transit_times,weights_]=obj_soil.get_ttds_bis(obj_soil.t(i),t_out_soil,transit_times_soil);
                 [~,weighted_pdfs_soil(i,:)]=obj_soil.compute_full_distribution(transit_times,weights_,time_support);
                 
-                [transit_times,weights_]=obj_deep.get_ttds_bis(obj_deep.t(i),t_out_gw,transit_times_gw);
-                [~,weighted_pdfs_deep(i,:)]=obj_deep.compute_full_distribution(transit_times,weights_,time_support);
+%                 [transit_times,weights_]=obj_deep.get_ttds_bis(obj_deep.t(i),t_out_gw,transit_times_gw);
+%                 [~,weighted_pdfs_deep(i,:)]=obj_deep.compute_full_distribution(transit_times,weights_,time_support);
                 
                 weighted_pdfs_deep_approx(i,:)=1/tau_deep(i)*exp(-time_support/tau_deep(i));
-%                 weighted_pdfs(i,:)=(Q_out_deep(i)*weighted_pdfs_deep_approx(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
+                
+                
+%                 [transit_times,weights_]=obj_tot.get_ttds_bis(obj_tot.t(i),t_out_tot,transit_times_tot);
+%                 [~,weighted_pdfs(i,:)]=obj_tot.compute_full_distribution(transit_times,weights_,time_support);
+                weighted_pdfs2(i,:)=(Q_out_deep(i)*weighted_pdfs_deep_approx(i,:)+(DPSA_shallow(i)+RF_shallow(i))*weighted_pdfs_shallow(i,:))/(Q_out_deep(i)+DPSA_shallow(i)+RF_shallow(i));
                 Q_shallow(i)=sum(weights_/1000)/(dt(i));
-                
-                [transit_times,weights_]=obj_tot.get_ttds_bis(obj_tot.t(i),t_out_tot,transit_times_tot);
-                [~,weighted_pdfs(i,:)]=obj_tot.compute_full_distribution(transit_times,weights_,time_support);
-                
                 
 % %                 mean_tot(i)=trapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600).*time_support/(24*365*3600));
 % %                 std_tot(i)=sqrt(trapz(time_support/(24*365*3600),(time_support/(24*365*3600)).^2.*weighted_pdfs(i,:)*24*365*3600)-mean_tot(i)^2);
@@ -1007,12 +1022,6 @@ classdef transport
 % %                 median_shallow(i)=time_support(Index_)/(3600*24);
 % %                 [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs(i,:)*(24*365*3600))));
 % %                 median_tot(i)=time_support(Index_)/(3600*24);
-                % under devt
-% %                 AA=(obj_shallow.t(i))/(24*3600)-time_support/(24*3600);
-% %                 BB=datetime(datestr(AA))';
-% %                 delta_t=AA-datenum(datetime(year(BB),1,1,12,00,00));
-% %                 Conc_in_delta_18O=-13.5-6.5*cos(delta_t/365*2*pi);
-% %                 delta_18O_synth(i)=trapz(time_support,Conc_in_delta_18O.*weighted_pdfs(i,:));
             end
         end
         
@@ -1091,7 +1100,7 @@ classdef transport
                     load(bouss_sim_dir); load(sim_dir);
                     runs1=runs; runs1.boussinesq_simulation=bouss_sim; runs1.simulation_results=obj;
                     clear bouss_sim obj
-                    transport=transport.test(runs1);
+                    obj_transport=obj_transport.test(runs1);
                     save(fullfile(directory,directory_list{i},'transport.mat'),'-v7.3');
                     clear transport runs1
                 end
@@ -1100,6 +1109,13 @@ classdef transport
         
         function Velocity=velocity_field(T,XQ,velocity,t,y)
             % 
+%             idx_time=findidxmex(T,t); %             idx_time=find_idx(t,T);
+%             idx_space=findidxmex(XQ,y);%             idx_space=find_idx(y,XQ);
+% 
+%             % C++ bilinear interpolation with a mex file
+%             Velocity=splinterp2(velocity,idx_time*ones(size(idx_space)),idx_space);
+            
+            
             idx_time=find_idx(t,T);
             idx_space=find_idx(y,XQ);
             %
@@ -1125,6 +1141,12 @@ classdef transport
         function median_=compute_median(time_support,weighted_pdfs)
             [~,Index_]=min(abs(0.5-cumtrapz(time_support/(24*365*3600),weighted_pdfs*(24*365*3600),2)),[],2);
             median_=time_support(Index_)/(3600*24);
+        end
+        
+        function prop_less_3_months=compute_Fyw(time_support,weighted_pdfs)
+            idx_time=find_idx(3*30,time_support/(3600*24));
+            prop_time=(idx_time-floor(idx_time));
+            prop_less_3_months=prop_time*trapz(time_support(1:ceil(idx_time)),weighted_pdfs(:,1:ceil(idx_time)),2)+(1-prop_time)*trapz(time_support(1:floor(idx_time)),weighted_pdfs(:,1:floor(idx_time)),2);
         end
         
         function Solute=compute_solute(time_support,weighted_pdfs,k,Ceq,C1)
