@@ -6,17 +6,19 @@ classdef simulation_results
         S
         Q
         QS
+        S_u % unsaturated representation
     end
     
     methods(Access=public)
         % constructor
-        function obj=simulation_results(t,x_S,x_Q,S,Q,QS)
+        function obj=simulation_results(t,x_S,x_Q,S,Q,QS,S_u)
             obj.t=t;
             obj.x_S=x_S;
             obj.x_Q=x_Q;
             obj.S=S;
             obj.Q=Q;
             obj.QS=QS;
+            obj.S_u=S_u;
         end
         
         function plot_results(obj,S_max,Watershed_area,w,Flux_in,folder_results)
