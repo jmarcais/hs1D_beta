@@ -247,8 +247,10 @@ classdef simulation_set
 %                 slope_angle=0.01*j*ones(size(slope_angle));
 %                     w(w<25)=30;
                     % ##JM maybe to change - to indroduce in new versions
-%                 hs1D=hillslope1D(perm_pos(i),f,k);
-                hs1D=hillslope1D(i,f,k);
+%                                    hs1D=hillslope1D;
+%                     hs1D=hs1D.set_properties(perm_pos(i),f,k);
+                 hs1D=hillslope1D;
+                 hs1D=hs1D.set_properties(1,f,k);
 %                 hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d*ones(size(x)));
 %                 d=(0.5:1/(length(x)-1):1.5)';
 %                 d=ones(size(x));
@@ -461,7 +463,8 @@ classdef simulation_set
              f=f*ones(size(x));
                 
                 if(sum(d<0)==0)
-                    hs1D=hillslope1D(1,f,k);
+                    hs1D=hillslope1D;
+                    hs1D=hs1D.set_properties(1,f,k);
                     hs1D=hs1D.set_spatial_parameters(x,width,slope,d);%hs1D=hs1D.set_spatial_parameters(x./cos(slope),width,slope,d.*cos(slope));%
                     if(nargin<8)
                         hydro_loc=obj.hydrologic_inputs_directory{1};
@@ -645,7 +648,8 @@ classdef simulation_set
                 d=25*ones(size(x));
                 f=f1*ones(size(x));
                 k=k1*ones(size(x));
-                hs1D=hillslope1D(i,f,k);
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(i,f,k);
 
                 hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d);
                 
@@ -692,7 +696,8 @@ classdef simulation_set
                 d=(linspace(d1,25,length(x)))';
                 f=f1*ones(size(x));
                 k=k1*ones(size(x));
-                hs1D=hillslope1D(i,f,k);
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(i,f,k);
 
                 hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d);
                 
@@ -785,7 +790,8 @@ classdef simulation_set
 %                 f=0.4*d(1)./d;
 %                 k=k1*1./(d-d(1)+1);
 %                 f=0.4*1./(d-d(1)+1);
-                hs1D=hillslope1D(i,f,k);
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(i,f,k);
 
                 hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
                 
@@ -876,7 +882,7 @@ classdef simulation_set
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
-                    d_init_add=2.7707;
+                    d_init_add=6.5;%2.7707;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
@@ -945,7 +951,8 @@ classdef simulation_set
                 
                 if(sum(d<0)==0)
                    
-                    hs1D=hillslope1D(1,f,k);
+                    hs1D=hillslope1D;
+                    hs1D=hs1D.set_properties(1,f,k);
                     
                     hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
                     
@@ -1018,6 +1025,142 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
+        function [Q_out2,residual2,Q_out,residual,run_obj]=run_simulation_unsat(k1,f1,phi1,file_path)
+% %             if(nargin<3)
+% %                 f1=0.2;
+% %             end
+            tic
+            range_= 4332:4505; % 1531:1704; %1:1465;%1:8759; %1:1500;%
+            if(nargin<4)
+                f1=0.2;
+            end
+            if(nargin<3)
+%                 folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Guillec2';
+%                 d_init_add=2.7707;
+                folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Synthetic';
+                d_init_add=0;
+            else
+                occurence_slash=strfind(file_path,'\');
+                folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
+                if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
+                    d_init_add=0;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
+                    d_init_add=6.5;%2.7707;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
+                    d_init_add=0.9249;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
+                    d_init_add=2.2063;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Penze'))
+                    d_init_add=0.9392;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
+                    d_init_add=1.7655;
+                else
+                    d_init_add=2.7707;%20;
+                end
+            end
+%             folder_root='C:\Users\Jean\Documents\ProjectDSi\GuillecEquiv';
+            
+%             folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Douffine2';
+            obj=simulation_set(folder_root);
+            obj=obj.instantiate_all_inputs_directory;
+            
+                           
+                % locations of different inputs file
+                hydro_loc=obj.hydrologic_inputs_directory{1};
+                morpho_loc=obj.morphologic_inputs_directory{1};
+                
+                % 2/ read input files
+                M=obj.read_input_file(morpho_loc);
+                x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
+                
+                % first option
+                z_top=cumtrapz(x,slope_angle);
+                slope_angle2=0*slope_angle;%atan((d1)/(x(end)-x(1)))*ones(size(slope_angle));%zeros(size(slope_angle));
+                z_bottom=cumtrapz(x,slope_angle2)-d_init_add;
+                d=z_top-z_bottom;
+                
+                % hydraulic parameters
+                k=k1*ones(size(x));
+                f=f1*ones(size(x));
+                phi=phi1*ones(size(x));
+                
+                if(sum(d<0)==0)
+                   
+                    hs1D=hillslope1D_unsat;
+                    hs1D=hs1D.set_properties(-1,f,k,phi);
+                    
+                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
+                    
+                    [M,input_type]=obj.read_input_file(hydro_loc);
+                    t=M(:,1);
+                    recharge_chronicle=(M(:,2:end))';
+                    
+% %                     time_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
+% %                     source_terms=source('data_based');
+% %                     source_terms.time=time_1;
+% %                     source_terms.recharge_chronicle=interp1((t)',(M(:,2:end))',(time_1.get_properties));
+% %                     source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
+                    
+                    ratio_P_R=1;%0.875;%.33;%/0.38;
+                    source_terms=source('data_based');
+                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                    ratio_P_R=1;%0.38;
+                    
+                    % 3/ create a runs object and run the simulation
+                    run_obj=runs;
+                    % set the solver options default or assigned in parameters via an odeset structure
+                    % specify Refine options for real infiltrations chronicle because for accuracy you need
+                    % to force matlab ode15s to compute where you know sthg is happening
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',30*3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    solver_options=run_obj.set_solver_options(odeset_struct);
+                    
+% % %                     % run the simulation starting from half empty hillslope
+% % %                     percentage_loaded=0.5;    
+% % %                     % run transient simulation 
+% % %                     run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                    % run the simulation starting from the steady state condition
+                    percentage_loaded=0;
+                    recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'full');
+                    presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
+                    % run transient simulation 
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'full');
+                    
+                    [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
+                    slope_angle_top=interpn(x,slope_angle,x_Q1);
+                    toc
+                    
+                    Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
+                    Q_out=Q_temp(range_);
+                    
+                    Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,soil_coef);
+                    Q_out2=Q_temp2(range_);
+
+                    
+                    Q_out=Q_out+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
+                    Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
+%                     toc
+                    
+                    load(file_path);
+                    
+                    if(length(Q_real)==length(Q_out))
+                        residual2=Q_out2-Q_real;
+                        residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+                        
+                        residual=Q_out-Q_real;
+                        residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+                    else
+                        residual2=nan;
+                        residual=nan;
+                    end
+                else
+                    Q_out2=nan;
+                    
+                end
+%             DSi_out=sum(DSi,1);      
+        end
+        
+        
         function run_simulation_temp(f1,k1,d1,file_path)
             obj=simulation_set(file_path);
             obj=obj.instantiate_all_inputs_directory;
@@ -1036,7 +1179,8 @@ classdef simulation_set
             f=f1*ones(size(x));
             d=z_top-z_bottom;
             
-            hs1D=hillslope1D(1,f,k);
+            hs1D=hillslope1D;
+            hs1D=hs1D.set_properties(1,f,k);
             
             hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d);
             
@@ -1301,7 +1445,8 @@ classdef simulation_set
 
             k=k_soil*ones(size(x));
             f=f_soil*ones(size(x));
-            hs1D=hillslope1D(1,f,k);
+            hs1D=hillslope1D;
+            hs1D=hs1D.set_properties(1,f,k);
             hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d_soil);
             
             % run steady state simulation
@@ -1370,7 +1515,8 @@ classdef simulation_set
                 
                 f=0.2*ones(size(x));
                 k=k1*ones(size(x));
-                hs1D=hillslope1D(i,f,k);
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(i,f,k);
                 hs1D=hs1D.set_spatial_parameters(x,w,slope_angle_bottom,d);
                 
                 [M,input_type]=obj.read_input_file(hydro_loc);
