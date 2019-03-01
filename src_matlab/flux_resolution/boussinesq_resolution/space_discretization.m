@@ -1,7 +1,7 @@
 classdef space_discretization
 % class defining the discretization in space. Discretization has not to be regular (linearly spaced)
 
-    properties(Access=private)
+    properties(Access=protected)
         xmin                    % minimum x coordinates [m]
         xmax                    % maximum x coordinates [m]
         discretization_type     % linear, log, square, custom
@@ -26,9 +26,12 @@ classdef space_discretization
     end
     
     methods(Access=public)
-        function obj=space_discretization(xmin,xmax,Nx,discretization_type,xcustom)
-            if(nargin<4) discretization_type='lin'; end
-            if(nargin<5) xcustom=nan; end 
+        function obj=space_discretization
+        end
+        
+        function obj=set_space_discretization_properties(obj,xmin,xmax,Nx,discretization_type,xcustom)
+            if(nargin<5) discretization_type='lin'; end
+            if(nargin<6) xcustom=nan; end 
             obj.xmin=xmin;
             obj.xmax=xmax;
             obj.Nx=Nx;
