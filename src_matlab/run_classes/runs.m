@@ -1,6 +1,3 @@
-    % Etude de convergence spatiale (comme avant)
-% Temporelle 
-
 classdef runs
 % class storing the parametrization to run a boussinesq simulation over a given hillslope of on a parametrized hillslope
     properties(Access=public)
@@ -60,8 +57,13 @@ classdef runs
             % initialize a boussinesq simulation
             obj=obj.initialize_boussinesq_simulation(discretization,source_terms,boundary_cond,percentage_loaded,t.get_tmin,ratio_P_R,Sinitial);
             % Run the DAE
-            [t,x_center,x_edge,S,Q,QS,obj.boussinesq_simulation]=obj.boussinesq_simulation.implicit_scheme_solver(t,solver_options);
-            obj.simulation_results=simulation_results(t,x_center,x_edge,S,Q,QS);
+            if(obj.hs1D.Id==-1)
+                [t,x_center,x_edge,S,Q,QS,obj.boussinesq_simulation,S_u]=obj.boussinesq_simulation.implicit_scheme_solver(t,solver_options);
+                obj.simulation_results=simulation_results(t,x_center,x_edge,S,Q,QS,S_u);
+            else
+                [t,x_center,x_edge,S,Q,QS,obj.boussinesq_simulation]=obj.boussinesq_simulation.implicit_scheme_solver(t,solver_options);
+                obj.simulation_results=simulation_results(t,x_center,x_edge,S,Q,QS);
+            end
         end
     end
     
@@ -86,16 +88,17 @@ classdef runs
                 obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
             else
                 [x,w,soil_depth,angle]=hs1D.get_spatial_properties;
-                [f,k]=hs1D.get_hydraulic_properties;
-                obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth);
-                obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
+                if(hs1D.Id>0)
+                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth);
+                    [f,k]=hs1D.get_hydraulic_properties;
+                    obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
+                elseif(hs1D.Id==-1)
+                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,hs1D.Id);
+                    [f,k,phi]=hs1D.get_hydraulic_properties;
+                    obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f,phi);
+                end
             end
             % spatial discretization
-            if(length(x)<13)
-                Nx=length(x)-1;
-                discretization_type='lin';%'custom';      % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
-                [discretization,obj]=obj.set_space_discretization(Nx,discretization_type);%,xcustom);
-            else
                 Nx=100;
 %                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
 %                 x2=logspace(log10(10),log10(x(end)),50); x=[0;1;5;x2']; %x=[x(1);x2'];
@@ -104,13 +107,6 @@ classdef runs
 % % % %                 xcustom=[0,30,60,90,120,160,420,680,940,1200,1460,1720,1980,2240,2500];
                 discretization_type='custom'; 'lin';%     % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
                 [discretization,obj]=obj.set_space_discretization(Nx,discretization_type,x');%,xcustom);
-            end
-            % Number of points in the discretization scheme so Nx points to compute S & qS and (Nx+1) points to compute Q
-%             Nx=40;
-%             discretization_type='lin';      % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
-%             % Instantiation
-%             % space discretization object
-%             [discretization,obj]=obj.set_space_discretization(Nx,discretization_type);
         end
         
         function obj=choose_hydraulic_parameters(obj,f,k,d,i)
@@ -123,7 +119,8 @@ classdef runs
                      end
                       end
             end
-            obj.hs1D=hillslope1D(1);
+            obj.hs1D=hillslope1D;
+            obj.hs1D=obj.hs1D.set_properties(1);
             if(~isnan(i))
                 [x,w,~,~]=obj.hs1D.get_spatial_properties;
                 obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,i,w,d);
@@ -204,7 +201,11 @@ classdef runs
             if(nargin<8)
                 Sinitial=nan;
             end
-            obj.boussinesq_simulation=boussinesq_simulation;
+            if(obj.hs1D.Id==-1)
+                obj.boussinesq_simulation=boussinesq_simulation_unsat;
+            else
+                obj.boussinesq_simulation=boussinesq_simulation;
+            end
             obj.boussinesq_simulation=obj.boussinesq_simulation.simulation_parametrization(discretization,source_term,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Sinitial);
         end
         
@@ -245,7 +246,7 @@ classdef runs
             dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
         end
         
-        function hs1D=set_hillslope_geomorphologic_properties(obj,x,angle,w,soil_depth)
+        function hs1D=set_hillslope_geomorphologic_properties(obj,x,angle,w,soil_depth,unsat_Id)
             if(nargin<5)
                 soil_depth=ones(size(x));
             elseif(length(soil_depth)==1)
@@ -288,7 +289,13 @@ classdef runs
                     soil_depthint=soil_depth;
                     angleint=angle;
             end
-            hs1D=hillslope1D(1);
+            if(nargin>5)
+                 hs1D=hillslope1D_unsat;
+                 hs1D=hs1D.set_properties(unsat_Id);
+            else
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(1);
+            end
             hs1D=hs1D.set_spatial_parameters(xint,wint,angleint,soil_depthint);
         end
         
@@ -312,12 +319,18 @@ classdef runs
             if(nargin<3) type='lin'; end
             if(nargin<2) Nx=100; end
             [x,w,soil_depth,angle]=obj.hs1D.get_spatial_properties;
-            [f,k]=obj.hs1D.get_hydraulic_properties;
             xmin=x(1); xmax=x(end);
-%             type='custom';
-%             xcustom=[x(1):1:x(2)-1,x(2):10:x(end)];
-            discretization=space_discretization(xmin,xmax,Nx,type,xcustom);
-            [discretization,link_hs1D]=discretization.resample_hs1D_spatial_variables(x,w,soil_depth,angle,f,k);
+            if(obj.hs1D.Id==-1) % Identifier property at -1 is the identifier for hillslope with unsaturated simulation
+                [f,k,phi]=obj.hs1D.get_hydraulic_properties;
+                discretization=space_discretization_unsat;
+                discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
+                [discretization,link_hs1D]=discretization.resample_hs1D_spatial_variables(x,w,soil_depth,angle,f,k,phi);
+            else
+                [f,k]=obj.hs1D.get_hydraulic_properties;
+                discretization=space_discretization;
+                discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
+                [discretization,link_hs1D]=discretization.resample_hs1D_spatial_variables(x,w,soil_depth,angle,f,k);
+            end
             obj.hs1D.link_hs1D=link_hs1D;
             discretization=discretization.set_matrix_properties;
         end
@@ -377,7 +390,13 @@ classdef runs
             Qfin=Qfin(:,end);
             QSfin=obj.simulation_results.QS;
             QSfin=QSfin(:,end);
-            state_values_fin=[Sfin;Qfin;QSfin];
+            if(~isempty(obj.simulation_results.S_u))
+                Su_fin=obj.simulation_results.S_u;
+                Su_fin=Su_fin(:,end);
+                state_values_fin=[Sfin;Qfin;QSfin;Su_fin];
+            else
+                state_values_fin=[Sfin;Qfin;QSfin];
+            end
         end
         
         function [S_max,Watershed_area,w,Flux_in_total,Watershed_area_spatialized]=get_key_parameters(obj,t)
