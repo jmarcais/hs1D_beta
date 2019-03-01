@@ -115,7 +115,8 @@ classdef hillslope
             if(nargin<2)
                 DEM_resolution=5;
             end
-            obj.hsB=hillslope1D(obj.Id);
+            obj.hsB=hillslope1D;
+            obj.hsB=obj.hsB.set_properties(obj,obj.Id);
             [obj.hsB,obj.link_hillslope_hs1D]=obj.hsB.set_parameters(obj.distance,obj.z,DEM_resolution);
 %             obj.hsB=obj.hsB.transform_to_constant_slope;
             obj.hsB=obj.hsB.transform_to_spline_slope(0.0001);
