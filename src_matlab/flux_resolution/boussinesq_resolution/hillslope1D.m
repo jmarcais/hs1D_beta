@@ -1,6 +1,6 @@
 classdef hillslope1D
     properties(Access=public)
-        Id           % same as hillslope from where it derives
+        Id           % same as hillslope from where it derives Id=-1 is for hillslope with an unsaturated component
         x            % 1D (Nix1) array distance from stream (m)
         z            % 1D (Nix1) array mean elevation of the hillslope according to the distance (m)
         w            % 1D (Nix1) array width of the hillslope according to the distance x (m)
@@ -19,12 +19,18 @@ classdef hillslope1D
     
     methods(Access=public)
         % constructor
-        function obj=hillslope1D(Id,f,k)
-            if(nargin<3) 
+        function obj=hillslope1D
+        end
+        
+        function obj=set_properties(obj,Id,f,k)
+            if(nargin<3)
                 k=1/3600; %fprintf('default hydraulic conductivity 1 m/h \n');
-                if(nargin<2) 
-                    f=0.3; %fprintf('default porosity: f=0.3 \n'); %if(nargin<2) i=0; fprintf('flat hillslopes choosen by default: i=0 \n'); end 
-                end 
+                if(nargin<2)
+                    f=0.3; %fprintf('default porosity: f=0.3 \n'); %if(nargin<2) i=0; fprintf('flat hillslopes choosen by default: i=0 \n'); end
+                    if(nargin<1)
+                        Id=1;
+                    end
+                end
             end
             obj.Id=Id;
             obj.f=f;
@@ -352,7 +358,8 @@ classdef hillslope1D
         
         function obj=load_hs1D_class_from_txt_file(hillslope_struct_file_path,hillslope_param_file_path)
             [x,w,i,~,~]=hillslope1D.read_hs1D_data(hillslope_struct_file_path);
-            obj=hillslope1D(-10,-10,-10);
+            obj=hillslope1D;
+            obj=obj.set_properties(-10,-10,-10);
             if(nargin>1)
                 [f,k,d]=hillslope1D.read_hillslope_parametrization_data(hillslope_param_file_path);
                 d=d*ones(size(x));
@@ -384,7 +391,8 @@ classdef hillslope1D
 %                 end
 %                 folder_directory=strcat(folder_directory,'\','omega_',num2str(val(i,1)),'_n_',num2str(val(i,2)));
                 folder_directory=folder_initial;
-                hs1D=hillslope1D(i,-1,-1);
+                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(i,-1,-1);
                 x=0:1:100; ymax=25;
                 w=hs1D.generate_troch_hillslope(x,val(i,2),val(i,1),ymax);
                 hs1D=hs1D.set_spatial_parameters(x,w,-1,-1);
