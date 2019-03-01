@@ -182,7 +182,8 @@ classdef simulation_set2
                     f=0.3; k=1; d=1.5;
                     M=obj.read_input_file(destination_morpho_file);
                     x=M(:,1); w=M(:,2); slope_angle=0.05*ones(size(M(:,3)));
-                    hs1D=hillslope1D(i,f,k);
+                    hs1D=hillslope1D;
+                    hs1D=hs1D.set_properties(i,f,k);
                     hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d*ones(size(x)));
                     [M,input_type]=obj.read_input_file(destination_hydro_file);
                     t=M(:,1);
