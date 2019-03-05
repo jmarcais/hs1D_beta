@@ -41,6 +41,11 @@ classdef boussinesq_simulation_unsat
                 % assign only the initial storage values
                 if(length(Sinitial)==obj.discretization.Nx)
                     initial_conditions.Sin=Sinitial;
+                elseif(length(Sinitial)==3*obj.discretization.Nx+1)
+                    initial_conditions.Sin=Sinitial;
+                elseif(length(Sinitial)==4*obj.discretization.Nx+1)
+                    Su_max=obj.get_max_unsaturated_storage([Sinitial(1:obj.discretization.Nx);Sinitial(3*obj.discretization.Nx+2:end)]);
+                    initial_conditions.Sin=[Sinitial(1:obj.discretization.Nx);Su_max-Sinitial(3*obj.discretization.Nx+2:end)];
                 else
                     fprintf('Error: length of the assigned initial state values of the simulation are not of the good length \n');
                 end
@@ -50,7 +55,7 @@ classdef boussinesq_simulation_unsat
                 if(percentage_loaded==-2 && isnan(Sinitial))
                     initial_conditions.Sin=0*Smax;
                 else
-                    initial_conditions.Sin=[percentage_loaded*Smax;(phi-f)./f*percentage_loaded.*Smax];
+                    initial_conditions.Sin=[percentage_loaded*Smax;(phi-f)./f*(1-percentage_loaded).*Smax];
                 end
             end
             
@@ -68,7 +73,7 @@ classdef boussinesq_simulation_unsat
         end
 
         % set the parameters for the resolution of the Boussinesq DAE
-        function [t,x_center,x_edge,S,Q,QS,obj,S_u]=implicit_scheme_solver(obj,t_properties,solver_options)
+        function [t,x_center,x_edge,S,Q,QS,obj,S_u,Su_max,S_u_deficit]=implicit_scheme_solver(obj,t_properties,solver_options)
             % initial vector for the DAE
             y0=[obj.initial_conditions.Sin];
            
@@ -99,6 +104,7 @@ classdef boussinesq_simulation_unsat
             if(~isempty(solver_options.MaxStep) && isnan(solver_options.MaxStep))
                 solver_options.MaxStep=[];
             end
+            solver_options.NonNegative=block_size+1:1:2*block_size;
             options=odeset(options,solver_options);
            
             % get consistent initial conditions thanks to decic
@@ -126,16 +132,19 @@ classdef boussinesq_simulation_unsat
                 t=time_range(1:tmax_pos);
             end
             S_tot=deval(obj.sol_simulated,t);
-            S_u=S_tot(block_size+1:end,:);
+            S_u_deficit=S_tot(block_size+1:end,:);
             S=S_tot(1:block_size,:);
             size_S=size(S);
             Q=nan(size_S(1)+1,size_S(2));
             QS=nan(size_S);
+            Su_max=nan(size_S);
             
             for i=1:length(t)
                 Q(:,i)=-obj.compute_Q_from_S(S_tot(:,i))*S(:,i);
                 QS(:,i)=obj.compute_QS_from_Q(S_tot(:,i),t(i))*Q(:,i)+obj.partition_source_terms_QS(S_tot(:,i),t(i)); %2*block_size+2:3*block_size+1,:);
+                Su_max(:,i)=obj.get_max_unsaturated_storage(S_tot(:,i));
             end
+            S_u=Su_max-S_u_deficit;
             
             x_edge=obj.discretization.get_edges_coordinates;
             x_center=obj.discretization.get_center_coordinates;
@@ -188,8 +197,8 @@ classdef boussinesq_simulation_unsat
             % first row block
             C=sparse(2*block_size,2*block_size);
             C(1:block_size,1:block_size)         = obj.compute_dSdt_from_Q(y,t)*(-obj.compute_Q_from_S(y));
-            [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
-            C(block_size+1:end,1:block_size)     = -(phi-f)./f.*obj.gamma(y,t).*C(1:block_size,1:block_size);
+% % %             [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
+% % %             C(block_size+1:end,1:block_size)     = -(phi-f)./f.*obj.gamma(y,t).*C(1:block_size,1:block_size);
 %             C(block_size+1:end,1:block_size)     = obj.compute_dSudt_from_S(y,t);
             
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
@@ -203,7 +212,7 @@ classdef boussinesq_simulation_unsat
             
             block_size=obj.discretization.Nx;
             
-            [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
+%             [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
             
             alpha=obj.alpha(y,t);
             gamma=obj.gamma(y,t);
@@ -211,7 +220,7 @@ classdef boussinesq_simulation_unsat
 %             Rain=obj.N*obj.w;
             D=sparse(zeros(2*block_size,1));
             D(1:block_size)=alpha.*gamma.*Recharge_rate_spatialized;
-            D(block_size+1:end)=(1-gamma).*Recharge_rate_spatialized-(phi-f)./f.*D(1:block_size);
+            D(block_size+1:end)=-(1-gamma).*Recharge_rate_spatialized;%-(phi-f)./f.*D(1:block_size);
            
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             Edges_value=obj.boundary_cond.fixed_edge_matrix_values;
@@ -339,7 +348,7 @@ classdef boussinesq_simulation_unsat
             block_size=obj.discretization.Nx;
             Su_max=obj.get_max_unsaturated_storage(y);
             
-            Thresh=1-threshold_function2((1+y(block_size+1:end))./(1+Su_max));
+            Thresh=1-threshold_function2((1+Su_max-y(block_size+1:end))./(1+Su_max));
 %             Test_Deriv=obj.Test_Derivative(y,t);
 %             OUT=Thresh.*Test_Deriv+(1-Test_Deriv);
             OUT=Thresh;
