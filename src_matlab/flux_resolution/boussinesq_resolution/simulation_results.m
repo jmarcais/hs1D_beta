@@ -18,7 +18,9 @@ classdef simulation_results
             obj.S=S;
             obj.Q=Q;
             obj.QS=QS;
-            obj.S_u=S_u;
+            if(nargin>6)
+                obj.S_u=S_u;
+            end
         end
         
         function plot_results(obj,S_max,Watershed_area,w,Flux_in,folder_results)
