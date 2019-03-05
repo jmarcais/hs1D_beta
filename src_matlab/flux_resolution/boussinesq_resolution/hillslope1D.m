@@ -23,11 +23,11 @@ classdef hillslope1D
         end
         
         function obj=set_properties(obj,Id,f,k)
-            if(nargin<3)
+            if(nargin<4)
                 k=1/3600; %fprintf('default hydraulic conductivity 1 m/h \n');
-                if(nargin<2)
+                if(nargin<3)
                     f=0.3; %fprintf('default porosity: f=0.3 \n'); %if(nargin<2) i=0; fprintf('flat hillslopes choosen by default: i=0 \n'); end
-                    if(nargin<1)
+                    if(nargin<2)
                         Id=1;
                     end
                 end
