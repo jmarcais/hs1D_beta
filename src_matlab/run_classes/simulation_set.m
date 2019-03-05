@@ -358,7 +358,7 @@ classdef simulation_set
             % add an event equal to 1 to detect steady_state
             detect_steady_state=1;
 %             odeset_struct=odeset('RelTol',2.5e-14,'AbsTol',1e-17,'Events',detect_steady_state);
-            odeset_struct=odeset('RelTol',2.5e-14,'Events',detect_steady_state);
+            odeset_struct=odeset('RelTol',2.5e-14,  'Events',detect_steady_state);
             solver_options=prerun_steady.set_solver_options(odeset_struct);
             Sinitial=nan;
             if(nargin<5)
@@ -1121,10 +1121,10 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'full');
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'full');
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
                     slope_angle_top=interpn(x,slope_angle,x_Q1);
