@@ -105,7 +105,7 @@ classdef runs
 %                 x=[x(1);5;x(2:end)];
 %                 xcustom=[0,60,180,300,420,540,660,780,900,1020,1140,1260,1380,1500,1620,1740,1860,1980,2100,2220,2340,2460,2580,2700,2820,2940,3000]/3;%[0,30,60,90,120,160,608,1056,1504,1952,2400];
 % % % %                 xcustom=[0,30,60,90,120,160,420,680,940,1200,1460,1720,1980,2240,2500];
-                discretization_type='custom'; 'lin';%     % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
+                discretization_type='custom';%'lin';%      % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
                 [discretization,obj]=obj.set_space_discretization(Nx,discretization_type,x');%,xcustom);
         end
         
@@ -179,19 +179,6 @@ classdef runs
                 t=time_properties(tmin,tmax,Nt,time_unity_type);
                 source_term=obj.set_source_terms(t,recharge_rate,recharge_type,period);
             end
-        end
-        
-        function odeset_struct=set_solver_options(obj,odeset_struct)
-            if(nargin<2)
-                % Solver options ode15s used by default
-                maxstep=nan;                    % maximum time steps allowed to do the integration in hours
-                RelTol=3e-14;                   % Relative Tolerance for the solution
-                AbsTol=1e-10;
-                odeset_struct=odeset('maxstep',maxstep,'RelTol',RelTol,'AbsTol',AbsTol);
-            end
-            % solver options
-%             solver_options=ode_options;
-%             solver_options=solver_options.instantiate(maxstep,RelTol,AbsTol);
         end
         
         function obj=initialize_boussinesq_simulation(obj,discretization,source_term,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Sinitial)
@@ -454,6 +441,19 @@ classdef runs
     end
     
     methods(Static)
+        function odeset_struct=set_solver_options(odeset_struct)
+            if(nargin<2)
+                % Solver options ode15s used by default
+                maxstep=nan;                    % maximum time steps allowed to do the integration in hours
+                RelTol=3e-14;                   % Relative Tolerance for the solution
+                AbsTol=1e-10;
+                odeset_struct=odeset('maxstep',maxstep,'RelTol',RelTol,'AbsTol',AbsTol);
+            end
+            % solver options
+            %             solver_options=ode_options;
+            %             solver_options=solver_options.instantiate(maxstep,RelTol,AbsTol);
+        end
+        
         function [x,S_max,width_function,Watershed_area_spatialized]=load_key_parameters(key_param_file_path)
             fid=fopen(key_param_file_path);
             if(fid>0)
