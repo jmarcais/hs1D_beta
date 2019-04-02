@@ -35,20 +35,25 @@ classdef transport_1D
                 size_N=size(obj.N);
                 t_inj_pos=1:1:length(obj.t);
                 if(size_N(1)>1)
-                    N_max=max(obj.N);
+                    N_max=obj.N(1,:);%max(obj.N);
                     obj.t_inj=obj.t(N_max>threshold);
                     obj.N_inj=obj.N(:,N_max>threshold);
                     obj.N_inj=reshape(obj.N_inj,size(obj.N_inj,1)*size(obj.N_inj,2),1);
                     obj.t_inj_pos=t_inj_pos(N_max>threshold);
+                    if(obj.t_inj(end)==obj.t(end))
+                        obj.t_inj=obj.t_inj(1:end-1);
+                        obj.t_inj_pos=obj.t_inj_pos(1:end-1);
+                        obj.N_inj=obj.N_inj(1:end-length(obj.x));
+                    end
                 else
                     obj.t_inj=obj.t(obj.N>threshold);
                     obj.N_inj=obj.N(obj.N>threshold);
                     obj.t_inj_pos=t_inj_pos(obj.N>threshold);
-                end
-                if(obj.t_inj(end)==obj.t(end))
-                    obj.t_inj=obj.t_inj(1:end-1);
-                    obj.t_inj_pos=obj.t_inj_pos(1:end-1);
-                    obj.N_inj=obj.N_inj(1:end-1);
+                    if(obj.t_inj(end)==obj.t(end))
+                        obj.t_inj=obj.t_inj(1:end-1);
+                        obj.t_inj_pos=obj.t_inj_pos(1:end-1);
+                        obj.N_inj=obj.N_inj(1:end-1);
+                    end
                 end
             else
 %                 spacing_=30*24*3600;
@@ -78,10 +83,16 @@ classdef transport_1D
                 t_edge1=obj.t-[dt(1),dt]/2;
                 t_edge2=obj.t+[dt,dt(end)]/2;
                 dt=t_edge2-t_edge1;
-                inmass=obj.N.*(discretized_area*dt)*1000; % incoming mass in L
-                weight_temp=inmass(:,obj.t_inj_pos);
-                size_=size(weight_temp);
-                weight_temp=reshape(weight_temp,size_(1)*size_(2),1);
+                inmass_weight=(discretized_area*dt)*1000; % incoming mass in m2/s
+                inmass_weight=inmass_weight(:,obj.t_inj_pos);
+                size_inmass_weight=size(inmass_weight);
+                inmass_weight=reshape(inmass_weight,size_inmass_weight(1)*size_inmass_weight(2),1);
+                weight_temp=obj.N_inj.*inmass_weight;
+%                 inmass=obj.N.*(discretized_area*dt)*1000; % incoming mass in L
+% %                 inmass=bsxfun(@times,discretized_area,dt)*1000;
+%                 weight_temp=inmass(:,obj.t_inj_pos);
+%                 size_=size(weight_temp);
+%                 weight_temp=reshape(weight_temp,size_(1)*size_(2),1);
                 obj.weight=weight_temp;
             else
                 dt_inj=obj.t_inj(2:end)-obj.t_inj(1:end-1);
@@ -273,7 +284,7 @@ classdef transport_1D
             if(nargin<6 | strcmp(speed_option,'fast'))
                 stop_conditions=x_Q(2);
             elseif(strcmp(speed_option,'slow'))
-                stop_conditions=x_S(1)/100;%0000;1e-9;%
+                stop_conditions=x_S(1)/100000;%0000;1e-9;%
             end
             if(nargin>6)
                 %% C code in mex file
@@ -295,16 +306,18 @@ classdef transport_1D
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<15e9)
-                    mat_pos_allocate_x=cell(length(obj.t)-1,1);%zeros(size_row*size_column,3);%[];%
-                    for i=1:(length(obj.t)-1)
-                        Bool_inj_spat=logical((obj.N(:,i)>threshold).*(ones(size(x_S))));
+                    mat_pos_allocate_x=cell(length(obj.t_inj)-1,1);%zeros(size_row*size_column,3);%[];%
+                    for i=1:(length(obj.t_inj)-1)
+                        Bool_inj_spat=logical((obj.N(:,obj.t_inj_pos(i))>threshold).*(ones(size(x_S))));
                         Bool_inj_sat=logical((obj.DPSA(1+(i-1)*block_size:i*block_size)==1).*(Bool_inj_spat));
                         Bool_inj_nonsat=logical(Bool_inj_spat-Bool_inj_sat);
                         % if there is a particle injection
                         if(sum(Bool_inj_spat)~=0) 
                             if(sum(Bool_inj_nonsat)~=0)
                                 % compute trajectories on non saturated areas
-                                [~,traj_temp_nonsat] = ode45(Velocity_1D,obj.t(i:end),x_S(Bool_inj_nonsat),options_reg);
+                                [~,traj_temp_nonsat] = ode45(Velocity_1D,obj.t(obj.t_inj_pos(i):end),x_S(Bool_inj_nonsat),options_reg);
+                            else
+                                traj_temp_nonsat=[];
                             end
                             % compute trajectories on saturated areas
                             traj_temp_sat=x_S(Bool_inj_sat)';
@@ -313,10 +326,10 @@ classdef transport_1D
                             x_traj_temp(Bool_inj_nonsat,:)=(traj_temp_nonsat(:,1:sum(Bool_inj_nonsat)))';
                             x_traj_temp(Bool_inj_sat,1)=(traj_temp_sat(:,1:sum(Bool_inj_sat)))';
                             % not to take into accounts internal timesteps if there are only 2 timesteps required
-                            if(length(obj.t(i:end))==2)
+                            if(length(obj.t(obj.t_inj_pos(i):end))==2)
                                 x_traj_temp=x_traj_temp(:,[1,end]);
                             end
-                            matrix_positions=(combvec(block_size*(i-1)+1:block_size*i,i:size(x_traj_temp,2)+i-1))';
+                            matrix_positions=(combvec(block_size*(i-1)+1:block_size*i,obj.t_inj_pos(i):size(x_traj_temp,2)+obj.t_inj_pos(i)-1))';
                             % build a boolean to delete particles once they have arrived in the river
                             bool_delete=x_traj_temp<(stop_conditions/1000);
                             bool_delete=logical(cumsum(bool_delete,2));
@@ -327,7 +340,7 @@ classdef transport_1D
                             mat_pos_allocate_x{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
                         end
                         % to know at what injection we are
-                         fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
+                         fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)-1),'\n'));
                         
                     end
                     % rebuild the (x,z) trajectories in the trajectory matrix
@@ -552,7 +565,7 @@ classdef transport_1D
             Position_Number=(1:size_row)';
             Position_Number2=ones(size_row,1);
             
-            for i=1000:(length(obj.t)-1)
+            for i=1:(length(obj.t)-1)
                 % "delete" the particles that are retrieved by ET
                 ET_pos=find(-Flux_in_spat(:,i)>0);
                 ET_m3s=0;
@@ -593,11 +606,19 @@ classdef transport_1D
                     Initial_infiltration_point=x_S(pos_2);
                     [~,Index_]=sort(Initial_infiltration_point);
                     Weight_cum=cumsum(Weight_partial(Index_));
+                    % option 1
                     Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
+                    % option 2
+%                     [ ~, ix ] = min( abs( Weight_cum-Seep_m3s ) );
+%                     Particle_Position_to_delete=particle_subject_to_seep(Index_(1:1:ix));
+                    
                     Position_to_tag_before_deletion=[Position_to_tag_before_deletion;[Particle_Position_to_delete,ones(size(Particle_Position_to_delete))*i,ones(size(Particle_Position_to_delete))*double(pos_==1)]];
                     if(~isempty(Particle_Position_to_delete))
+                        % option 1
                         Seep_m3s=Seep_m3s-Weight_cum(Weight_cum<=Seep_m3s);
                         Seep_m3s=Seep_m3s(end);
+                        % option 2
+%                         Seep_m3s=Seep_m3s-Weight_cum(ix);
                     end
                 end
                 
@@ -621,6 +642,7 @@ classdef transport_1D
             Position_to_tag_before_deletion2(Position_to_tag_before_deletion(:,1),2)=Position_to_tag_before_deletion(:,2);
             [I,J,S]=find(obj.x_traj);
             keep=J<=Position_to_tag_before_deletion2(I,2);
+            clear obj.x_traj
             obj.x_traj=sparse(I(keep), J(keep), S(keep) ,size_row,size_column);
             obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))=obj.RF(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1))...
                                                                                                     +obj.DGW(Position_to_tag_before_deletion(Position_to_tag_before_deletion(:,3)==0,1));
@@ -776,17 +798,27 @@ classdef transport_1D
                 weights(obj.RF>0)=weights(obj.RF>0).*obj.RF(obj.RF>0);
                 weights(obj.DPSA==1)=weights(obj.DPSA==1);
                 weights=[weights;obj.weight(obj.DPSA>0 & obj.DPSA<1).*obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
+            else
+                weights=obj.weight;
             end
         end
         
-        function [transit_times,weights_,number_of_particle]=get_ttds_bis(obj,sample_time,t_out,delta_t)
-            if(nargin<3)
-                [t_out,delta_t]=get_trajectory_properties(obj);
+        function [transit_times,weights_,number_of_particle]=get_ttds_bis(obj,sample_time,t_out,delta_t,weights)
+            %#JM without weights provided seems to be an outdated methods chose the second instead
+            if(nargin<5)
+                if(nargin<3)
+                    [t_out,delta_t]=get_trajectory_properties(obj);
+                end
+                [~,Index_time]=min(abs(obj.t-sample_time));
+                transit_times=delta_t(t_out==obj.t(Index_time));
+                weights_=obj.weight(t_out==obj.t(Index_time));
+                number_of_particle=sum(t_out==obj.t(Index_time));
+            else
+                [~,Index_time]=min(abs(obj.t-sample_time));
+                transit_times=delta_t(t_out==obj.t(Index_time));
+                weights_=weights(t_out==obj.t(Index_time));
+                number_of_particle=sum(t_out==obj.t(Index_time));
             end
-            [~,Index_time]=min(abs(obj.t-sample_time));
-            transit_times=delta_t(t_out==obj.t(Index_time));
-            weights_=obj.weight(t_out==obj.t(Index_time));
-            number_of_particle=sum(t_out==obj.t(Index_time));
         end
         
         function [transit_times,weights_]=get_rtds_bis(obj,sample_time,t_out,delta_t)
@@ -1003,6 +1035,27 @@ classdef transport_1D
             dir = 0;  %or -1, doesn't matter
         end
         
+       function [DPSA_prop,DGW_prop,RF_spat,Flux_in_spat]=compute_DPSA_GW_proportion(obj,runs)
+            [DPSA_,~,DPSA_spat,RF_spat]=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
+            [~,Flux_in_spat]=compute_infiltration(runs.simulation_results,runs.boussinesq_simulation);
+            size_mat=size(DPSA_spat);
+            DPSA_spat=reshape(DPSA_spat(:,obj.t_inj_pos),size_mat(1)*(length(obj.t_inj)),1); %DPSA_spat=reshape(DPSA_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            Flux_in_spat_reshaped=reshape(Flux_in_spat(:,obj.t_inj_pos),size_mat(1)*(length(obj.t_inj)),1); %Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            DPSA_prop=DPSA_spat./Flux_in_spat_reshaped;
+%             DPSA_prop(obj.N_inj==0)=0;
+            DPSA_prop(1,:)=1;
+            if(sum(DPSA_prop<0)>0)
+                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop<0)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were negative (minimal values found:',num2str(DPSA_spat(DPSA_prop==min(DPSA_prop))),'). They have been replaced by 0.\n'));
+                DPSA_prop(DPSA_prop<0)=0;
+            end
+            if(sum(DPSA_prop>1)>0)
+                percent_above=(max(DPSA_prop)-1)*100;
+                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop>1)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were above the Flux_in infiltration matrix values \n','(maximal value was ',num2str(percent_above),'%% above the corresponding infiltration value). \n','They have been replaced by the corresponding infiltration value.\n'));
+                DPSA_prop(DPSA_prop>1)=1;
+            end
+            DGW_prop=1-DPSA_prop;
+%             DGW_prop(obj.N_inj==0)=0;
+       end
     end
     methods(Static)
         function [obj,DSi]=test(runs,folder_root,velocity_soil)
@@ -1074,25 +1127,10 @@ classdef transport_1D
 
         function [obj,t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=transport_with_rooting(runs,x,slope_angle,k_soil)
             %
-            [DPSA_,~,DPSA_spat,RF_spat]=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
-            [~,Flux_in_spat]=compute_infiltration(runs.simulation_results,runs.boussinesq_simulation);
-            size_mat=size(DPSA_spat);
-            DPSA_spat=reshape(DPSA_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
-            Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
-            DPSA_prop=DPSA_spat./Flux_in_spat_reshaped;
-            if(sum(DPSA_prop<0)>0)
-                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop<0)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were negative (minimal values found:',num2str(DPSA_spat(DPSA_prop==min(DPSA_prop))),'). They have been replaced by 0.\n'));
-                DPSA_prop(DPSA_prop<0)=0;
-            end
-            if(sum(DPSA_prop>1)>0)
-                percent_above=(max(DPSA_prop)-1)*100;
-                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop>1)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were above the Flux_in infiltration matrix values \n','(maximal value was ',num2str(percent_above),'%% above the corresponding infiltration value). \n','They have been replaced by the corresponding infiltration value.\n'));
-                DPSA_prop(DPSA_prop>1)=1;
-            end
-            DGW_prop=1-DPSA_prop;
+
             
             % instantiate transport_1D object
-            [obj,x_S,x_Q,width,velocity]=transport_1D.instantiate_transport_and_velocity_field(runs,DPSA_prop,DGW_prop);
+            [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat]=transport_1D.instantiate_transport_and_velocity_field(runs);
             block_size=length(x_S);
             %             dx=x_Q(2:end)-x_Q(1:end-1);
             
@@ -1140,7 +1178,6 @@ classdef transport_1D
                 Q_DGW_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DGW_select>0)/1000)/(dt(i)))';
                 Q_NA_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DGW_select2>0)/1000)/(dt(i)))';
             end
-                        temp=load('H:\ProjectDSi\BV_ecoflux\Guillec2\2D_test\transient\test_2D_flux_variable.mat');
             
             RF_=sum(RF_spat(2:end,:));
             DGW_=RF_spat(1,:);
@@ -1244,8 +1281,8 @@ classdef transport_1D
             
             % retrieve the particles essential properties for their travel inside the aquifer
             [t_out_shallow,transit_times_shallow,x_fin_shallow]=obj_shallow.get_trajectory_properties;
-            [t_out_reg,transit_times_reg]=obj_shallow.get_trajectory_properties;
-            [t_out_soil,transit_times_soil]=obj_shallow.get_trajectory_properties;
+            [t_out_reg,transit_times_reg,delta_x_reg,t_in_reg,weights_reg]=obj_reg.get_trajectory_properties;
+            [t_out_soil,transit_times_soil,delta_x_soil,t_in_soil,weights_soil]=obj_soil.get_trajectory_properties;
             
             % exponential approximation for run_deep
             [~,~,~,RF_spat_deep]=compute_DPSA_RF(run_bed.simulation_results,run_bed.boussinesq_simulation);
@@ -1306,7 +1343,10 @@ classdef transport_1D
             end
         end
         
-        function [obj,x_S,x_Q,width,velocity]=instantiate_transport_and_velocity_field(runs,DPSA_prop,GW_prop)
+        function [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat]=instantiate_transport_and_velocity_field(runs,threshold)
+            if(nargin<2)
+                threshold=0;
+            end
             sim_res=runs.simulation_results;
             bouss_sim=runs.boussinesq_simulation;
             %             f=bouss_sim.hydraulic_properties.f;
@@ -1323,13 +1363,14 @@ classdef transport_1D
             
             %             spacing_=1*24*3600;
             spacing_=-1;
-            obj=obj.compute_t_inj(spacing_);
-            obj=obj.compute_weight(dx.*width);
-            if(nargin<2)
-                obj=obj.instantiate_exit_tags;
-            else
+            obj=obj.compute_t_inj(spacing_,threshold);
+            [DPSA_prop,GW_prop,RF_spat,Flux_in_spat]=obj.compute_DPSA_GW_proportion(runs);
+            obj=obj.compute_weight(dx.*width);%(Flux_in_spat);%
+%             if(nargin<2)
+%                 obj=obj.instantiate_exit_tags;
+%             else
                 obj=obj.instantiate_exit_tags(DPSA_prop,GW_prop);
-            end
+%             end
             
             S_edges=bouss_sim.discretization.Omega*sim_res.S;
             S_edges(1,:)=1;
@@ -1343,20 +1384,48 @@ classdef transport_1D
             velocity(isnan(velocity))=0;
         end
         
-        function [obj,DPSA_shallow,RF_shallow,x_S]=run_transport_simu(run_boussinesq)
-            [obj,x_S,x_Q,width,velocity,Bool_sat,sol_simulated]=transport_1D.instantiate_transport_and_velocity_field(run_boussinesq);
+        function [obj,DPSA_,RF_,x_S]=run_transport_simu(run_boussinesq)
+            threshold=0;
+            
+            [DPSA_,RF_,DPSA_spat,RF_spat]=compute_DPSA_RF(run_boussinesq.simulation_results,run_boussinesq.boussinesq_simulation);
+            [~,Flux_in_spat]=compute_infiltration(run_boussinesq.simulation_results,run_boussinesq.boussinesq_simulation);
+            Bool_spat_rest=max(Flux_in_spat)>threshold;
+            Flux_in_spat=Flux_in_spat(:,Bool_spat_rest);
+            DPSA_spat=DPSA_spat(:,Bool_spat_rest);
+            size_mat=size(DPSA_spat);
+            DPSA_spat=reshape(DPSA_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            DPSA_prop=DPSA_spat./Flux_in_spat_reshaped;
+            if(sum(DPSA_prop<0)>0)
+                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop<0)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were negative (minimal values found:',num2str(DPSA_spat(DPSA_prop==min(DPSA_prop))),'). They have been replaced by 0.\n'));
+                DPSA_prop(DPSA_prop<0)=0;
+            end
+            if(sum(DPSA_prop>1)>0)
+                percent_above=(max(DPSA_prop)-1)*100;
+                fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop>1)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were above the Flux_in infiltration matrix values \n','(maximal value was ',num2str(percent_above),'%% above the corresponding infiltration value). \n','They have been replaced by the corresponding infiltration value.\n'));
+                DPSA_prop(DPSA_prop>1)=1;
+            end
+            DGW_prop=1-DPSA_prop;
+            
+            % instantiate transport_1D object
+            [obj,x_S,x_Q,width,velocity]=transport_1D.instantiate_transport_and_velocity_field(run_boussinesq,DPSA_prop,DGW_prop,threshold);
             block_size=length(x_S);
             
-            [DPSA_shallow,RF_shallow,DP_spat,RF_spat]=compute_DPSA_RF(run_boussinesq.simulation_results,run_boussinesq.boussinesq_simulation);
-            Subsurface_flux=run_boussinesq.simulation_results.Q;
+                        %             dx=x_Q(2:end)-x_Q(1:end-1);
             
             % compute the trajectories inside the aquifer
-            obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q);
-            obj=obj.cut_trajectory_saturated_areas(Bool_sat);
-            dx=x_Q(2:end)-x_Q(1:end-1);
-            obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
-%             obj=obj.cut_trajectory_groundwater(sol_simulated,x_Q);
-            obj=obj.update_DGW(x_Q);
+            % option 1 all integrated
+            speed_option='slow';
+            obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
+            if(sum(RF_spat(:)<0)>0)
+                min_index=find(RF_spat(:)==min(RF_spat(:)));
+                fprintf(strcat('WARNING: \n',num2str(sum(RF_spat(:)<0)),' values in the spatialized matrix representing Return Flow \n','were negative (minimal values found:',num2str(RF_spat(min_index)),'). They have been replaced by 0.\n'));
+                RF_spat(RF_spat<0)=0;
+            end
+            [~,Flux_in_spat]=compute_infiltration(run_boussinesq.simulation_results,run_boussinesq.boussinesq_simulation);
+%             RF_spat(1,:)=0;
+            [obj,Error_RF_DGW,Error_ET]=obj.cut_trajectory_ET_RF(block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
+            
         end
         
         function obj=post_transport(folder_dir)
