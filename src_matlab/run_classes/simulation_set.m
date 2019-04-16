@@ -470,26 +470,37 @@ classdef simulation_set
                         hydro_loc=obj.hydrologic_inputs_directory{1};
                         [M,input_type]=obj.read_input_file(hydro_loc);
                         t=M(:,1);
-                        recharge_chronicle=(M(:,2:end))';
+%                         recharge_chronicle=(M(:,2:end))';
+                        recharge_chronicle=(M(1:1000,2))';
+                        % change timestep every 6 hours
+%                         t=t(17:end-24);
+%                         recharge_chronicle=recharge_chronicle(17:end-24);
+%                         t=(reshape(t,6,740))';
+%                         recharge_chronicle=(reshape(recharge_chronicle,6,740))';
+%                         recharge_chronicle=mean(recharge_chronicle,2);
+%                         t=mean(t,2);
+                        
+% %                         t=[t-t(end)+2*t(1)-t(2);t];
+% %                         recharge_chronicle=[recharge_chronicle,recharge_chronicle];
                         
                         ratio_P_R=1;%0.83;%1.1588;%0.875;%.33;%/0.38;
                         source_terms=source('data_based');
                         [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-% %                         time_2006_bis=time_properties(t(1),t(end),length(t),'sec');
-% %                         time_2006_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
-% %                         source_terms.time=time_2006_1;
-% %                         source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle*ratio_P_R,(time_2006_1.get_properties));
-% %                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
+                        time_2006_bis=time_properties(t(1),t(1000),1000,'sec');%time_2006_bis=time_properties(t(1),t(end),length(t),'sec');
+                        time_2006_1=time_properties(t(1),t(1000),(1000-1)*4+1,'sec');%time_2006_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
+                        source_terms.time=time_2006_1;
+                        source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle*ratio_P_R,(time_2006_1.get_properties));
+                        source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                         
-                        odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',30*3600*24);
+                        odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600);%30*3600*24);
                         ratio_P_R=1;
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'full');
+                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
                         presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         % run transient simulation
                         runs_=runs;
                         solver_options=runs_.set_solver_options(odeset_struct);
-                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'full');
+                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
                     else
                         [~,w_1]=get_resampled_variables(runs_below.boussinesq_simulation.discretization);
                         [~,~,DPSA_spat_bed]=compute_DPSA_RF(runs_below.simulation_results,runs_below.boussinesq_simulation);
@@ -508,7 +519,7 @@ classdef simulation_set
                         source_terms.time=time_2006_2;
                         source_terms.recharge_chronicle=qs1;
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
-                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);
+                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600);%3600*24);
                         ratio_P_R=1;
                         presteadystate_percentage_loaded=-2; %presteadystate_percentage_loaded=0; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
@@ -882,7 +893,7 @@ classdef simulation_set
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
-                    d_init_add=6.5;%2.7707;
+                    d_init_add=2.7707;%24;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
@@ -909,6 +920,7 @@ classdef simulation_set
                 % 2/ read input files
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
+%                 w=mean(w)*ones(size(x));
                 
                 % first option
                 z_top=cumtrapz(x,slope_angle);
@@ -1045,7 +1057,7 @@ classdef simulation_set
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
-                    d_init_add=6.5;%2.7707;
+                    d_init_add=2.7707;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
@@ -1235,43 +1247,58 @@ classdef simulation_set
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); width=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 %#JM change 1
-%                 width=trapz(M(:,1),M(:,2))/M(end,1)*ones(size(M(:,1)));
-                
-%                 z_land_surface=z(1)+cumtrapz(x,slope_angle);
-%                 slope_bottom_soil=slope_angle;
-%                 z_bottom_soil=z_land_surface-d_soil_init;
-%                 d_soil=z_land_surface-z_bottom_soil;
-%                 slope_bottom_regolith=slope_angle; 
-%                 z_bottom_regolith=z_bottom_soil-alpha_slope_reg;
-%                 d_reg=z_bottom_soil-z_bottom_regolith;
-%                 slope_bottom_bedrock=(0)*ones(size(x));
-%                 z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock)-2.7707;
-%                 d_bed=z_bottom_regolith-z_bottom_bedrock;
-                
                 z_land_surface=z(1)+cumtrapz(x,slope_angle);
-                slope_bottom_soil=(linspace(0.9,1,length(x)))'.*slope_angle;
-                z_bottom_soil=z(1)+cumtrapz(x,slope_bottom_soil);
-                d_soil=z_land_surface-z_bottom_soil;
-% %                 d_soil=d_soil(end:-1:1);
-% %                 z_bottom_soil=z_land_surface-d_soil;
-% %                 slope_bottom_soil=atan((z_bottom_soil(2:end)-z_bottom_soil(1:end-1))./(x(2:end)-x(1:end-1)));
-% %                 slope_bottom_soil=[slope_bottom_soil;slope_bottom_soil(end)];
+                slope_bottom_soil=[0.2*slope_angle(1:5);slope_angle(6:end)];%slope_angle;%(linspace(0.95,1,length(x)))'.*slope_angle;%
+                z_bottom_soil=z(1)+cumtrapz(x,slope_bottom_soil)-d_soil_init;
                 
-                slope_bottom_regolith=(linspace(0.85,1,length(x)))'.*slope_angle;%slope_bottom_soil; 
-                z_bottom_regolith=z_bottom_soil(1)+cumtrapz(x,slope_bottom_regolith);
-                d_reg=z_bottom_soil-z_bottom_regolith;
-% %                 d_reg=d_reg(end:-1:1);
-% %                 z_bottom_regolith=z_bottom_soil-d_reg;
-% %                 slope_bottom_regolith=atan((z_bottom_regolith(2:end)-z_bottom_regolith(1:end-1))./(x(2:end)-x(1:end-1)));
-% %                 slope_bottom_regolith=[slope_bottom_regolith;slope_bottom_regolith(end)];
+                slope_bottom_regolith=[0.16*slope_angle(1:11);slope_angle(12:end)];%((linspace(0.1^3,1^3,length(x))).^0.333)'.*slope_bottom_soil;%(mean(slope_bottom_soil)-0.04); % instead of 0.04 -> to get the 8m regolith depth on average on the hillslope
+                z_bottom_regolith=z_land_surface(1)+cumtrapz(x,slope_bottom_regolith.*ones(size(x)))-alpha_slope_reg; % chose the slope such as in average z_land_surface-z_top=8m
                 
-                slope_bottom_bedrock=(linspace(0,1,length(x)))'.*slope_angle; %slope_bottom_bedrock=(linspace(0.4,1,length(x)))'.*slope_bottom_regolith; 
-                z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock)-1;%-5.271;%%2.7707;
+                slope_bottom_bedrock=0*slope_angle;%(mean(slope_bottom_regolith)-0.1)*ones(size(x));%
+                z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock);
                 d_bed=z_bottom_regolith-z_bottom_bedrock;
+                d_reg=z_bottom_soil-z_bottom_regolith;
+                d_soil=z_land_surface-z_bottom_soil;
                 
-                %                 slope_bottom_regolith=(trapz(x,width.*slope_angle)/trapz(x,width)/alpha_slope_reg)*ones(size(x));
-                %                 z_bottom_regolith=z_bottom_soil(1)+cumtrapz(x,slope_bottom_regolith);
-                %                 d_reg=z_bottom_soil-z_bottom_regolith;
+                slope_angle=[0.4*slope_angle(1:5);slope_angle(6:end)];
+                z_land_surface=z(1)+cumtrapz(x,slope_angle);
+% % %                 width=trapz(M(:,1),M(:,2))/M(end,1)*ones(size(M(:,1)));
+% %                 
+% % %                 z_land_surface=z(1)+cumtrapz(x,slope_angle);
+% % %                 slope_bottom_soil=slope_angle;
+% % %                 z_bottom_soil=z_land_surface-d_soil_init;
+% % %                 d_soil=z_land_surface-z_bottom_soil;
+% % %                 slope_bottom_regolith=slope_angle; 
+% % %                 z_bottom_regolith=z_bottom_soil-alpha_slope_reg;
+% % %                 d_reg=z_bottom_soil-z_bottom_regolith;
+% % %                 slope_bottom_bedrock=(0)*ones(size(x));
+% % %                 z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock)-2.7707;
+% % %                 d_bed=z_bottom_regolith-z_bottom_bedrock;
+% %                 
+% %                 z_land_surface=z(1)+cumtrapz(x,slope_angle);
+% %                 slope_bottom_soil=(linspace(0.9,1,length(x)))'.*slope_angle;
+% %                 z_bottom_soil=z(1)+cumtrapz(x,slope_bottom_soil);
+% %                 d_soil=z_land_surface-z_bottom_soil;
+% % % %                 d_soil=d_soil(end:-1:1);
+% % % %                 z_bottom_soil=z_land_surface-d_soil;
+% % % %                 slope_bottom_soil=atan((z_bottom_soil(2:end)-z_bottom_soil(1:end-1))./(x(2:end)-x(1:end-1)));
+% % % %                 slope_bottom_soil=[slope_bottom_soil;slope_bottom_soil(end)];
+% %                 
+% %                 slope_bottom_regolith=(linspace(0.85,1,length(x)))'.*slope_angle;%slope_bottom_soil; 
+% %                 z_bottom_regolith=z_bottom_soil(1)+cumtrapz(x,slope_bottom_regolith);
+% %                 d_reg=z_bottom_soil-z_bottom_regolith;
+% % % %                 d_reg=d_reg(end:-1:1);
+% % % %                 z_bottom_regolith=z_bottom_soil-d_reg;
+% % % %                 slope_bottom_regolith=atan((z_bottom_regolith(2:end)-z_bottom_regolith(1:end-1))./(x(2:end)-x(1:end-1)));
+% % % %                 slope_bottom_regolith=[slope_bottom_regolith;slope_bottom_regolith(end)];
+% %                 
+% %                 slope_bottom_bedrock=(linspace(0,1,length(x)))'.*slope_angle; %slope_bottom_bedrock=(linspace(0.4,1,length(x)))'.*slope_bottom_regolith; 
+% %                 z_bottom_bedrock=z_bottom_regolith(1)+cumtrapz(x,slope_bottom_bedrock)-1;%-5.271;%%2.7707;
+% %                 d_bed=z_bottom_regolith-z_bottom_bedrock;
+% %                 
+% %                 %                 slope_bottom_regolith=(trapz(x,width.*slope_angle)/trapz(x,width)/alpha_slope_reg)*ones(size(x));
+% %                 %                 z_bottom_regolith=z_bottom_soil(1)+cumtrapz(x,slope_bottom_regolith);
+% %                 %                 d_reg=z_bottom_soil-z_bottom_regolith;
                 
                 figure; hold on
                 plot(x,z_bottom_bedrock)

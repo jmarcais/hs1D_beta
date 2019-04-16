@@ -99,7 +99,9 @@ classdef runs
                 end
             end
             % spatial discretization
-                Nx=100;
+                Nx=120;
+%                 uu=3/4;
+%                 x2=(linspace((x(1)).^uu,(x(end)).^uu,150)).^(1/uu); x=x2';%length(x)
 %                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
 %                 x2=logspace(log10(10),log10(x(end)),50); x=[0;1;5;x2']; %x=[x(1);x2'];
 %                 x=[x(1);5;x(2:end)];
@@ -442,7 +444,7 @@ classdef runs
     
     methods(Static)
         function odeset_struct=set_solver_options(odeset_struct)
-            if(nargin<2)
+            if(nargin<1)
                 % Solver options ode15s used by default
                 maxstep=nan;                    % maximum time steps allowed to do the integration in hours
                 RelTol=3e-14;                   % Relative Tolerance for the solution
