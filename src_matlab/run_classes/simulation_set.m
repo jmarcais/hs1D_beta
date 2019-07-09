@@ -492,7 +492,7 @@ classdef simulation_set
                         source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle*ratio_P_R,(time_2006_1.get_properties));
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                         
-                        odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600);%30*3600*24);
+                        odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600*24);%30*3600*24);
                         ratio_P_R=1;
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
                         state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
@@ -878,7 +878,7 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
             tic
-            range_= 4332:4505; % 1531:1704; %1:1465;%1:8759; %1:1500;%
+            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%
             if(nargin<4)
                 f1=0.2;
             end
@@ -892,7 +892,7 @@ classdef simulation_set
                 folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec'))
                     d_init_add=2.7707;%24;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
@@ -988,7 +988,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',30*3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
@@ -1017,8 +1017,13 @@ classdef simulation_set
                     Q_out=Q_out+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
                     Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
 %                     toc
-                    
+                    t1=datetime(1998,01,15);
+                    t2=datetime(2012,06,15);
+                    tt=t1:calmonths(1):t2;
+
                     load(file_path);
+                    Q_real=(Ecoflux_data.Q(1:174))';
+                    t_real=Ecoflux_data.t(1:174);
                     
                     if(length(Q_real)==length(Q_out))
                         residual2=Q_out2-Q_real;
@@ -1034,6 +1039,11 @@ classdef simulation_set
                     Q_out2=nan;
                     
                 end
+                %% test
+                f_soil=0.2;
+                k_soil=20;
+                d_soil=3;
+                run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,d_soil,run_obj);
 %             DSi_out=sum(DSi,1);      
         end
         
@@ -1085,11 +1095,24 @@ classdef simulation_set
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 
-                % first option
-                z_top=cumtrapz(x,slope_angle);
-                slope_angle2=0*slope_angle;%atan((d1)/(x(end)-x(1)))*ones(size(slope_angle));%zeros(size(slope_angle));
-                z_bottom=cumtrapz(x,slope_angle2)-d_init_add;
+                z_top=z(1)+cumtrapz(x,slope_angle);
+                slope_angle2=([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%slope_angle;
+                z_bottom=z_top(1)+cumtrapz(x,slope_angle2);
                 d=z_top-z_bottom;
+               
+                figure; hold on
+                plot(x,z_bottom)
+                plot(x,z_top)
+                
+                
+%                 M=obj.read_input_file(morpho_loc);
+%                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
+%                 
+%                 % first option
+%                 z_top=cumtrapz(x,slope_angle);
+%                 slope_angle2=0*slope_angle;%atan((d1)/(x(end)-x(1)))*ones(size(slope_angle));%zeros(size(slope_angle));
+%                 z_bottom=cumtrapz(x,slope_angle2)-d_init_add;
+%                 d=z_top-z_bottom;
                 
                 % hydraulic parameters
                 k=k1*ones(size(x));
@@ -1402,12 +1425,15 @@ classdef simulation_set
                 x=M(:,1); width=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 
                 z_land_surface=z(1)+cumtrapz(x,slope_angle);
-                slope_bottom_soil=slope_angle;
-                z_bottom_soil=z_land_surface-d_soil_init;
+                slope_bottom_soil=slope_angle;%([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%
+                z_bottom_soil=z_land_surface(1)+cumtrapz(x,slope_bottom_soil)-d_soil_init+2;
+%                 z_bottom_soil=(z_land_surface).^(0.9);
+%                 slope_bottom_soil=(z_bottom_soil(2:end)-z_bottom_soil(1:end-1))./(x(2:end)-x(1:end-1));
+%                 slope_bottom_soil=[slope_bottom_soil;slope_bottom_soil(end)];
                 d_soil=z_land_surface-z_bottom_soil;
                
-                slope_bottom_bedrock=zeros(size(slope_angle));%(trapz(x,width.*slope_angle)/trapz(x,width)/1.3)*ones(size(x));%(0)*ones(size(x));
-                z_bottom_bedrock=z_bottom_soil(1)+cumtrapz(x,slope_bottom_bedrock)-20;
+                slope_bottom_bedrock=slope_angle;%zeros(size(slope_angle));%(linspace(0.7,1,length(x)))'.*slope_angle;%(trapz(x,width.*slope_angle)/trapz(x,width)/1.3)*ones(size(x));%(0)*ones(size(x));
+                z_bottom_bedrock=z_bottom_soil(1)+cumtrapz(x,slope_bottom_bedrock)-d_soil_init+2;%-8+d_soil_init;
                 d_bed=z_bottom_soil-z_bottom_bedrock;
                 
                 figure; hold on
@@ -1417,6 +1443,8 @@ classdef simulation_set
                 
                 % 2/ run the boussinesq simulations
                 tic
+                run_bed1=obj.run_simulation_from_struct(x,f_soil,k_soil,width,slope_bottom_soil,d_soil);
+                toc
                 run_bedrock=obj.run_simulation_from_struct(x,f_bed,k_bed,width,slope_bottom_bedrock,d_bed);
                 toc
                 run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,width,slope_bottom_soil,d_soil,run_bedrock);
