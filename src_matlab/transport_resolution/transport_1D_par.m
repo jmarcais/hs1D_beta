@@ -305,7 +305,7 @@ classdef transport_1D_par
                 % define a stop event for ode solving when particles cross the river boundary
                 S_mat=sparse(diag(ones(block_size,1))); %#JMIPG check if S_mat is still necessary
                 events=@(t,y) obj.eventfun(t,y,stop_conditions);
-                options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events); %#JMIPG check if the vectorized option improves efficiency
+                options_reg = odeset('Vectorized','on','Events',events);%,'Jpattern',S_mat,'Events',events); %#JMIPG check if the vectorized option improves efficiency
                 
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
@@ -313,7 +313,7 @@ classdef transport_1D_par
                 if(size_row*size_column<1e11)%15e9)
 %                     numCores = feature('numcores');
 %                     p = parpool(numCores);
-                    p = parpool(12);
+                    p = parpool(24);
                     mat_pos_allocate_x=cell(length(obj.t_inj)-1,1);%zeros(size_row*size_column,3);%[];%
                     N_b=obj.N;
                     t_inj_pos_b=obj.t_inj_pos;
@@ -329,6 +329,7 @@ classdef transport_1D_par
                         if(sum(Bool_inj_spat)~=0) 
                             if(sum(Bool_inj_nonsat)~=0)
                                 % compute trajectories on non saturated areas
+%                                 [~,traj_temp_nonsat] = ode45(Velocity_1D,t_b(t_inj_pos_b(i):end),x_S(Bool_inj_nonsat),options_reg);
                                 [~,traj_temp_nonsat] = ode45(Velocity_1D,t_b(t_inj_pos_b(i):end),x_S(Bool_inj_nonsat),options_reg);
                             else
                                 traj_temp_nonsat=[];
@@ -356,9 +357,10 @@ classdef transport_1D_par
                             % store x trajectories
                             x_traj_temp=x_traj_temp(:);
                             mat_pos_allocate_x{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
+                            mat_pos_allocate_x{i}=mat_pos_allocate_x{i}(mat_pos_allocate_x{i}(:,3)~=0,:);
                         end
                         % to know at what injection we are
-%                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)-1),'\n'));
+                         fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)-1),'\n'));
                         
                     end
                     poolobj = gcp('nocreate');
@@ -589,9 +591,6 @@ classdef transport_1D_par
                 if(i==1215)
                     AA=1;
                 end
-                if(i==4103)
-                    AA=1;
-                end
                 % "delete" the particles that are retrieved by ET
                 ET_pos=find(-Flux_in_spat(:,i)>0);
                 ET_m3s=0;
@@ -620,21 +619,23 @@ classdef transport_1D_par
                 Seepage_pos=find(RF_spat(:,i)>0);
                 Seep_m3s=0;
                 %%
-                 Dist_Trajectories_MeshCentres = pdist2(mat_pos_allocate_x_sorted{i}(:,3),obj.x(Seepage_pos));
+                Dist_Trajectories_MeshCentres = pdist2(mat_pos_allocate_x_sorted{i}(:,3),obj.x(Seepage_pos));
                 [DistMin,Pos_Seepage] = min(Dist_Trajectories_MeshCentres,[],2);
                 Delta_X = (x_Q(2:end)-x_Q(1:end-1))/2;
                 Delta_X = Delta_X(Seepage_pos); 
                 % assume X_Q are uniformly spaced #JM to change
                 Delta_X = Delta_X(1);
-                Pos_Seepage=Pos_Seepage(DistMin<Delta_X);
-                particle_subject_to_seep=mat_pos_allocate_x_sorted{i}(DistMin<Delta_X,1);
-                DistMin = DistMin(DistMin <= Delta_X);
+                Pos_Seepage=Pos_Seepage(DistMin<=Delta_X);
+                particle_subject_to_seep=mat_pos_allocate_x_sorted{i}(DistMin<=Delta_X,1);
+                final_location=mat_pos_allocate_x_sorted{i}(DistMin<=Delta_X,3);
                 Bool_1=obj.DPSA(particle_subject_to_seep);
                 particle_subject_to_seep=particle_subject_to_seep(Bool_1<1);
                 Pos_Seepage=Pos_Seepage(Bool_1<1);
+                final_location=final_location(Bool_1<1);
 
                 [particle_subject_to_seep,Indexes_delete] = setdiff(particle_subject_to_seep,Position_to_tag_before_deletion(:,1));
                 Pos_Seepage=Pos_Seepage(Indexes_delete);
+                final_location=final_location(Indexes_delete);
                 Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i)).*obj.DGW(particle_subject_to_seep);
                 
                 pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
@@ -643,6 +644,7 @@ classdef transport_1D_par
                 [Initial_infiltration_point,Index_]=sort(Initial_infiltration_point);
                 Weight_partial=Weight_partial(Index_);
                 Pos_Seepage=Pos_Seepage(Index_);
+                final_location=final_location(Index_);
                 particle_subject_to_seep=particle_subject_to_seep(Index_);
                 
                 Seep_m3s=RF_spat(Seepage_pos,i);
@@ -651,29 +653,49 @@ classdef transport_1D_par
                 [Pos_Seepage_sorted, I_sorted] = sort(Pos_Seepage);
                 Weight_cum = accumarray(Pos_Seepage_sorted, Weight_partial(I_sorted), [], @(r){cumsum(r)});
                 particle_subject_to_seep=accumarray(Pos_Seepage_sorted,particle_subject_to_seep(I_sorted),[],@(r){r});
+                final_location=accumarray(Pos_Seepage_sorted,final_location(I_sorted),[],@(r){r});
                 Initial_infiltration_point=accumarray(Pos_Seepage_sorted,Initial_infiltration_point(I_sorted),[],@(r){r});
 % %                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,[],@(r){cumsum(r)});
 % %                 particle_subject_to_seep=accumarray(Pos_Seepage,particle_subject_to_seep,[],@(r){r});
                 if(~isempty(Weight_cum) && ~isempty(Weight_cum{1}))
+%                     [final_location{1},Index_location_1]=sort(final_location{1});
+%                     Weight_cum{1}=[Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1);Weight_cum{1}(1)];
+%                     Weight_cum{1}=Weight_cum{1}(Index_location_1);
+%                     Weight_cum{1}=cumsum(Weight_cum{1});
+%                     particle_subject_to_seep{1}=particle_subject_to_seep{1}(Index_location_1);
+                    
+                    Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
                     Weight_cum{1}=flip(Weight_cum{1});
-                    Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
-                    Weight_cum{1}=cumsum(Weight_cum{1});
+% %                     Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
+% % %                     Weight_cum{1}=cumsum(Weight_cum{1});
                     particle_subject_to_seep{1}=flip(particle_subject_to_seep{1});
+                    
+%                     Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
+                    [particle_certain_to_seep,Indexes_particle_certain]=setdiff(particle_subject_to_seep{1},mat_pos_allocate_x_sorted{i+1}(mat_pos_allocate_x_sorted{i+1}(:,3)<x_Q(2),1));
+                    [particle_potential_to_seep,Indexes_potential]=setdiff(particle_subject_to_seep{1},particle_certain_to_seep);
+                    particle_subject_to_seep{1}=[particle_certain_to_seep;particle_potential_to_seep];
+                    Weight_cum{1}=[Weight_cum{1}(Indexes_particle_certain);Weight_cum{1}(Indexes_potential)];
+                    Weight_cum{1}=cumsum(Weight_cum{1});
                 end
                 Particle_Position_to_delete=cell(length(Weight_cum),1);
                 Seepage_value=0;
                 for k=length(Weight_cum):-1:1
                     Seepage_value=Seepage_value+Seep_m3s(k);
                     pos_=Seepage_pos(k);
-                    [ ~, ix ] = min( abs( [0;Weight_cum{k}]-Seepage_value ) );
+                    [ ~, ix ] = min( abs( [flip(Weight_cum{k});0]-Seepage_value ) );
+                    ix=length(Weight_cum{k})-ix+2;
                     if(ix>1)
                         Particle_Position_to_delete{k}=[particle_subject_to_seep{k}(1:1:(ix-1)),i*ones(ix-1,1),double(pos_==1)*ones(ix-1,1)];%ones(size(Particle_Position_to_delete))*]
                         Seepage_value=Seepage_value-Weight_cum{k}(ix-1);
                     end
                 end
+                Error_RF_DGW(i)=Seepage_value;
+                if(i>2000 & Error_RF_DGW(i)/(sum(RF_spat(:,i)))>0.05)
+                    AA=1;
+                end
                 Particle_Position_to_delete=vertcat(Particle_Position_to_delete{:});
                 Position_to_tag_before_deletion=[Position_to_tag_before_deletion;Particle_Position_to_delete];
-                Error_RF_DGW(i)=Seepage_value;
+
                 fprintf(strcat(num2str(i),'/',num2str(length(obj.t)),'\n'));
 
                 
@@ -1310,6 +1332,7 @@ classdef transport_1D_par
                 fprintf(strcat('WARNING: \n',num2str(sum(RF_spat(:)<0)),' values in the spatialized matrix representing Return Flow \n','were negative (minimal values found:',num2str(RF_spat(min_index)),'). They have been replaced by 0.\n'));
                 RF_spat(RF_spat<0)=0;
             end
+            toc
 %             RF_spat(1,:)=0;
             [~,~,X] = unique(mat_pos_allocate_x(:,2));
             mat_pos_allocate_x = accumarray(X,1:size(mat_pos_allocate_x,1),[],@(r){mat_pos_allocate_x(r,:)});
