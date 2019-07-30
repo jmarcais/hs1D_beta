@@ -519,7 +519,8 @@ classdef simulation_set
                         source_terms.time=time_2006_2;
                         source_terms.recharge_chronicle=qs1;
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
-                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600);%3600*24);
+                        dt_mean=mean(diff(runs_below.simulation_results.t));
+                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%3600*24);
                         ratio_P_R=1;
                         presteadystate_percentage_loaded=-2; %presteadystate_percentage_loaded=0; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
@@ -878,7 +879,7 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
             tic
-            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%
+            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%
             if(nargin<4)
                 f1=0.2;
             end
@@ -988,7 +989,9 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    dt=diff(t);
+                    dt_mean=mean(dt);
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
