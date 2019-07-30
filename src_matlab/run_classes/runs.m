@@ -76,15 +76,16 @@ classdef runs
             % Parametrization
             % geomorphologic properties
             if(nargin<2)
-                x=[0,1000];
-                angle=0.3;
-                w=[500,500];
+                x=(linspace(0,160,160))';%[0,1000];
+                angle=0*ones(size(x));
+                w=500*ones(size(x));
 %                 x=linspace(-100,100,100); %x=[0,200];          % in m
 %                 angle=0.05.*(x>0)-0.05.*(x<0); %angle=0.05;    % in % 
 %                 w=100*ones(size(x)); %w=[100,900];            % in m
-                soil_depth=[60,60];       % in m
+                soil_depth=2+x*0.3;%300*ones(size(x));%       % in m
+%                 soil_depth(1:2)=2;
                 obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth);
-                f=0.12; k=1;
+                f=0.1; k=0.8e-6*3600;
                 obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
             else
                 [x,w,soil_depth,angle]=hs1D.get_spatial_properties;
@@ -99,7 +100,7 @@ classdef runs
                 end
             end
             % spatial discretization
-                Nx=100;%220;
+                Nx=160;%220;
 %                 uu=3/4;
 %                 x2=(linspace((x(1)).^uu,(x(end)).^uu,150)).^(1/uu); x=x2';%length(x)
 %                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
