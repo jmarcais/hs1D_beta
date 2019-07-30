@@ -159,7 +159,7 @@ classdef transport_2D_par
                 if(size_row*size_column<1e11)%15e9)
 %                     numCores = feature('numcores');
 %                     p = parpool(numCores);
-% % %                     p = parpool(24);
+                    p = parpool(24);
                     mat_pos_allocate_x_z=cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%[];%
                     N_b=obj.N;
                     t_inj_pos_b=obj.t_inj_pos;
@@ -341,89 +341,89 @@ classdef transport_2D_par
                 Seepage_pos=find(RF_spat(:,i)>0);
                 if(~isempty(Seepage_pos))
                     Seep_m3s=0;
-                    %%
-                    Dist_Trajectories_MeshCentres = pdist2(mat_pos_allocate_x_z_sorted{i}(:,3),obj.x(Seepage_pos));
-                    [DistMin,Pos_Seepage] = min(Dist_Trajectories_MeshCentres,[],2);
-                    Delta_X = (x_Q(2:end)-x_Q(1:end-1))/2;
-                    Delta_X = Delta_X(Seepage_pos);
-                    % assume X_Q are uniformly spaced #JM to change
-                    Delta_X = Delta_X(1);
-                    Pos_Seepage=Pos_Seepage(DistMin<=Delta_X);
-                particle_subject_to_seep=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,1);
-                elevation=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,4);
-                final_location=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,3);
-                Bool_1=obj.DPSA(particle_subject_to_seep);
-                particle_subject_to_seep=particle_subject_to_seep(Bool_1<1);
-                Pos_Seepage=Pos_Seepage(Bool_1<1);
-                final_location=final_location(Bool_1<1);
-                elevation=elevation(Bool_1<1);
-
-                [particle_subject_to_seep,Indexes_delete] = setdiff(particle_subject_to_seep,Position_to_tag_before_deletion(:,1));
-                Pos_Seepage=Pos_Seepage(Indexes_delete);
-                final_location=final_location(Indexes_delete);
-                elevation=elevation(Indexes_delete);
-                Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i)).*obj.DGW(particle_subject_to_seep);
-                
-                % option 1: order by initial infiltration point, the closest the first to get out
-%                 pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
-%                 Initial_infiltration_point=x_S(pos_2);
-%                 [Initial_infiltration_point,Index_]=sort(Initial_infiltration_point);
-                % option 2: order by z
-                [Initial_infiltration_point,Index_]=sort(elevation,'descend');
-                
-                Weight_partial=Weight_partial(Index_);
-                Pos_Seepage=Pos_Seepage(Index_);
-                final_location=final_location(Index_);
-                particle_subject_to_seep=particle_subject_to_seep(Index_);
-                
-                Seep_m3s=RF_spat(Seepage_pos,i);
-                
-%                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,@cumsum);
-                [Pos_Seepage_sorted, I_sorted] = sort(Pos_Seepage);
-                Weight_cum = accumarray(Pos_Seepage_sorted, Weight_partial(I_sorted), [], @(r){cumsum(r)});
-                particle_subject_to_seep=accumarray(Pos_Seepage_sorted,particle_subject_to_seep(I_sorted),[],@(r){r});
-                final_location=accumarray(Pos_Seepage_sorted,final_location(I_sorted),[],@(r){r});
-                Initial_infiltration_point=accumarray(Pos_Seepage_sorted,Initial_infiltration_point(I_sorted),[],@(r){r});
-% %                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,[],@(r){cumsum(r)});
-% %                 particle_subject_to_seep=accumarray(Pos_Seepage,particle_subject_to_seep,[],@(r){r});
-                if(Seepage_pos(1)==1 && ~isempty(Weight_cum) && ~isempty(Weight_cum{1}))
-%                     [final_location{1},Index_location_1]=sort(final_location{1});
-%                     Weight_cum{1}=[Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1);Weight_cum{1}(1)];
-%                     Weight_cum{1}=Weight_cum{1}(Index_location_1);
-%                     Weight_cum{1}=cumsum(Weight_cum{1});
-%                     particle_subject_to_seep{1}=particle_subject_to_seep{1}(Index_location_1);
-                    
-                    Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
-                    Weight_cum{1}=flip(Weight_cum{1});
-% %                     Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
-% % %                     Weight_cum{1}=cumsum(Weight_cum{1});
-                    particle_subject_to_seep{1}=flip(particle_subject_to_seep{1});
-                    
-%                     Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
-                    [particle_certain_to_seep,Indexes_particle_certain]=setdiff(particle_subject_to_seep{1},mat_pos_allocate_x_z_sorted{i+1}(mat_pos_allocate_x_z_sorted{i+1}(:,3)<x_Q(2),1));
-                    [particle_potential_to_seep,Indexes_potential]=setdiff(particle_subject_to_seep{1},particle_certain_to_seep);
-                    particle_subject_to_seep{1}=[particle_certain_to_seep;particle_potential_to_seep];
-                    Weight_cum{1}=[Weight_cum{1}(Indexes_particle_certain);Weight_cum{1}(Indexes_potential)];
-                    Weight_cum{1}=cumsum(Weight_cum{1});
-                end
-                Particle_Position_to_delete=cell(length(Weight_cum),1);
-                Seepage_value=0;
-                for k=length(Weight_cum):-1:1
-                    Seepage_value=Seepage_value+Seep_m3s(k);
-                    pos_=Seepage_pos(k);
-                    [ ~, ix ] = min( abs( [flip(Weight_cum{k});0]-Seepage_value ) );
-                    ix=length(Weight_cum{k})-ix+2;
-                    if(ix>1)
-                        Particle_Position_to_delete{k}=[particle_subject_to_seep{k}(1:1:(ix-1)),i*ones(ix-1,1),double(pos_==1)*ones(ix-1,1)];%ones(size(Particle_Position_to_delete))*]
-                        Seepage_value=Seepage_value-Weight_cum{k}(ix-1);
+                    if(~isempty(mat_pos_allocate_x_z_sorted{i}))
+                        Dist_Trajectories_MeshCentres = pdist2(mat_pos_allocate_x_z_sorted{i}(:,3),obj.x(Seepage_pos));
+                        [DistMin,Pos_Seepage] = min(Dist_Trajectories_MeshCentres,[],2);
+                        Delta_X = (x_Q(2:end)-x_Q(1:end-1))/2;
+                        Delta_X = Delta_X(Seepage_pos);
+                        % assume X_Q are uniformly spaced #JM to change
+                        Delta_X = Delta_X(1);
+                        Pos_Seepage=Pos_Seepage(DistMin<=Delta_X);
+                        particle_subject_to_seep=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,1);
+                        elevation=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,4);
+                        final_location=mat_pos_allocate_x_z_sorted{i}(DistMin<=Delta_X,3);
+                        Bool_1=obj.DPSA(particle_subject_to_seep);
+                        particle_subject_to_seep=particle_subject_to_seep(Bool_1<1);
+                        Pos_Seepage=Pos_Seepage(Bool_1<1);
+                        final_location=final_location(Bool_1<1);
+                        elevation=elevation(Bool_1<1);
+                        
+                        [particle_subject_to_seep,Indexes_delete] = setdiff(particle_subject_to_seep,Position_to_tag_before_deletion(:,1));
+                        Pos_Seepage=Pos_Seepage(Indexes_delete);
+                        final_location=final_location(Indexes_delete);
+                        elevation=elevation(Indexes_delete);
+                        Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i)).*obj.DGW(particle_subject_to_seep);
+                        
+                        % option 1: order by initial infiltration point, the closest the first to get out
+                        %                 pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
+                        %                 Initial_infiltration_point=x_S(pos_2);
+                        %                 [Initial_infiltration_point,Index_]=sort(Initial_infiltration_point);
+                        % option 2: order by z
+                        [Initial_infiltration_point,Index_]=sort(elevation,'descend');
+                        
+                        Weight_partial=Weight_partial(Index_);
+                        Pos_Seepage=Pos_Seepage(Index_);
+                        final_location=final_location(Index_);
+                        particle_subject_to_seep=particle_subject_to_seep(Index_);
+                        
+                        Seep_m3s=RF_spat(Seepage_pos,i);
+                        
+                        %                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,@cumsum);
+                        [Pos_Seepage_sorted, I_sorted] = sort(Pos_Seepage);
+                        Weight_cum = accumarray(Pos_Seepage_sorted, Weight_partial(I_sorted), [], @(r){cumsum(r)});
+                        particle_subject_to_seep=accumarray(Pos_Seepage_sorted,particle_subject_to_seep(I_sorted),[],@(r){r});
+                        final_location=accumarray(Pos_Seepage_sorted,final_location(I_sorted),[],@(r){r});
+                        Initial_infiltration_point=accumarray(Pos_Seepage_sorted,Initial_infiltration_point(I_sorted),[],@(r){r});
+                        % %                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,[],@(r){cumsum(r)});
+                        % %                 particle_subject_to_seep=accumarray(Pos_Seepage,particle_subject_to_seep,[],@(r){r});
+                        if(Seepage_pos(1)==1 && ~isempty(Weight_cum) && ~isempty(Weight_cum{1}))
+                            %                     [final_location{1},Index_location_1]=sort(final_location{1});
+                            %                     Weight_cum{1}=[Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1);Weight_cum{1}(1)];
+                            %                     Weight_cum{1}=Weight_cum{1}(Index_location_1);
+                            %                     Weight_cum{1}=cumsum(Weight_cum{1});
+                            %                     particle_subject_to_seep{1}=particle_subject_to_seep{1}(Index_location_1);
+                            
+                            Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
+                            Weight_cum{1}=flip(Weight_cum{1});
+                            % %                     Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
+                            % % %                     Weight_cum{1}=cumsum(Weight_cum{1});
+                            particle_subject_to_seep{1}=flip(particle_subject_to_seep{1});
+                            
+                            %                     Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
+                            [particle_certain_to_seep,Indexes_particle_certain]=setdiff(particle_subject_to_seep{1},mat_pos_allocate_x_z_sorted{i+1}(mat_pos_allocate_x_z_sorted{i+1}(:,3)<x_Q(2),1));
+                            [particle_potential_to_seep,Indexes_potential]=setdiff(particle_subject_to_seep{1},particle_certain_to_seep);
+                            particle_subject_to_seep{1}=[particle_certain_to_seep;particle_potential_to_seep];
+                            Weight_cum{1}=[Weight_cum{1}(Indexes_particle_certain);Weight_cum{1}(Indexes_potential)];
+                            Weight_cum{1}=cumsum(Weight_cum{1});
+                        end
+                        Particle_Position_to_delete=cell(length(Weight_cum),1);
+                        Seepage_value=0;
+                        for k=length(Weight_cum):-1:1
+                            Seepage_value=Seepage_value+Seep_m3s(k);
+                            pos_=Seepage_pos(k);
+                            [ ~, ix ] = min( abs( [flip(Weight_cum{k});0]-Seepage_value ) );
+                            ix=length(Weight_cum{k})-ix+2;
+                            if(ix>1)
+                                Particle_Position_to_delete{k}=[particle_subject_to_seep{k}(1:1:(ix-1)),i*ones(ix-1,1),double(pos_==1)*ones(ix-1,1)];%ones(size(Particle_Position_to_delete))*]
+                                Seepage_value=Seepage_value-Weight_cum{k}(ix-1);
+                            end
+                        end
+                        Error_RF_DGW(i)=Seepage_value;
+                        Particle_Position_to_delete=vertcat(Particle_Position_to_delete{:});
+                        Position_to_tag_before_deletion=[Position_to_tag_before_deletion;Particle_Position_to_delete];
+                    else
+                        Error_RF_DGW(i)=sum(RF_spat(:,i));
                     end
-                end
-                Error_RF_DGW(i)=Seepage_value;
-                if(i>2000 & Error_RF_DGW(i)/(sum(RF_spat(:,i)))>0.05)
-                    AA=1;
-                end
-                Particle_Position_to_delete=vertcat(Particle_Position_to_delete{:});
-                Position_to_tag_before_deletion=[Position_to_tag_before_deletion;Particle_Position_to_delete];
                 end
                 fprintf(strcat(num2str(i),'/',num2str(length(obj.t)-1),'\n'));
             end
@@ -525,9 +525,10 @@ classdef transport_2D_par
             end
             min_=accumarray(row,col,[],@min);
             max_=accumarray(row,col,[],@max);
-            if(length(obj.weight)-length(max_)>0)
-                max_=[max_;zeros(length(obj.weight)-length(max_),1)];
-                min_=[min_;zeros(length(obj.weight)-length(min_),1)];
+            Val_to_add=length(obj.weight)-length(max_);
+            if(Val_to_add>0)
+                max_=[max_;zeros(Val_to_add,1)];
+                min_=[min_;zeros(Val_to_add,1)];
                 fprintf('WARNING: it seems that there are some minor issues about different sizes between obj.weight and max_ in the get_trajectory_properties method \n');
             end
             
@@ -575,7 +576,7 @@ classdef transport_2D_par
                     x_init=accumarray(row,mat_pos_allocate_x(:,3),[],@max);
                     distance=abs(x_fin-x_init);
                 end
-                distance=[distance;zeros(length(obj.weight)-length(max_),1)];
+                distance=[distance;zeros(Val_to_add,1)];
                 if(length(unique(obj.DPSA))>2)
                     t_out=[t_out;t_in(obj.DPSA>0 & obj.DPSA<1)];
                     delta_t=[delta_t;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
@@ -875,6 +876,56 @@ classdef transport_2D_par
             DGW_prop=1-DPSA_prop;
 %             DGW_prop(obj.N_inj==0)=0;
        end
+       
+       function check_particle_tracking_flux_conservation(obj,t_out,weights,DPSA_,RF_spat,Error_RF_DGW,Error_ET)
+           dt=obj.t(2:end)-obj.t(1:end-1);
+           t_edge1=obj.t-[dt(1),dt]/2;
+           t_edge2=obj.t+[dt,dt(end)]/2;
+           dt=t_edge2-t_edge1;
+           
+           DPSA_select=[obj.DPSA==1;obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
+           DGW_select=[obj.DGW;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
+           RF_select=[obj.RF;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
+%            DGW_select2=[obj.NA;zeros(sum(obj.DPSA>0  & obj.DPSA<1),1)];
+           Q_Seep=nan(length(obj.t),1);
+           Q_DP_out=nan(length(obj.t),1);
+           Q_DGW_out=nan(length(obj.t),1);
+%            Q_NA_out=nan(length(obj.t),1);
+           for i=1:length(obj.t)
+               Q_Seep(i)=(sum(weights(obj.t(i)==t_out & RF_select>0)/1000)/(dt(i)))';
+               Q_DP_out(i)=(sum(weights(obj.t(i)==t_out & DPSA_select>0)/1000)/(dt(i)))';
+               Q_DGW_out(i)=(sum(weights(obj.t(i)==t_out & DGW_select>0)/1000)/(dt(i)))';
+%                if(strcmp(speed_option,'slow'))
+%                    Q_NA_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DGW_select2>0)/1000)/(dt(i)))';
+%                end
+           end
+           RF_=sum(RF_spat(2:end,:));
+           DGW_=RF_spat(1,:);
+           t=datetime(datestr(obj.t/(24*3600)));
+           figure; hold on
+           plot(t(1:end-1),Error_RF_DGW)
+           legend('Error made on Return Flow flux')
+           if(nargin>6)
+               plot(t(1:end-1),Error_ET,'--')
+               legend('Error made on Return Flow flux','Error made on ET')
+           end
+           ylabel('Flux [m^{3}/s]')
+           figure; hold on
+           plot(t,DPSA_)
+           plot(t,Q_DP_out,'--')
+           legend('hs1D DPSA','Particle tracking DPSA')
+           ylabel('Flux [m^{3}/s]')
+           figure; hold on
+           plot(t,RF_+DGW_)
+           plot(t,Q_Seep+Q_DGW_out,'--')
+           legend('hs1D RF','Particle tracking RF')
+           ylabel('Flux [m^{3}/s]')
+           figure; hold on
+           plot(t,RF_+DGW_+DPSA_)
+           plot(t,Q_Seep+Q_DGW_out+Q_DP_out,'--')
+           legend('hs1D River discharge','Particle tracking river discharge')
+           ylabel('Flux [m^{3}/s]')
+       end
     end
     methods(Static)
         function [obj,DSi]=test(runs,folder_root,velocity_soil)
@@ -943,107 +994,37 @@ classdef transport_2D_par
 %             
 %         end
 
-        function [obj,t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=transport_with_rooting(runs,x,slope_angle,k_soil)
+        function [obj,t_out_groundwater,transit_times_groundwater,distance,weights]=transport_main(hs1D_run)
             % instantiate transport_2D_par object
-            [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par.instantiate_transport_and_velocity_field(runs);
+            [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par.instantiate_transport_and_velocity_field(hs1D_run);
             block_size=length(x_S);
             %             dx=x_Q(2:end)-x_Q(1:end-1);
             
             % compute the trajectories inside the aquifer
-            % option 1 all integrated
             tic
             speed_option='slow';
-            distance_option='on';
-            [obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
+            distance_2D_option='on';
+            [obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
             if(sum(RF_spat(:)<0)>0)
                 min_index=find(RF_spat(:)==min(RF_spat(:)));
                 fprintf(strcat('WARNING: \n',num2str(sum(RF_spat(:)<0)),' values in the spatialized matrix representing Return Flow \n','were negative (minimal values found:',num2str(RF_spat(min_index)),'). They have been replaced by 0.\n'));
                 RF_spat(RF_spat<0)=0;
             end
             toc
-%             RF_spat(1,:)=0;
-            [~,~,X] = unique(mat_pos_allocate_x_z(:,2));
-            mat_pos_allocate_x_z = accumarray(X,1:size(mat_pos_allocate_x_z,1),[],@(r){mat_pos_allocate_x_z(r,:)});
-            [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x_z]=obj.cut_trajectory_ET_RF(block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option,mat_pos_allocate_x_z);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
-            
-            % option 2 all separated
-%             obj=obj.compute_trajectories(velocity,block_size,x_S,x_Q,recharge,hydraulic_head,hydraulic_head_gradient);
-%             obj=obj.cut_trajectory_saturated_areas(Bool_sat);
-%             
-%             obj=obj.cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%obj=obj.cut_trajectory_seepage(Discretized_Aquifer_Volume,block_size,x_S,x_Q,width,RF_spat,Subsurface_flux);
-
-%             obj=obj.cut_trajectory_groundwater(sol_simulated,x_Q);
-% % %             obj=obj.update_DGW(x_Q);
-            
-            % retrieve the particles essential properties for their travel inside the aquifer
-%             [t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=obj.get_trajectory_properties;
-            toc
-            [t_out_groundwater,transit_times_groundwater,distance,t_in,weights]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_option);
-            toc
-            dt=obj.t(2:end)-obj.t(1:end-1);
-            t_edge1=obj.t-[dt(1),dt]/2;
-            t_edge2=obj.t+[dt,dt(end)]/2;
-            dt=t_edge2-t_edge1;
-            
-            DPSA_select=[obj.DPSA==1;obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
-            DGW_select=[obj.DGW;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
-            RF_select=[obj.RF;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
-            DGW_select2=[obj.NA;zeros(sum(obj.DPSA>0  & obj.DPSA<1),1)];
-            Q_Seep=nan(length(obj.t),1);
-            Q_DP_out=nan(length(obj.t),1);
-            Q_DGW_out=nan(length(obj.t),1);
-            Q_NA_out=nan(length(obj.t),1);
-            for i=1:length(obj.t)
-                Q_Seep(i)=(sum(weights(obj.t(i)==t_out_groundwater & RF_select>0)/1000)/(dt(i)))';
-                Q_DP_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DPSA_select>0)/1000)/(dt(i)))';
-                Q_DGW_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DGW_select>0)/1000)/(dt(i)))';
-                if(strcmp(speed_option,'slow'))
-                    Q_NA_out(i)=(sum(weights(obj.t(i)==t_out_groundwater & DGW_select2>0)/1000)/(dt(i)))';
-                end
+            % sort the trajectories points by individual time steps
+            mat_pos_allocate_x_z = accumarray(mat_pos_allocate_x_z(:,2),1:size(mat_pos_allocate_x_z,1),[],@(r){mat_pos_allocate_x_z(r,:)});%[~,~,X] = unique(mat_pos_allocate_x_z(:,2)); accumarray(X,1:size(mat_pos_allocate_x_z,1),[],@(r){mat_pos_allocate_x_z(r,:)});
+            if(length(mat_pos_allocate_x_z)<length(obj.t))
+                mat_pos_allocate_x_z=[mat_pos_allocate_x_z;cell(length(obj.t)-length(mat_pos_allocate_x_z),1)];
             end
-            
-            RF_=sum(RF_spat(2:end,:));
-            DGW_=RF_spat(1,:);
-            DPSA_=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
-            figure; hold on
-            plot(temp.t_real,DPSA_(4332:4505))
-            plot(temp.t_real,Q_DP_out)
-            figure; hold on
-            
-            % compute the typical travel time inside the subsurface (soil layer)
-            
-            %% check DPSA quanti
-%             DPSA_m3s_part=obj.DPSA.*obj.weight/(1000);
-%             t_out_pos=(obj.t_inj_pos(ceil((1:1:349600)'/80)))';
-%             DPSA_time=accumarray(t_out_pos,DPSA_m3s_part,[],@nansum);
-%             dt=obj.t(2:end)-obj.t(1:end-1);
-%             dt=obj.t(2:end)-obj.t(1:end-1);
-%             t_edge1=obj.t-[dt(1),dt]/2;
-%             t_edge2=obj.t+[dt,dt(end)]/2;
-%             dt=t_edge2-t_edge1;
-%             DPSA_time=[DPSA_time',0]./dt;
-            
-% % %             slope_angle1_top=interpn(x,slope_angle,x_S);
-% % %             k_soil2=ones(size(x_S))*k_soil;
-% % %             velocity_soil=k_soil2.*sin(slope_angle1_top);
-% % %             travel_time_soil=cumtrapz(dx./velocity_soil);
-% % %             travel_time_soil2=[0;travel_time_soil];
-% % %             
-% % %             % travel time of the particles inside the soil layer
-% % %             transit_times_soil=interpn(x_Q,travel_time_soil2,full(x_fin_groundwater),'linear',0);
-% % %             
-% % %             % t_out_river : time at which the particles arrives finally inside the river 
-% % %             t_out_river=cat(2,t_out_groundwater,transit_times_soil); 
-% % %             t_out_river= nansum(t_out_river,2); 
-% % %             t_out_river=interp1([obj.t,2*obj.t(end)-obj.t(end-1)],[obj.t,2*obj.t(end)-obj.t(end-1)],t_out_river,'nearest',nan);
-% % %             transit_times_total=cat(2,transit_times_groundwater,transit_times_soil); transit_times_total= nansum(transit_times_total,2); 
-% % %             
-% % %             transit_times_total(obj.ET>0)=nan;
-% % %             t_out_river(obj.ET>0)=nan;
-% % %             t_out_groundwater(obj.ET>0)=nan;
-% % %             transit_times_groundwater(obj.ET>0)=nan;
-% % %             x_fin_groundwater(obj.ET>0)=nan;
-% % %             transit_times_soil(obj.ET>0)=nan;
+            % cut the trajectories due to direct precipitations onto saturation areas, seepage, ET, river discharge
+            [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x_z]=obj.cut_trajectory_ET_RF(block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option,mat_pos_allocate_x_z);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
+            toc
+            % retrieve the sampling times, transit times, travel distances and associated weights of the injected particles
+            [t_out_groundwater,transit_times_groundwater,distance,t_in,weights]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
+            toc
+            % check the quality of the particle tracking strategy, ie if the particle tracking flux equals the flux computed with hs1D
+            DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
+            obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,Error_RF_DGW,Error_ET);
         end
         
         function transport_2compartments(run_shallow,run_deep)
@@ -1292,9 +1273,9 @@ classdef transport_2D_par
                     load(bouss_sim_dir); load(sim_dir);
                     runs1=runs; runs1.boussinesq_simulation=bouss_sim; runs1.simulation_results=obj;
                     clear bouss_sim obj
-                    transport_2D_par=transport_2D_par.test(runs1);
-                    save(fullfile(directory,directory_list{i},'transport_2D_par.mat'),'-v7.3');
-                    clear transport_2D_par runs1
+                    transport=transport_2D_par.test(runs1);
+                    save(fullfile(directory,directory_list{i},'transport.mat'),'-v7.3');
+                    clear transport runs1
                 end
             end
         end
