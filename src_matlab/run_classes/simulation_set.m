@@ -874,12 +874,12 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function [Q_out2,residual2,Q_out,residual,run_obj]=run_simulation_rooting(k1,soil_coef,file_path,f1)
+        function [Q_out2,residual2,Q_out,residual,run_obj,obj,x,w,slope_angle]=run_simulation_rooting(k1,soil_coef,file_path,f1)
 % %             if(nargin<3)
 % %                 f1=0.2;
 % %             end
             tic
-            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%
+            range_=  1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%4332:4505; %
             if(nargin<4)
                 f1=0.2;
             end
@@ -921,7 +921,8 @@ classdef simulation_set
                 % 2/ read input files
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
-%                 w=mean(w)*ones(size(x));
+% %                 w=mean(w)*ones(size(x));
+                slope_angle=0.4*ones(size(x));
                 
                 % first option
                 z_top=cumtrapz(x,slope_angle);
@@ -1023,30 +1024,32 @@ classdef simulation_set
                     t1=datetime(1998,01,15);
                     t2=datetime(2012,06,15);
                     tt=t1:calmonths(1):t2;
-
-                    load(file_path);
-                    Q_real=(Ecoflux_data.Q(1:174))';
-                    t_real=Ecoflux_data.t(1:174);
                     
-                    if(length(Q_real)==length(Q_out))
-                        residual2=Q_out2-Q_real;
-                        residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                        
-                        residual=Q_out-Q_real;
-                        residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                    else
-                        residual2=nan;
-                        residual=nan;
-                    end
+                    residual=nan;
+                    residual2=nan;
+%                     load(file_path);
+%                     Q_real=(Ecoflux_data.Q(1:174))';
+%                     t_real=Ecoflux_data.t(1:174);
+%                     
+%                     if(length(Q_real)==length(Q_out))
+%                         residual2=Q_out2-Q_real;
+%                         residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+%                         
+%                         residual=Q_out-Q_real;
+%                         residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+%                     else
+%                         residual2=nan;
+%                         residual=nan;
+%                     end
                 else
                     Q_out2=nan;
                     
                 end
                 %% test
-                f_soil=0.2;
-                k_soil=20;
-                d_soil=3;
-                run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,d_soil,run_obj);
+% % %                 f_soil=0.02;
+% % %                 k_soil=2;
+% % %                 d_soil=3;
+% % %                 run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,d_soil*ones(size(x)),run_obj);
 %             DSi_out=sum(DSi,1);      
         end
         
