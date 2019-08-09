@@ -519,7 +519,8 @@ classdef simulation_set
                         source_terms.time=time_2006_2;
                         source_terms.recharge_chronicle=qs1;
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
-                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600);%3600*24);
+                        dt_mean=mean(diff(runs_below.simulation_results.t));
+                        odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%3600*24);
                         ratio_P_R=1;
                         presteadystate_percentage_loaded=-2; %presteadystate_percentage_loaded=0; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
@@ -873,12 +874,12 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function [Q_out2,residual2,Q_out,residual,run_obj]=run_simulation_rooting(k1,soil_coef,file_path,f1)
+        function [Q_out2,residual2,Q_out,residual,run_obj,obj,x,w,slope_angle]=run_simulation_rooting(k1,soil_coef,file_path,f1)
 % %             if(nargin<3)
 % %                 f1=0.2;
 % %             end
             tic
-            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%
+            range_=  1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%4332:4505; %
             if(nargin<4)
                 f1=0.2;
             end
@@ -920,7 +921,8 @@ classdef simulation_set
                 % 2/ read input files
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
-%                 w=mean(w)*ones(size(x));
+% %                 w=mean(w)*ones(size(x));
+                slope_angle=0.4*ones(size(x));
                 
                 % first option
                 z_top=cumtrapz(x,slope_angle);
@@ -988,7 +990,9 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',3600*24);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    dt=diff(t);
+                    dt_mean=mean(dt);
+                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
@@ -1020,30 +1024,32 @@ classdef simulation_set
                     t1=datetime(1998,01,15);
                     t2=datetime(2012,06,15);
                     tt=t1:calmonths(1):t2;
-
-                    load(file_path);
-                    Q_real=(Ecoflux_data.Q(1:174))';
-                    t_real=Ecoflux_data.t(1:174);
                     
-                    if(length(Q_real)==length(Q_out))
-                        residual2=Q_out2-Q_real;
-                        residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                        
-                        residual=Q_out-Q_real;
-                        residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                    else
-                        residual2=nan;
-                        residual=nan;
-                    end
+                    residual=nan;
+                    residual2=nan;
+%                     load(file_path);
+%                     Q_real=(Ecoflux_data.Q(1:174))';
+%                     t_real=Ecoflux_data.t(1:174);
+%                     
+%                     if(length(Q_real)==length(Q_out))
+%                         residual2=Q_out2-Q_real;
+%                         residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+%                         
+%                         residual=Q_out-Q_real;
+%                         residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+%                     else
+%                         residual2=nan;
+%                         residual=nan;
+%                     end
                 else
                     Q_out2=nan;
                     
                 end
                 %% test
-                f_soil=0.2;
-                k_soil=20;
-                d_soil=3;
-                run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,d_soil,run_obj);
+% % %                 f_soil=0.02;
+% % %                 k_soil=2;
+% % %                 d_soil=3;
+% % %                 run_soil=obj.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,d_soil*ones(size(x)),run_obj);
 %             DSi_out=sum(DSi,1);      
         end
         
