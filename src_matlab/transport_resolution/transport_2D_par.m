@@ -131,7 +131,7 @@ classdef transport_2D_par
             if(nargin<8 | strcmp(speed_option,'fast'))
                 stop_conditions=x_Q(2);
             elseif(strcmp(speed_option,'slow'))
-                stop_conditions=x_S(1)/1e16;%100;%000;%1e-9;%1e12;%
+                stop_conditions=x_S(1)/100;%1e16;%100;%000;%1e-9;%1e12;%
             end
             if(nargin<9)
                 distance_option='off';
@@ -151,15 +151,16 @@ classdef transport_2D_par
                 % define a stop event for ode solving when particles cross the river boundary
                 S_mat=sparse(diag(ones(block_size,1))); %#JMIPG check if S_mat is still necessary
                 events=@(t,y) obj.eventfun(t,y,stop_conditions);
-                options_reg = odeset('Vectorized','on','Jpattern',S_mat,'Events',events); %#JMIPG check if the vectorized option improves efficiency
+                dt_mean=mean(diff(obj.t));
+                options_reg = odeset('Events',events,'MaxStep',dt_mean);%'Vectorized','on',,'Jpattern',S_mat %#JMIPG check if the vectorized option improves efficiency
                 
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<1e11)%15e9)
-%                     numCores = feature('numcores');
-%                     p = parpool(numCores);
-                    p = parpool(24);
+                    numCores = feature('numcores');
+                    p = parpool(numCores);
+%                     p = parpool(24);
                     mat_pos_allocate_x_z=cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%[];%
                     N_b=obj.N;
                     t_inj_pos_b=obj.t_inj_pos;
@@ -382,30 +383,30 @@ classdef transport_2D_par
                         [Pos_Seepage_sorted, I_sorted] = sort(Pos_Seepage);
                         Weight_cum = accumarray(Pos_Seepage_sorted, Weight_partial(I_sorted), [], @(r){cumsum(r)});
                         particle_subject_to_seep=accumarray(Pos_Seepage_sorted,particle_subject_to_seep(I_sorted),[],@(r){r});
-                        final_location=accumarray(Pos_Seepage_sorted,final_location(I_sorted),[],@(r){r});
-                        Initial_infiltration_point=accumarray(Pos_Seepage_sorted,Initial_infiltration_point(I_sorted),[],@(r){r});
+% % % %                         final_location=accumarray(Pos_Seepage_sorted,final_location(I_sorted),[],@(r){r});
+% % % %                         Initial_infiltration_point=accumarray(Pos_Seepage_sorted,Initial_infiltration_point(I_sorted),[],@(r){r});
                         % %                 Weight_cum=accumarray(Pos_Seepage,Weight_partial,[],@(r){cumsum(r)});
                         % %                 particle_subject_to_seep=accumarray(Pos_Seepage,particle_subject_to_seep,[],@(r){r});
-                        if(Seepage_pos(1)==1 && ~isempty(Weight_cum) && ~isempty(Weight_cum{1}))
-                            %                     [final_location{1},Index_location_1]=sort(final_location{1});
-                            %                     Weight_cum{1}=[Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1);Weight_cum{1}(1)];
-                            %                     Weight_cum{1}=Weight_cum{1}(Index_location_1);
-                            %                     Weight_cum{1}=cumsum(Weight_cum{1});
-                            %                     particle_subject_to_seep{1}=particle_subject_to_seep{1}(Index_location_1);
-                            
-                            Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
-                            Weight_cum{1}=flip(Weight_cum{1});
-                            % %                     Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
-                            % % %                     Weight_cum{1}=cumsum(Weight_cum{1});
-                            particle_subject_to_seep{1}=flip(particle_subject_to_seep{1});
-                            
-                            %                     Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
-                            [particle_certain_to_seep,Indexes_particle_certain]=setdiff(particle_subject_to_seep{1},mat_pos_allocate_x_z_sorted{i+1}(mat_pos_allocate_x_z_sorted{i+1}(:,3)<x_Q(2),1));
-                            [particle_potential_to_seep,Indexes_potential]=setdiff(particle_subject_to_seep{1},particle_certain_to_seep);
-                            particle_subject_to_seep{1}=[particle_certain_to_seep;particle_potential_to_seep];
-                            Weight_cum{1}=[Weight_cum{1}(Indexes_particle_certain);Weight_cum{1}(Indexes_potential)];
-                            Weight_cum{1}=cumsum(Weight_cum{1});
-                        end
+% % %                         if(Seepage_pos(1)==1 && ~isempty(Weight_cum) && ~isempty(Weight_cum{1}))
+% % %                             %                     [final_location{1},Index_location_1]=sort(final_location{1});
+% % %                             %                     Weight_cum{1}=[Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1);Weight_cum{1}(1)];
+% % %                             %                     Weight_cum{1}=Weight_cum{1}(Index_location_1);
+% % %                             %                     Weight_cum{1}=cumsum(Weight_cum{1});
+% % %                             %                     particle_subject_to_seep{1}=particle_subject_to_seep{1}(Index_location_1);
+% % %                             
+% % %                             Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
+% % %                             Weight_cum{1}=flip(Weight_cum{1});
+% % %                             % %                     Weight_cum{1}=[Weight_cum{1}(1:end-1)-Weight_cum{1}(2:end);Weight_cum{1}(1)];
+% % %                             % % %                     Weight_cum{1}=cumsum(Weight_cum{1});
+% % %                             particle_subject_to_seep{1}=flip(particle_subject_to_seep{1});
+% % %                             
+% % %                             %                     Weight_cum{1}=[Weight_cum{1}(1);Weight_cum{1}(2:end)-Weight_cum{1}(1:end-1)];
+% % %                             [particle_certain_to_seep,Indexes_particle_certain]=setdiff(particle_subject_to_seep{1},mat_pos_allocate_x_z_sorted{i+1}(mat_pos_allocate_x_z_sorted{i+1}(:,3)<x_Q(2),1));
+% % %                             [particle_potential_to_seep,Indexes_potential]=setdiff(particle_subject_to_seep{1},particle_certain_to_seep);
+% % %                             particle_subject_to_seep{1}=[particle_certain_to_seep;particle_potential_to_seep];
+% % %                             Weight_cum{1}=[Weight_cum{1}(Indexes_particle_certain);Weight_cum{1}(Indexes_potential)];
+% % %                             Weight_cum{1}=cumsum(Weight_cum{1});
+% % %                         end
                         Particle_Position_to_delete=cell(length(Weight_cum),1);
                         Seepage_value=0;
                         for k=length(Weight_cum):-1:1
@@ -901,7 +902,11 @@ classdef transport_2D_par
            end
            RF_=sum(RF_spat(2:end,:));
            DGW_=RF_spat(1,:);
-           t=datetime(datestr(obj.t/(24*3600)));
+           if(obj.t(1)==0)
+               t=datetime(datestr(1+obj.t/(24*3600)));
+           else
+               t=datetime(datestr(obj.t/(24*3600))); 
+           end
            figure; hold on
            plot(t(1:end-1),Error_RF_DGW)
            legend('Error made on Return Flow flux')
