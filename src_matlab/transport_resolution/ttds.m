@@ -44,13 +44,11 @@ classdef ttds
             weighted_pdf=pdf(obj.time_support);   
             % #JM a better way to handle this rather than a Dirac ??
             alpha=0.5;
-            if(obj.time_support(1)~=0)
-                pdf_temp=alpha^alpha*(obj.time_support).^(alpha-1).*exp(-alpha.*obj.time_support/obj.time_support(1))./(gamma(alpha)*(obj.time_support(1))^alpha);
-%                 transit_times(transit_times==0)=obj.time_support(1);
-            else
+            if(obj.time_support(1)==0)
                 weighted_pdf(:,1)=0;
-                pdf_temp=alpha^alpha*(obj.time_support).^(alpha-1).*exp(-alpha.*obj.time_support/obj.time_support(2))./(gamma(alpha)*(obj.time_support(2))^alpha);
             end
+            t_min=min(transit_times(transit_times~=0))/4;%obj.time_support(2);
+            pdf_temp=alpha^alpha*(obj.time_support).^(alpha-1).*exp(-alpha.*obj.time_support/t_min)./(gamma(alpha)*(t_min)^alpha);
 %             weighted_pdf(transit_times==0,1)=2/(obj.time_support(2)-obj.time_support(1));
 %             weighted_pdf(transit_times==0,2:end)=0;
             weighted_pdf(transit_times==0,:)=repmat(pdf_temp,sum(transit_times==0),1);
@@ -134,10 +132,17 @@ classdef ttds
         function obj=retrieve_ttds(times_out,transit_times,weights,travel_distances,time_support)
             transit_times=transit_times(~isnan(times_out));
             weights=weights(~isnan(times_out));
-            travel_distances=travel_distances(~isnan(times_out));
             times_out=times_out(~isnan(times_out));
+            if(nargin<4)
+                travel_distances=ones(size(times_out));
+            else
+                travel_distances=travel_distances(~isnan(times_out));
+            end
             if(nargin<5)
-                time_support=[linspace(0.25,95,95*4)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
+%                 t1=min(transit_times(transit_times~=0))/(24*3600);
+%                 t2=max(transit_times(transit_times~=0))/(24*3600);
+%                 time_support=logspace(log(t1)/10,log(t1)*10,1000);
+                time_support=logspace(-5,2,1000)*24*3600*365.25;%[linspace(0.25,95,95*4)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
             end
             obj=ttds;
             obj=obj.instantiate_ttds(time_support);
