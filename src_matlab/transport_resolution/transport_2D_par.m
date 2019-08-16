@@ -859,12 +859,13 @@ classdef transport_2D_par
        function [DPSA_prop,DGW_prop,RF_spat,Flux_in_spat]=compute_DPSA_GW_proportion(obj,runs)
             [DPSA_,~,DPSA_spat,RF_spat]=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
             [~,Flux_in_spat]=compute_infiltration(runs.simulation_results,runs.boussinesq_simulation);
+            DPSA_spat(1,:)=1;
+            Flux_in_spat_reshaped=Flux_in_spat;
+            Flux_in_spat_reshaped(1,:)=1;
             size_mat=size(DPSA_spat);
             DPSA_spat=reshape(DPSA_spat(:,obj.t_inj_pos),size_mat(1)*(length(obj.t_inj)),1); %DPSA_spat=reshape(DPSA_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
-            Flux_in_spat_reshaped=reshape(Flux_in_spat(:,obj.t_inj_pos),size_mat(1)*(length(obj.t_inj)),1); %Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
+            Flux_in_spat_reshaped=reshape(Flux_in_spat_reshaped(:,obj.t_inj_pos),size_mat(1)*(length(obj.t_inj)),1); %Flux_in_spat_reshaped=reshape(Flux_in_spat(:,1:end-1),size_mat(1)*(size_mat(2)-1),1);
             DPSA_prop=DPSA_spat./Flux_in_spat_reshaped;
-%             DPSA_prop(obj.N_inj==0)=0;
-            DPSA_prop(1,:)=1;
             if(sum(DPSA_prop<0)>0)
                 fprintf(strcat('WARNING: \n',num2str(sum(DPSA_prop<0)),' values in the spatialized matrix representing Direct Precipitations on Saturated Areas \n','were negative (minimal values found:',num2str(DPSA_spat(DPSA_prop==min(DPSA_prop))),'). They have been replaced by 0.\n'));
                 DPSA_prop(DPSA_prop<0)=0;
@@ -1163,7 +1164,7 @@ classdef transport_2D_par
             end
         end
         
-        function [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=instantiate_transport_and_velocity_field(runs,threshold)
+        function [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,dvzdz,hydraulic_head]=instantiate_transport_and_velocity_field(runs,threshold)
             if(nargin<2)
                 threshold=0;
             end
@@ -1214,10 +1215,14 @@ classdef transport_2D_par
 % %             flux_derivative(end,:)=2*flux_derivative(end-1,:)-flux_derivative(end-2,:);
 % % %             integrated_parsec=-velocity.*(flux_derivative./flux-storage_derivative./storage);
 % %             integrated_parsec=-(flux_derivative./storage-flux.*storage_derivative./storage.^2);
-            integrated_parsec=-runs.boussinesq_simulation.discretization.A*(velocity);
-            integrated_parsec=[integrated_parsec(1,:);(integrated_parsec(2:end,:)+integrated_parsec(1:end-1,:))/2;integrated_parsec(end,:)];
-            integrated_parsec(1,:)=0;
-            integrated_parsec(integrated_parsec>0)=0;
+            % option 1
+            width_edges=[width(1);(width(2:end)+width(1:end-1))/2;width(end)];
+            dvxdx=-runs.boussinesq_simulation.discretization.A*(velocity);
+            dvxdx=[dvxdx(1,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;dvxdx(end,:)];
+            dvydy=bsxfun(@times,velocity,(runs.boussinesq_simulation.discretization.B*width)./width_edges);
+            dvzdz=dvxdx-dvydy;
+            dvzdz(1,:)=0;
+%             integrated_parsec(integrated_parsec>0)=0;
             hydraulic_head=bsxfun(@rdivide,runs.simulation_results.S,f.*width);
         end
         
