@@ -664,6 +664,7 @@ classdef transport_2D_par_temp
             
             f=@(x){[min(x),max(x)]};
             min_max=accumarray(row,col,[],f);
+            min_max=cell2mat(min_max);
             min_=min_max(:,1);
             max_=min_max(:,2);
 %             min_=accumarray(row,col,[],@min);
