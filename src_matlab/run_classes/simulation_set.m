@@ -922,7 +922,7 @@ classdef simulation_set
                 M=obj.read_input_file(morpho_loc);
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
 % %                 w=mean(w)*ones(size(x));
-                slope_angle=0.4*ones(size(x));
+% %                 slope_angle=0.4*ones(size(x));
                 
                 % first option
                 z_top=cumtrapz(x,slope_angle);
@@ -973,6 +973,10 @@ classdef simulation_set
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
                     recharge_chronicle=(M(:,2:end))';
+% % %                     t2=(linspace(t(1),t(end),length(t)*2-1))';
+% % %                     f=@(t_bis)nakeinterp1(t,recharge_chronicle,t_bis);
+% % %                     recharge_chronicle=(f(t2))';
+% % %                     t=t2;
                     
 % %                     time_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
 % %                     source_terms=source('data_based');
