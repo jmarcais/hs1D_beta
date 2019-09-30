@@ -144,15 +144,19 @@ classdef transport_2D_par
                 obj.x_traj=solve_ode_trajectory(Velocity_2,t_inj,x_inj);
             else
                 % define the velocity vector V = [(Vx)_i , (Vz)_i] with i between 1 and N_x, the number of discretized elements
+% % % % % % % % % % % % % % %                 Velocity_2D= @(t,y) transport_2D_par.velocity_field_2D(obj.t,x_Q,velocity,integrated_parsec,t,y);
+                hydraulic_head2=[2*hydraulic_head(1,:)-3/2*hydraulic_head(2,:)+1/2*hydraulic_head(3,:);(hydraulic_head(1:end-1,:)+hydraulic_head(2:end,:))/2;2*hydraulic_head(end,:)-3/2*hydraulic_head(end-1,:)+1/2*hydraulic_head(end-2,:)];%hydraulic_head2=[3/2*hydraulic_head(1,:)-1/2*hydraulic_head(2,:);(hydraulic_head(1:end-1,:)+hydraulic_head(2:end,:))/2;3/2*hydraulic_head(end,:)-1/2*hydraulic_head(end-1,:)];
                 Velocity_2D= @(t,y) transport_2D_par.velocity_field_2D(obj.t,x_Q,velocity,integrated_parsec,t,y);
+                Velocity_2D_with_seepage= @(t,y) transport_2D_par.velocity_field_2D_with_seepage(obj.t,x_Q,velocity,integrated_parsec,hydraulic_head2,t,y);
                 % define the velocity vector V = [(Vx)_i , (Vz)_i] with i between 1 and N_x, the number of discretized elements
 %                 Velocity_1D= @(t,y) transport_2D_par.velocity_field_1D(obj.t,x_Q,velocity,t,y);
                 
                 % define a stop event for ode solving when particles cross the river boundary
                 S_mat=sparse(diag(ones(block_size,1))); %#JMIPG check if S_mat is still necessary
                 events=@(t,y) obj.eventfun(t,y,stop_conditions);
+                events_2D=@(t,y) obj.eventfun_2D(t,y,stop_conditions);
                 dt_mean=mean(diff(obj.t));
-                options_reg = odeset('Events',events,'MaxStep',dt_mean);%'Vectorized','on',,'Jpattern',S_mat %#JMIPG check if the vectorized option improves efficiency
+                options_reg = odeset('Events',events_2D,'MaxStep',dt_mean);%'Vectorized','on',,'Jpattern',S_mat %#JMIPG check if the vectorized option improves efficiency
                 
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
@@ -177,7 +181,9 @@ classdef transport_2D_par
                             if(sum(Bool_inj_nonsat)~=0)
                                 % compute trajectories on non saturated areas
 %                                 [~,traj_temp_nonsat] = ode45(Velocity_1D,t_b(t_inj_pos_b(i):end),x_S(Bool_inj_nonsat),options_reg);
-                                [~,traj_temp_nonsat] = ode45(Velocity_2D,t_b(t_inj_pos_b(i):end),[x_S(Bool_inj_nonsat);hydraulic_head(Bool_inj_nonsat,i)],options_reg);
+                                [~,traj_temp_nonsat] = ode45(Velocity_2D_with_seepage,t_b(t_inj_pos_b(i):end),[x_S(Bool_inj_nonsat);hydraulic_head(Bool_inj_nonsat,t_inj_pos_b(i))],options_reg);
+%                                 [~,traj_temp_nonsat] = ode45(Velocity_2D_with_seepage,t_b(t_inj_pos_b(i):end),[x_S(Bool_inj_nonsat);hydraulic_head(Bool_inj_nonsat,i)],options_reg);
+% %                                 [~,traj_temp_nonsat] = ode45(Velocity_2D_with_seepage,t_b(t_inj_pos_b(i):end),[x_Q(end);hydraulic_head2(end,i)],options_reg);
                             else
                                 traj_temp_nonsat=[];
                             end
@@ -201,10 +207,10 @@ classdef transport_2D_par
                             if(strcmp(speed_option,'fast'))
                                 bool_delete=x_traj_temp<stop_conditions;
                             else
-                                bool_delete=x_traj_temp<(stop_conditions/1000);
+                                bool_delete=x_traj_temp<(stop_conditions);%/1000);
                             end
                             bool_delete=logical(cumsum(bool_delete,2));
-                            bool_delete=[false(length(x_b),1),bool_delete(:,1:end-1)];
+% % %                             bool_delete=[false(length(x_b),1),bool_delete(:,1:end-1)];%% %#JM direct Seepage delineation
                             bool_delete=bool_delete(:);
                             % store x trajectories
                             if(strcmp(distance_option,'on'))
@@ -512,7 +518,7 @@ classdef transport_2D_par
             end
         end
         
-        function [t_out,delta_t,distance,t_in,weights]=get_trajectory_properties(obj,mat_pos_allocate_x,distance_option)
+        function [t_out,delta_t,distance,t_in,weights,x_fin,x_init]=get_trajectory_properties(obj,mat_pos_allocate_x,distance_option)
             if(nargin<3)
                 distance_option='off';
             end
@@ -570,11 +576,11 @@ classdef transport_2D_par
                 end                
             else
                 weights=obj.weight;
+                x_fin=accumarray(row,mat_pos_allocate_x(:,3),[],@min);
+                x_init=accumarray(row,mat_pos_allocate_x(:,3),[],@max);
                 if(strcmp(distance_option,'on'))
                     distance=accumarray(row,mat_pos_allocate_x(:,5),[],@sum);
                 else
-                    x_fin=accumarray(row,mat_pos_allocate_x(:,3),[],@min);
-                    x_init=accumarray(row,mat_pos_allocate_x(:,3),[],@max);
                     distance=abs(x_fin-x_init);
                 end
                 distance=[distance;zeros(Val_to_add,1)];
@@ -856,6 +862,12 @@ classdef transport_2D_par
             dir = 0;  %or -1, doesn't matter
         end
         
+        function [x,isterm,dir] = eventfun_2D(obj,t,y,xlim)
+            x = y(end/2)-xlim;
+            isterm = 1;
+            dir = 0;  %or -1, doesn't matter
+        end
+        
        function [DPSA_prop,DGW_prop,RF_spat,Flux_in_spat]=compute_DPSA_GW_proportion(obj,runs)
             [DPSA_,~,DPSA_spat,RF_spat]=compute_DPSA_RF(runs.simulation_results,runs.boussinesq_simulation);
             [~,Flux_in_spat]=compute_infiltration(runs.simulation_results,runs.boussinesq_simulation);
@@ -909,8 +921,10 @@ classdef transport_2D_par
                t=datetime(datestr(obj.t/(24*3600))); 
            end
            figure; hold on
-           plot(t(1:end-1),Error_RF_DGW)
-           legend('Error made on Return Flow flux')
+           if(nargin>5)
+               plot(t(1:end-1),Error_RF_DGW)
+               legend('Error made on Return Flow flux')
+           end
            if(nargin>6)
                plot(t(1:end-1),Error_ET,'--')
                legend('Error made on Return Flow flux','Error made on ET')
@@ -1026,7 +1040,7 @@ classdef transport_2D_par
             [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x_z]=obj.cut_trajectory_ET_RF(block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option,mat_pos_allocate_x_z);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
             toc
             % retrieve the sampling times, transit times, travel distances and associated weights of the injected particles
-            [t_out_groundwater,transit_times_groundwater,distance,t_in,weights]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
+            [t_out_groundwater,transit_times_groundwater,distance,t_in,weights,x_fin,x_init]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
             toc
             % check the quality of the particle tracking strategy, ie if the particle tracking flux equals the flux computed with hs1D
             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
@@ -1204,25 +1218,13 @@ classdef transport_2D_par
             end
             velocity(isnan(velocity))=0;
             
-% %             storage=runs.simulation_results.S;
-% %             storage_derivative=runs.boussinesq_simulation.discretization.B*storage;
-% %             flux=runs.simulation_results.Q;
-% %             flux_derivative=runs.boussinesq_simulation.discretization.A*flux;
-% %             Omega=runs.boussinesq_simulation.discretization.Omega;
-% %             storage=Omega*storage;
-% %             storage(end,:)=2*storage(end-1,:)-storage(end-2,:);
-% %             flux_derivative=Omega*flux_derivative;
-% %             flux_derivative(end,:)=2*flux_derivative(end-1,:)-flux_derivative(end-2,:);
-% % %             integrated_parsec=-velocity.*(flux_derivative./flux-storage_derivative./storage);
-% %             integrated_parsec=-(flux_derivative./storage-flux.*storage_derivative./storage.^2);
-            % option 1
-            width_edges=[width(1);(width(2:end)+width(1:end-1))/2;width(end)];
+            % compute the vertical velocity derivative
+            width_edges=[2*width(1)-3/2*width(2)+1/2*width(3);(width(2:end)+width(1:end-1))/2;2*width(end)-3/2*width(end-1)+1/2*width(end-2)];%             width_edges=[3/2*width(1)-1/2*width(2);(width(2:end)+width(1:end-1))/2;3/2*width(end)-1/2*width(end-1)];
             dvxdx=-runs.boussinesq_simulation.discretization.A*(velocity);
-            dvxdx=[dvxdx(1,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;dvxdx(end,:)];
+            dvxdx=[2*dvxdx(1,:)-3/2*dvxdx(2,:)+1/2*dvxdx(3,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;2*dvxdx(end,:)-3/2*dvxdx(end-1,:)+1/2*dvxdx(end-2,:)];%             dvxdx=[3/2*dvxdx(1,:)-1/2*dvxdx(2,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;3/2*dvxdx(end,:)-1/2*dvxdx(end-1,:)];
             dvydy=bsxfun(@times,velocity,(runs.boussinesq_simulation.discretization.B*width)./width_edges);
             dvzdz=dvxdx-dvydy;
-            dvzdz(1,:)=0;
-%             integrated_parsec(integrated_parsec>0)=0;
+            % compute the hydraulic head
             hydraulic_head=bsxfun(@rdivide,runs.simulation_results.S,f.*width);
         end
         
@@ -1309,6 +1311,20 @@ classdef transport_2D_par
 
             % C++ bilinear interpolation with a mex file
             Velocity=[splinterp2(velocity,idx_time*ones(size(idx_space)),idx_space);z.*splinterp2(integrated_parsec,idx_time*ones(size(idx_space)),idx_space)];
+        end
+        
+        function Velocity=velocity_field_2D_with_seepage(T,XQ,velocity,integrated_parsec,hydraulic_head,t,y) % integrated_parsec = ( - recharge + velocity_horiz .* grad_h)./ h;
+            block_size=length(y)/2;
+            x=y(1:block_size);
+            z=y(block_size+1:end);
+            % preparation of the coefficients for the 2D interpolation
+            idx_time=findidxmex(T,t); %             idx_time=find_idx(t,T);
+            idx_space=findidxmex(XQ,x);%             idx_space=find_idx(x,XQ);
+            h=splinterp2(hydraulic_head,idx_time*ones(size(idx_space)),idx_space);
+            % C++ bilinear interpolation with a mex file
+            v_max_neg=XQ(end)/(mean(diff(T)));
+            epsilon=0.007;
+            Velocity=[splinterp2(velocity,idx_time*ones(size(idx_space)),idx_space)-v_max_neg*(z>(1+epsilon)*h);z.*splinterp2(integrated_parsec,idx_time*ones(size(idx_space)),idx_space).*(z<=(1+epsilon)*h)];
         end
         
         function [mean_,std_]=compute_mean(time_support,weighted_pdfs)

@@ -1316,7 +1316,7 @@ classdef transport_1D_par
 %             
 %         end
 
-        function [obj,t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=transport_with_rooting(runs,x,slope_angle,k_soil)
+        function [obj,t_out_groundwater,transit_times_groundwater,x_fin_groundwater,weights_groundwater]=transport_with_rooting(runs,x,slope_angle,k_soil)
             % instantiate transport_1D_par object
             [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat]=transport_1D_par.instantiate_transport_and_velocity_field(runs);
             block_size=length(x_S);
@@ -1349,7 +1349,7 @@ classdef transport_1D_par
             
             % retrieve the particles essential properties for their travel inside the aquifer
 %             [t_out_groundwater,transit_times_groundwater,x_fin_groundwater]=obj.get_trajectory_properties;
-            [t_out_groundwater,transit_times_groundwater,x_fin_groundwater,delta_x_groundwater,t_in,weights]=obj.get_trajectory_properties(mat_pos_allocate_x);
+            [t_out_groundwater,transit_times_groundwater,x_fin_groundwater,delta_x_groundwater,t_in,weights_groundwater]=obj.get_trajectory_properties(mat_pos_allocate_x);
             toc
             dt=obj.t(2:end)-obj.t(1:end-1);
             t_edge1=obj.t-[dt(1),dt]/2;
