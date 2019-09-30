@@ -5,7 +5,8 @@ classdef ttds
         means            % [N_tsampledx1] mean transit time of the distribution [s]
         stds             % [N_tsampledx1] mean transit time of the distribution [s]
         fyw              % [N_tsampledx1] youg water proportion (less than 3 months old) [-]
-        sampling_time    % [N_tsampledx1] sampling time where 
+        sampling_time    % [N_tsampledx1] sampling time where
+        Q
     end
 
     properties(Access=private)
@@ -85,13 +86,46 @@ classdef ttds
             obj=obj.compute_youngwaterfraction;
         end
         
+        function obj=smoothen_ttds(obj,time_frame)
+            if(isempty(obj.Q))
+                obj.means=movmean(obj.means,time_frame);
+                obj.stds=movmean(obj.stds,time_frame);
+                obj.fyw=movmean(obj.fyw,time_frame);
+                obj.pdfs=movmean(obj.pdfs,time_frame,1);
+            else
+                obj.means=movmean(obj.means.*obj.Q,time_frame)./movmean(obj.Q,time_frame);
+                obj.stds=movmean(obj.stds.*obj.Q,time_frame)./movmean(obj.Q,time_frame);
+                obj.fyw=movmean(obj.fyw.*obj.Q,time_frame)./movmean(obj.Q,time_frame);
+                obj.pdfs=bsxfun(@rdivide,movmean(bsxfun(@times,obj.pdfs,obj.Q),time_frame,1),movmean(obj.Q,time_frame));
+            end
+        end
+        
+        function obj=compare_with_Q(obj,t_Q,Q)
+%             tt_Q=datetime(datestr(t_Q/(24*3600)));
+%             tt_mTT=datetime(datestr(ttds_soil.sampling_time/(24*3600)));
+            [tt,ia,ib]=intersect(t_Q,obj.sampling_time);
+%             tt_common=tt_Q(ia);
+%             mTT_common=out(ib);
+            Q_common=Q(ia);
+            obj.Q=Q_common;
+            obj.sampling_time=tt;
+            obj.fyw=obj.fyw(ib);
+            obj.means=obj.means(ib);
+            obj.stds=obj.stds(ib);
+            obj.pdfs=obj.pdfs(ib,:);
+        end
+        
         function obj=reinterpolate(obj,obj2,sampling_time)
             obj.sampling_time=sampling_time;
             obj.pdfs=interp1(obj2.sampling_time,obj2.pdfs,sampling_time);
         end
         
         function plot_moment_variations(obj)
-            t=datetime(datestr(obj.sampling_time/(24*3600)));
+            if(obj.sampling_time(1)==0)
+                t=datetime(datestr(1+obj.sampling_time/(24*3600)));
+            else
+                t=datetime(datestr(obj.sampling_time/(24*3600)));
+            end
             figure; hold on
             yyaxis left
             plot(t,obj.means/(24*3600*365.25));
@@ -139,10 +173,11 @@ classdef ttds
                 travel_distances=travel_distances(~isnan(times_out));
             end
             if(nargin<5)
-%                 t1=min(transit_times(transit_times~=0))/(24*3600);
-%                 t2=max(transit_times(transit_times~=0))/(24*3600);
-%                 time_support=logspace(log(t1)/10,log(t1)*10,1000);
-                time_support=logspace(-5,2,1000)*24*3600*365.25;%[linspace(0.25,95,95*4)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
+                t1=min(transit_times(transit_times~=0));
+                t2=max(transit_times(transit_times~=0));
+                time_support=logspace(log10(t1/10),log10(t2*10),1000);
+% %                 time_support=[linspace(0.25,95,95*4+1)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
+%                 time_support=logspace(-5,2,1000)*24*3600*365.25;%[linspace(0.25,95,95*4)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
             end
             obj=ttds;
             obj=obj.instantiate_ttds(time_support);
@@ -152,6 +187,20 @@ classdef ttds
             obj=obj.store_cell_matrices_data(times_out,transit_times,weights,travel_distances);
             obj.plot_some_ttds;
             obj.plot_moment_variations;
-            end
+        end
+        
+        function obj=compute(obj)
+             ttds_soil=ttds.retrieve_ttds(t_out_groundwater,transit_times_groundwater,weights,distance);
+            
+            tt=datetime(datestr(obj.t/(24*3600)));
+            [DPSA,RF]=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
+            plot(tt,DPSA+RF)
+            tt=datetime(datestr(ttds_soil.sampling_time/(24*3600)));
+            yyaxis right
+            plot(tt,ttds_soil.means/(24*3600))
+            
+        end
     end
+    
+    
 end
