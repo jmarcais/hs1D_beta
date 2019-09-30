@@ -14,7 +14,10 @@ classdef watershed
     end
     
     methods(Static)
-        function obj=test
+        function obj=test(critic_drainage_area)
+            if(nargin<1)
+                critic_drainage_area=1000;
+            end
             obj=watershed;
 %             outlet_coord_BV6=[364778.7,6834822.7];
 %             critic_drainage_area=40000;
@@ -96,15 +99,24 @@ classdef watershed
 %             folder_directory='C:\Users\Jean\Documents\Données\SyntheticData\MorphologicInputs';
 %             obj.save_hillslopes(folder_directory,name_watershed);
             outlet_coord_Svartberget=[731404.4794,7133661.9441]; % 731406	7133634
-            critic_drainage_area=1000;
+%             critic_drainage_area=2000;%12800;%floor(469000/25);%4000;%1000;%floor(469000/25);%
             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjetTamara\SHP_Raster\Svartberget_DEM5m_2.tif',outlet_coord_Svartberget,critic_drainage_area);
-% %             outlet_coord_Icacos=[-65.7854572,18.2752528];
-% %             critic_drainage_area=2000;
-% %             obj=obj.analyze_hillslopes('Icacos.tif',outlet_coord_Icacos,critic_drainage_area);
-% % % % % % % %             outlet_coord_Icacos2=[205450.48,2022982.24];
-% % % % % % % %             critic_drainage_area=300;
-% % % % % % % %             obj=obj.analyze_hillslopes('Icacos2.tif',outlet_coord_Icacos2,critic_drainage_area);
+% % %             outlet_coord_Icacos=[-65.7854572,18.2752528];
+% % %             critic_drainage_area=2000;
+% % % % %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\DEMPuertoRico\Icacos.tif',outlet_coord_Icacos,critic_drainage_area);
+% %             outlet_coord_Icacos2=[205450.48,2022982.24];
+% %             critic_drainage_area=50000/5;%500;
+% % %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\GisDataLuquilloCZO_\Icacos2.tif',outlet_coord_Icacos2,critic_drainage_area);
+% %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\DEM_1m\outputmean.tif',outlet_coord_Icacos2,critic_drainage_area);
             
+%                         outlet_coord_Hawai=[239536.33,2125675.80];
+%             critic_drainage_area=1e6/100;%500;
+% %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\GisDataLuquilloCZO_\Icacos2.tif',outlet_coord_Icacos2,critic_drainage_area);
+%             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLouHawai\AlidaKestimates\Hawaii_DEM\hawaii_dem\DEMStream1.tif',outlet_coord_Hawai,critic_drainage_area);
+% % % % % % % % % % % % % % % % % outlet_coord_Icacos=[2.0557e+05,2.0186e+06];%[205793,2017411];
+% % % % % % % % % % % % % % % % % critic_drainage_area=1e5/25;%500;
+% % % % % % % % % % % % % % % % % obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\DEM_1m\USGS_LiDAR_DEM\PuertoRico_Extended_UTM20N_5m.tif',outlet_coord_Icacos,critic_drainage_area);
+         
 %             outlet_coord_Quentin=[217874.42,6790718.674];
 %             critic_drainage_area=400;
 %             obj=obj.analyze_hillslopes('MNT2_temp4.tif',outlet_coord_Quentin,critic_drainage_area);
