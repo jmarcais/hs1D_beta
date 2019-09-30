@@ -197,9 +197,6 @@ classdef boussinesq_simulation_unsat
             % first row block
             C=sparse(2*block_size,2*block_size);
             C(1:block_size,1:block_size)         = obj.compute_dSdt_from_Q(y,t)*(-obj.compute_Q_from_S(y));
-% % %             [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
-% % %             C(block_size+1:end,1:block_size)     = -(phi-f)./f.*obj.gamma(y,t).*C(1:block_size,1:block_size);
-%             C(block_size+1:end,1:block_size)     = obj.compute_dSudt_from_S(y,t);
             
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             C(1,:)=(1-Edges(1))*C(1,:);
@@ -212,15 +209,12 @@ classdef boussinesq_simulation_unsat
             
             block_size=obj.discretization.Nx;
             
-%             [~,~,~,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
-            
             alpha=obj.alpha(y,t);
             gamma=obj.gamma(y,t);
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-%             Rain=obj.N*obj.w;
             D=sparse(zeros(2*block_size,1));
             D(1:block_size)=alpha.*gamma.*Recharge_rate_spatialized;
-            D(block_size+1:end)=-(1-gamma).*Recharge_rate_spatialized;%-(phi-f)./f.*D(1:block_size);
+            D(block_size+1:end)=-(1-gamma).*Recharge_rate_spatialized;
            
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean;
             Edges_value=obj.boundary_cond.fixed_edge_matrix_values;
@@ -238,7 +232,6 @@ classdef boussinesq_simulation_unsat
             alpha_complementar=1-obj.alpha(y,t);
             gamma=obj.gamma(y,t);
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-%             Rain=obj.N*obj.w;
             D=alpha_complementar.*gamma.*Recharge_rate_spatialized;
            
             D=sparse(D);
