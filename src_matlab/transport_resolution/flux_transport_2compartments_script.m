@@ -1,12 +1,12 @@
 %% Flux
-% f_deep=0.05;
-% k_deep=0.1;
-% f_soil=0.2;
-% k_soil=3;
+f_deep=0.05;
+k_deep=0.1;
+f_soil=0.2;
+k_soil=3;
 % % run the hs1D flux simu
-% run_deep=simulation_set.run_simulation_rooting(k_deep,30/3600,'H:\Users\marcais\ProjectDSi\RealData\Guillec2.mat',f_deep);
-% run_deep_daily=simulation_set.run_simulation_rooting(k_deep,30/3600,'H:\Users\marcais\ProjectDSi\RealData\Guillec2.mat',f_deep);
-% run_soil=run_deep_daily.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,2*ones(size(x)),run_deep_daily);
+run_deep=simulation_set.run_simulation_rooting(k_deep,30/3600,'H:\Users\marcais\ProjectDSi\RealData\Guillec2.mat',f_deep);
+run_deep_daily=simulation_set.run_simulation_rooting(k_deep,30/3600,'H:\Users\marcais\ProjectDSi\RealData\Guillec2.mat',f_deep);
+run_soil=run_deep_daily.run_simulation_from_struct(x,f_soil,k_soil,w,slope_angle,2*ones(size(x)),run_deep_daily);
 
 %% Transport
 % GW transport
