@@ -211,27 +211,16 @@ classdef transport_2D_par_temp
                             
                             if(strcmp(distance_option,'on'))
                                 elementary_distance=(([zeros(size(x_traj_temp,1),1),diff(x_traj_temp,1,2)]).^2+([zeros(size(z_traj_temp,1),1),diff(z_traj_temp,1,2)]).^2).^0.5;
-                                if(isnan(sum(elementary_distance(:)))>0)
-% %                                     bool_delete=logical([zeros(size(elementary_distance,1),size(elementary_distance,2)-1),ones(size(elementary_distance,1),1)]);
-                                    fprintf(strcat('WARNING : ',num2str(i),' \n'));
-                                else
-% %                                     bool_delete=[zeros(size(elementary_distance,1),1),~logical(elementary_distance(:,2:end))];
-                                end
-% % % % % % % % % % % % % % % % % % % % % % %                                 bool_delete=[zeros(size(elementary_distance,1),1),logical(cumsum(~logical(elementary_distance(:,2:end)),2))];
-% % % % % % % % % % % % % % % % % % % % % % %                                 bool_delete(Bool_inj_sat,:)=[zeros(sum(Bool_inj_sat),1),ones(sum(Bool_inj_sat),size(elementary_distance,2)-1)];
-                                
-                                
-x_traj_temp2=x_traj_temp(:);
-z_traj_temp2=z_traj_temp(:);
-t_traj_temp=repmat(t_b(t_inj_pos_b(i):end),block_size,1);
-t_traj_temp=t_traj_temp(:);
-bool_delete=z_traj_temp2-hh(t_traj_temp,x_traj_temp2)>0;
-bool_delete=reshape(bool_delete,block_size,length(t_b(t_inj_pos_b(i):end)));
-
-
-                                bool_delete(Bool_inj_sat,:)=[ones(sum(Bool_inj_sat),1),zeros(sum(Bool_inj_sat),size(elementary_distance,2)-1)];
-                                bool_delete(:,end)=1;
                             end
+                            
+                            x_traj_temp2=x_traj_temp(:);
+                            z_traj_temp2=z_traj_temp(:);
+                            t_traj_temp=repmat(t_b(t_inj_pos_b(i):end),block_size,1);
+                            t_traj_temp=t_traj_temp(:);
+                            bool_delete=z_traj_temp2-hh(t_traj_temp,x_traj_temp2)>0;
+                            bool_delete=reshape(bool_delete,block_size,length(t_b(t_inj_pos_b(i):end)));
+                            bool_delete(Bool_inj_sat,:)=[ones(sum(Bool_inj_sat),1),zeros(sum(Bool_inj_sat),size(elementary_distance,2)-1)];
+                            bool_delete(:,end)=1;
                             
                             t_in{i}=t_b(t_inj_pos_b(i))*ones(size(x_traj_temp,1),1);
                             [row_bool_delete,col_bool_delete]=find(bool_delete);
