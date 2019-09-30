@@ -100,15 +100,15 @@ classdef runs
                 end
             end
             % spatial discretization
-                Nx=160;%220;
-%                 uu=3/4;
-%                 x2=(linspace((x(1)).^uu,(x(end)).^uu,150)).^(1/uu); x=x2';%length(x)
+                Nx=500;%160;%220;
+                uu=0.66;%3/4;
+                x2=(linspace((x(1)).^uu,(x(end)).^uu,Nx+1)).^(1/uu); x=x2';%length(x)
 %                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
 %                 x2=logspace(log10(10),log10(x(end)),50); x=[0;1;5;x2']; %x=[x(1);x2'];
 %                 x=[x(1);5;x(2:end)];
 %                 xcustom=[0,60,180,300,420,540,660,780,900,1020,1140,1260,1380,1500,1620,1740,1860,1980,2100,2220,2340,2460,2580,2700,2820,2940,3000]/3;%[0,30,60,90,120,160,608,1056,1504,1952,2400];
 % % % %                 xcustom=[0,30,60,90,120,160,420,680,940,1200,1460,1720,1980,2240,2500];
-                discretization_type='lin';%  'custom';%    % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
+                discretization_type=  'lin';% 'custom';%   % Type of discretization can be 'custom' or 'log'. if 'custom' type is chosen then you need to provide your own discretization
                 [discretization,obj]=obj.set_space_discretization(Nx,discretization_type,x');%,xcustom);
         end
         
@@ -154,7 +154,7 @@ classdef runs
                     % boundary conditions
                 elseif(strcmp(bound_river,'empty'))
                     % boundary conditions
-                    boundary_type={'S','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
+                    boundary_type={'Q','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
                     % if saturated at the river bank boundary_value=[f*w(1)*soil_depth(1),0]; else : boundary_value=[0,0];
                     boundary_value=[0,0];
                     % boundary conditions
