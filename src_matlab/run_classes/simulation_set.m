@@ -904,7 +904,7 @@ classdef simulation_set
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
                     d_init_add=1.7655;
                 else
-                    d_init_add=2.7707;%20;
+                    d_init_add=2;%2.7707;%20;
                 end
             end
 %             folder_root='C:\Users\Jean\Documents\ProjectDSi\GuillecEquiv';
@@ -984,6 +984,9 @@ classdef simulation_set
 % %                     source_terms.recharge_chronicle=interp1((t)',(M(:,2:end))',(time_1.get_properties));
 % %                     source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                     
+                    t=[t-t(end)+2*t(1)-t(2);t];
+                    recharge_chronicle=[recharge_chronicle,recharge_chronicle];
+
                     ratio_P_R=1;%0.875;%.33;%/0.38;
                     source_terms=source('data_based');
                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
@@ -996,7 +999,7 @@ classdef simulation_set
                     % to force matlab ode15s to compute where you know sthg is happening
                     dt=diff(t);
                     dt_mean=mean(dt);
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-3,'AbsTol',1e-6,'MaxStep',dt_mean);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
