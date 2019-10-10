@@ -55,7 +55,10 @@ classdef hillslope
             obj.x=X(c)'; obj.y=Y(r);
 %             obj.z=DEM.Z(hillslope.Z==1);
             if(nargin>6)
-                obj.z=vertdistance2stream.Z(hillslope.Z==1);
+                Average_river_elevation=DEM.Z(:);
+                VertDist=vertdistance2stream.Z(:);
+                Average_river_elevation=mean(Average_river_elevation(VertDist==0));
+                obj.z=vertdistance2stream.Z(hillslope.Z==1)+Average_river_elevation;
             else
                 obj.z=DEM.Z(hillslope.Z==1);
             end
@@ -116,7 +119,7 @@ classdef hillslope
                 DEM_resolution=5;
             end
             obj.hsB=hillslope1D;
-            obj.hsB=obj.hsB.set_properties(obj,obj.Id);
+            obj.hsB=obj.hsB.set_properties(obj.Id);
             [obj.hsB,obj.link_hillslope_hs1D]=obj.hsB.set_parameters(obj.distance,obj.z,DEM_resolution);
 %             obj.hsB=obj.hsB.transform_to_constant_slope;
             obj.hsB=obj.hsB.transform_to_spline_slope(0.0001);

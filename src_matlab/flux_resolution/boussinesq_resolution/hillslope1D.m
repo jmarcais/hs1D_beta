@@ -184,7 +184,7 @@ classdef hillslope1D
             file_output1=[file_output,'_slopcst'];
             folder_create(file_output1);
             filename=strcat(file_output1,'\morphologic.input');
-            obj=obj.transform_to_constant_slope;
+%             obj=obj.transform_to_constant_slope;
             M=nan(length(obj.x),5); M(:,1)=obj.x; M(:,2)=obj.w; M(:,3)=obj.i; M(:,4)=obj.z; M(:,5)=obj.z_predicted;
             fid = fopen(filename, 'w');
             if(nargin>=3)
@@ -215,7 +215,7 @@ classdef hillslope1D
             filename=strcat(file_output2,'\morphologic.input');
             SmoothingParam=1e-6;
 %             SmoothingParam=0.5;
-            obj=obj.transform_to_spline_slope(SmoothingParam);
+%             obj=obj.transform_to_spline_slope(SmoothingParam);
             M=nan(length(obj.x),5); M(:,1)=obj.x; M(:,2)=obj.w; M(:,3)=obj.i; M(:,4)=obj.z; M(:,5)=obj.z_predicted;
             fid = fopen(filename, 'w');
             if(nargin>=3)
