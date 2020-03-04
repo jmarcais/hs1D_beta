@@ -38,13 +38,17 @@ classdef runs
 %             obj.save_results;
         end
         
-        function obj=run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river)
+        function obj=run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river,Nx)
             if(nargin<6)
                 Sinitial=nan;
             end
             obj=runs;
 %             obj=obj.choose_hydraulic_parameters(hs1D.f,hs1D.k);
-            [obj,discretization]=obj.choose_structure_parameters(hs1D);
+            if(nargin<8)
+                [obj,discretization]=obj.choose_structure_parameters(hs1D);
+            else
+                [obj,discretization]=obj.choose_structure_parameters(hs1D,Nx);
+            end
             t=source_terms.time;
             % set the hydro param
 %             obj.boussinesq_simulation=obj.boussinesq_simulation.set_hydraulic_properties(obj.hs1D);
@@ -72,7 +76,7 @@ classdef runs
             obj.hs1D=[];
         end
         
-        function [obj,discretization]=choose_structure_parameters(obj,hs1D)
+        function [obj,discretization]=choose_structure_parameters(obj,hs1D,Nx)
             % Parametrization
             % geomorphologic properties
             if(nargin<2)
@@ -100,7 +104,9 @@ classdef runs
                 end
             end
             % spatial discretization
-                Nx=500;%160;%220;
+            if(nargin<3)
+                Nx=640;%320;%160;%160;%50;%220;
+            end
                 uu=0.66;%3/4;
                 x2=(linspace((x(1)).^uu,(x(end)).^uu,Nx+1)).^(1/uu); x=x2';%length(x)
 %                 x2=(linspace(sqrt(x(1)),sqrt(x(end)),length(x))).^2; x=x2';
@@ -154,7 +160,7 @@ classdef runs
                     % boundary conditions
                 elseif(strcmp(bound_river,'empty'))
                     % boundary conditions
-                    boundary_type={'Q','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
+                    boundary_type={'S','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
                     % if saturated at the river bank boundary_value=[f*w(1)*soil_depth(1),0]; else : boundary_value=[0,0];
                     boundary_value=[0,0];
                     % boundary conditions
