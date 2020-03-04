@@ -113,6 +113,7 @@ classdef space_discretization
 % %             obj.angle_resampled=smooth_slope_function(obj.x);
             obj.angle_resampled=interpn(x,angle,obj.x);
             obj.soil_depth_resampled=interpn(x,soil_depth,obj.x_S);
+            obj.soil_depth_resampled(1)=soil_depth(1);
             
             if(length(k)==1)
                 k=k*ones(size(x));
