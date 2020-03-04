@@ -344,7 +344,7 @@ classdef simulation_set
             end
         end
         
-        function state_values_initial=prerun_steady_state(obj,hs1D,recharge_averaged,ratio_P_R,bound_river)
+        function state_values_initial=prerun_steady_state(obj,hs1D,recharge_averaged,ratio_P_R,bound_river,Nx)
             if(nargin<4)
                 ratio_P_R=1;
             end
@@ -363,8 +363,10 @@ classdef simulation_set
             Sinitial=nan;
             if(nargin<5)
                 prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial);
-            else
+            elseif(nargin<6)
                 prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river);
+            else
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river,Nx);    
             end
 %             Sinitial=prerun_steady.get_final_storage;
             state_values_initial=prerun_steady.get_final_state_values;
@@ -879,7 +881,7 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
             tic
-            range_=  1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%4332:4505; %
+            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%
             if(nargin<4)
                 f1=0.2;
             end
@@ -972,7 +974,12 @@ classdef simulation_set
                     
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
-                    recharge_chronicle=(M(:,2:end))';
+                    %#temp
+                    t1=datetime(1998,01,15);
+                    t=t+datenum(t1)*24*3600-t(range_(1));
+                    t_old=t;
+                    t=(linspace(t(1),t(end),2*(length(t)-1)+1))';
+                    recharge_chronicle=interpn(t_old,(M(:,2:end))',t');%recharge_chronicle=(M(:,2:end))';
 % % %                     t2=(linspace(t(1),t(end),length(t)*2-1))';
 % % %                     f=@(t_bis)nakeinterp1(t,recharge_chronicle,t_bis);
 % % %                     recharge_chronicle=(f(t2))';
@@ -984,8 +991,8 @@ classdef simulation_set
 % %                     source_terms.recharge_chronicle=interp1((t)',(M(:,2:end))',(time_1.get_properties));
 % %                     source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                     
-                    t=[t-t(end)+2*t(1)-t(2);t];
-                    recharge_chronicle=[recharge_chronicle,recharge_chronicle];
+%                     t=[t-t(end)+2*t(1)-t(2);t];
+%                     recharge_chronicle=[recharge_chronicle,recharge_chronicle];
 
                     ratio_P_R=1;%0.875;%.33;%/0.38;
                     source_terms=source('data_based');
