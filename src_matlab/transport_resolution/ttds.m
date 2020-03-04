@@ -5,6 +5,7 @@ classdef ttds
         means            % [N_tsampledx1] mean transit time of the distribution [s]
         stds             % [N_tsampledx1] mean transit time of the distribution [s]
         fyw              % [N_tsampledx1] youg water proportion (less than 3 months old) [-]
+        medians          % [N_tsampledx1] median transit time [s]
         sampling_time    % [N_tsampledx1] sampling time where
         Q
     end
@@ -79,6 +80,11 @@ classdef ttds
             obj.fyw=(k-round(k))*fyw1+(round(k)+1-k)*obj.fyw;
         end
         
+        function obj=compute_median(obj)
+            [~,Index_]=min(abs(0.5-cumtrapz(obj.time_support,obj.pdfs,2)),[],2);
+            obj.medians=(obj.time_support(Index_))';
+        end
+        
         function obj=merge_two_ttds_simulations(obj,obj1,obj2,omega1,omega2)
             obj.sampling_time=obj1.sampling_time;
             obj.pdfs=bsxfun(@rdivide,bsxfun(@times,obj1.pdfs,omega1)+bsxfun(@times,obj2.pdfs,omega2),omega1+omega2);
@@ -115,9 +121,20 @@ classdef ttds
             obj.pdfs=obj.pdfs(ib,:);
         end
         
-        function obj=reinterpolate(obj,obj2,sampling_time)
+        function obj=reinterpolate(obj,obj2,sampling_time,Q)
             obj.sampling_time=sampling_time;
-            obj.pdfs=interp1(obj2.sampling_time,obj2.pdfs,sampling_time);
+            if(nargin<4)
+                obj.pdfs=interp1(obj2.sampling_time,obj2.pdfs,sampling_time);
+            else
+% %                 obj.pdfs=interp1(obj2.sampling_time,obj2.pdfs,sampling_time);
+                idx=find_idx(sampling_time,obj2.sampling_time);
+                pdf1=obj2.pdfs(floor(idx),:);
+                pdf2=obj2.pdfs(ceil(idx),:);
+                Q1=obj2.Q(floor(idx));
+                Q2=obj2.Q(ceil(idx));
+                prop_=abs(Q-Q1)./(abs(Q1-Q)+abs(Q-Q2));%/(ceil(idx)-floor(idx));
+                obj.pdfs=pdf1.*(1-prop_)+prop_.*pdf2;
+            end
         end
         
         function plot_moment_variations(obj)
@@ -185,8 +202,8 @@ classdef ttds
             obj=obj.compute_ttds_moments;
             obj=obj.compute_youngwaterfraction;
             obj=obj.store_cell_matrices_data(times_out,transit_times,weights,travel_distances);
-            obj.plot_some_ttds;
-            obj.plot_moment_variations;
+%             obj.plot_some_ttds;
+%             obj.plot_moment_variations;
         end
         
         function obj=compute(obj)
