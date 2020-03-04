@@ -236,18 +236,18 @@ classdef transport_2D_par_temp
                             distance{i}=cumsum(elementary_distance,2);
                             distance{i}=distance{i}(idx_);
                             weights{i}=weights_b(block_size*(i-1)+1:block_size*i);
-                            % store x trajectories
-                            elementary_distance=elementary_distance(:);
-                            bool_delete=bool_delete(:);
-                            x_traj_temp=x_traj_temp(:);
-                            z_traj_temp=z_traj_temp(:);
-                            if(strcmp(distance_option,'on'))
-                                mat_pos_allocate_x_z{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete),z_traj_temp(~bool_delete),elementary_distance(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
-                                mat_pos_allocate_x_z{i}=mat_pos_allocate_x_z{i}(mat_pos_allocate_x_z{i}(:,3)~=0,:);
-                            else
-                                mat_pos_allocate_x_z{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete),z_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
-                                mat_pos_allocate_x_z{i}=mat_pos_allocate_x_z{i}(mat_pos_allocate_x_z{i}(:,3)~=0,:);
-                            end
+%                             % store x trajectories
+%                             elementary_distance=elementary_distance(:);
+%                             bool_delete=bool_delete(:);
+%                             x_traj_temp=x_traj_temp(:);
+%                             z_traj_temp=z_traj_temp(:);
+%                             if(strcmp(distance_option,'on'))
+%                                 mat_pos_allocate_x_z{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete),z_traj_temp(~bool_delete),elementary_distance(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
+%                                 mat_pos_allocate_x_z{i}=mat_pos_allocate_x_z{i}(mat_pos_allocate_x_z{i}(:,3)~=0,:);
+%                             else
+%                                 mat_pos_allocate_x_z{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete),z_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
+%                                 mat_pos_allocate_x_z{i}=mat_pos_allocate_x_z{i}(mat_pos_allocate_x_z{i}(:,3)~=0,:);
+%                             end
                         end
                         % to know at what injection we are
                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
@@ -779,6 +779,7 @@ classdef transport_2D_par_temp
                 weights=[weights;obj.weight(obj.DPSA>0 & obj.DPSA<1).*obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
                 distance=[distance;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
             end
+            distance(distance<(obj.x(2)-obj.x(1)))=obj.x(2)-obj.x(1);
         end
         
         function matrix_times_resampled=subsample_times(obj,matrix_times,subsample_nb)
@@ -1234,15 +1235,15 @@ classdef transport_2D_par_temp
 % %             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
 % %             obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat);
             % sort the trajectories points by individual time steps
-            matrix_times=[t_out_groundwater,transit_times_groundwater,distance,weights];
-            subsample_nb=12;
-            matrix_times_resampled=obj.subsample_times(matrix_times,subsample_nb);
-            t_out_groundwater_resampled=matrix_times_resampled(:,1);
-            transit_times_groundwater_resampled=matrix_times_resampled(:,2);
-            distance_resampled=matrix_times_resampled(:,3);
-            weights_resampled=matrix_times_resampled(:,4);
+% % % % % % % % % % % % % % % % % % % %             matrix_times=[t_out_groundwater,transit_times_groundwater,distance,weights];
+% % % % % % % % % % % % % % % % % % % %             subsample_nb=12;
+% % % % % % % % % % % % % % % % % % % %             matrix_times_resampled=obj.subsample_times(matrix_times,subsample_nb);
+% % % % % % % % % % % % % % % % % % % %             t_out_groundwater_resampled=matrix_times_resampled(:,1);
+% % % % % % % % % % % % % % % % % % % %             transit_times_groundwater_resampled=matrix_times_resampled(:,2);
+% % % % % % % % % % % % % % % % % % % %             distance_resampled=matrix_times_resampled(:,3);
+% % % % % % % % % % % % % % % % % % % %             weights_resampled=matrix_times_resampled(:,4);
             
-            if(exist('mat_pos_allocate_x_z','var'))
+            if(exist('mat_pos_allocate_x_z','var') && ~isempty(mat_pos_allocate_x_z))
 %                 mat_pos_allocate_x_z = accumarray(mat_pos_allocate_x_z(:,2),1:size(mat_pos_allocate_x_z,1),[],@(r){mat_pos_allocate_x_z(r,:)});%[~,~,X] = unique(mat_pos_allocate_x_z(:,2)); accumarray(X,1:size(mat_pos_allocate_x_z,1),[],@(r){mat_pos_allocate_x_z(r,:)});
                 mat_pos_allocate_x_z = mat_pos_allocate_x_z(mat_pos_allocate_x_z(:,2)==length(obj.t)-2,:);
             end
