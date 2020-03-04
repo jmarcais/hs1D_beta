@@ -181,21 +181,24 @@ classdef boussinesq_simulation
             B=obj.discretization.B; % derivation matrix 2
             %% compute recharge rate spatialized
             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
+            if(Recharge_rate<0)
+                Recharge_rate=Recharge_rate.*[1;(1-exp(-10*((y(2:end)-f(2:end).*w(2:end).*d(1))./(f(2:end).*w(2:end).*(d(2:end)-d(1))))))];%                Recharge_rate=Recharge_rate.*(1-exp(-1000*(1-min(1,-Recharge_rate*3600./(y./(f.*w)-d(1))))));
+            end
             Recharge_rate_spatialized=Recharge_rate.*w;
             Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
-            ETP_rate=obj.source_terms.compute_ETP_rate(t);
-            if(~isnan(ETP_rate))
-                ETP_rate_spatialized=ETP_rate*w;
-                relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
-                ETR_rate_spatialized=ETP_rate_spatialized.*(relative_occupancy_rate>0.05);
-                Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
-            end
+%             ETP_rate=obj.source_terms.compute_ETP_rate(t);
+%             if(~isnan(ETP_rate))
+%                 ETP_rate_spatialized=ETP_rate*w;
+%                 relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
+%                 ETR_rate_spatialized=ETP_rate_spatialized.*(relative_occupancy_rate>0.05);
+%                 Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
+%             end
             %% Compute darcy flux from one box to another with variable angle
             Q_from_S=obj.discretization.Omega; % Omega is directly in Q_from_S to gain speed
             Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
             Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;%
             if(sum(angle)~=0)
-                Q1_from_S=k./f_edges.*sin(angle); Q1_from_S(end)=0;
+                Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
                 Q1_from_S=sparse(1:block_size,1:block_size,Q1_from_S,block_size+1,block_size);%sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
                 Q_from_S=Q_from_S+Q1_from_S;
             end
@@ -245,7 +248,7 @@ classdef boussinesq_simulation
             Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
             Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;%
             if(sum(angle)~=0)
-                Q1_from_S=k./f_edges.*sin(angle); Q1_from_S(end)=0;
+                Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
                 Q1_from_S=sparse(1:block_size,1:block_size,Q1_from_S,block_size+1,block_size);%sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
                 Q_from_S=Q_from_S+Q1_from_S;
             end
