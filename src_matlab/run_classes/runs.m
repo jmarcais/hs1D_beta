@@ -105,7 +105,7 @@ classdef runs
             end
             % spatial discretization
             if(nargin<3)
-                Nx=640;%320;%160;%160;%50;%220;
+                Nx=100;%640;%320;%160;%160;%50;%220;
             end
                 uu=0.66;%3/4;
                 x2=(linspace((x(1)).^uu,(x(end)).^uu,Nx+1)).^(1/uu); x=x2';%length(x)
