@@ -145,7 +145,7 @@ classdef simulation_set
       
         function output_list_directory=get_inputs(obj,directory,type_of_inputs)
             if(nargin>=3)
-                directory=[directory,'\',type_of_inputs];
+                directory=fullfile(directory,type_of_inputs);
             end
             list=list_folder_of(directory);
             output_list_directory=[];
@@ -888,10 +888,10 @@ classdef simulation_set
             if(nargin<3)
 %                 folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Guillec2';
 %                 d_init_add=2.7707;
-                folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Synthetic';
+                folder_root='C:/Users/Jean/Documents/ProjectDSi/BV_ecoflux/Synthetic';
                 d_init_add=0;
             else
-                occurence_slash=strfind(file_path,'\');
+                occurence_slash=strfind(file_path,'/');
                 folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
@@ -1019,7 +1019,8 @@ classdef simulation_set
                     state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
+                    Nx=100; % number of discretized elements
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty',Nx);
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
                     slope_angle_top=interpn(x,slope_angle,x_Q1);
