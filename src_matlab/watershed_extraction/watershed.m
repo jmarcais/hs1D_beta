@@ -14,14 +14,15 @@ classdef watershed
     end
     
     methods(Static)
-        function obj=test(critic_drainage_area)
+        function [obj,hillslope_equiv]=test(critic_drainage_area)
             if(nargin<1)
                 critic_drainage_area=1000;
             end
             obj=watershed;
-%             outlet_coord_BV6=[364778.7,6834822.7];
-%             critic_drainage_area=40000;
-%             obj=obj.analyze_hillslopes('MNT_PF_5m.tif',outlet_coord_BV6,critic_drainage_area);
+            outlet_coord_BV6=[364778.7,6834822.7];
+            critic_drainage_area=40000;
+            obj=obj.analyze_hillslopes('MNT_PF_5m.tif',outlet_coord_BV6,critic_drainage_area);
+            hillslope_equiv=extract_one_equivalent_hillslope(obj);
 % % %             outlet_coord_BV6=[265549.0,6783308.0];%[214629.641,2346729.811];% (265549 6783308)
 % % %             critic_drainage_area=40000;
 % % %             obj=obj.analyze_hillslopes('MNT_5m_Naizin.tif',outlet_coord_BV6,critic_drainage_area);
@@ -31,7 +32,7 @@ classdef watershed
 % % %             outlet_coord=[175981.46,6819377.47];
 % % %             critic_drainage_area=400;
 % % %             obj=obj.analyze_hillslopes('Douffine50.tif',outlet_coord,critic_drainage_area);
-%             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\temp';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\temp';
 %             name_watershed='Pleine Fougeres'; 
 %             obj.save_hillslopes(folder_directory,name_watershed);
 %             obj=watershed;
@@ -51,14 +52,14 @@ classdef watershed
 % % %             outlet_coord_BV6=[351525,6790117];
 % % %             critic_drainage_area=40000;
 % % %             obj=obj.analyze_hillslopes('MNT_Vilaine_5m.tif',outlet_coord_BV6,critic_drainage_area);
-% % %             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\temp';
+% % %             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\temp';
 % % %             name_watershed='Upper Vilaine'; 
 % % %             obj.save_hillslopes(folder_directory,name_watershed);
 %             obj=watershed;
 %             outlet_coord_Binic=[268863.41 ,6849415.51];
 %             critic_drainage_area=40000;
 %             obj=obj.analyze_hillslopes('Ic_BV2.tif',outlet_coord_Binic,critic_drainage_area);
-%             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\MorphologicInputs';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\MorphologicInputs';
 %             name_watershed='Ic at Binic'; 
 %             obj.save_hillslopes(folder_directory,name_watershed);
 %             name_watershed2 = name_watershed(~isspace(name_watershed));
@@ -68,8 +69,8 @@ classdef watershed
 % % % % % % % % % % %             outlet_coord_Kerb=[169565.30,6784657.50];%[168965.1255,6784200.191937];
 % % % % % % % % % %             critic_drainage_area=10000;
 % % % % % % % % % %             obj=obj.analyze_hillslopes('MNT_Kerb_5m.tif',outlet_coord_Kerb,critic_drainage_area);
-% %             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\MorphologicInputs';
-%             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\temp';
+% %             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\MorphologicInputs';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\temp';
 %             name_watershed='Kerbernez extended'; 
 %             obj.save_hillslopes(folder_directory,name_watershed);
 %             name_watershed2 = name_watershed(~isspace(name_watershed));
@@ -92,15 +93,15 @@ classdef watershed
 %             obj=obj.extract_channels_from_stream;
 %             obj=obj.set_hillslopes_from_channels;
 %             obj=obj.create_hillslopes1D;
-%             folder_directory='C:\Users\Jean\Documents\Données\Synthetic\MorphologicInputs';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\MorphologicInputs';
 %             name_watershed='Pleine Fougeres'; 
 %             name_watershed='Nazin extended'; 
-%             folder_directory='C:\Users\Jean\Documents\Données\HillslopesData\Parameters';
-%             folder_directory='C:\Users\Jean\Documents\Données\SyntheticData\MorphologicInputs';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\HillslopesData\Parameters';
+%             folder_directory='C:\Users\Jean\Documents\Donnï¿½es\SyntheticData\MorphologicInputs';
 %             obj.save_hillslopes(folder_directory,name_watershed);
-            outlet_coord_Svartberget=[731404.4794,7133661.9441]; % 731406	7133634
+% % %             outlet_coord_Svartberget=[731404.4794,7133661.9441]; % 731406	7133634
 %             critic_drainage_area=2000;%12800;%floor(469000/25);%4000;%1000;%floor(469000/25);%
-            obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjetTamara\SHP_Raster\Svartberget_DEM5m_2.tif',outlet_coord_Svartberget,critic_drainage_area);
+% % %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjetTamara\SHP_Raster\Svartberget_DEM5m_2.tif',outlet_coord_Svartberget,critic_drainage_area);
 % % %             outlet_coord_Icacos=[-65.7854572,18.2752528];
 % % %             critic_drainage_area=2000;
 % % % % %             obj=obj.analyze_hillslopes('C:\Users\Jean\Documents\ProjectLou\DEMPuertoRico\Icacos.tif',outlet_coord_Icacos,critic_drainage_area);
@@ -127,7 +128,7 @@ classdef watershed
             name_watersheds={'Pleine Fougeres','Kerbernez extended','Naizin extended','Blavet','Ic at Binic'};
             outlet_coords=[364778.7,6834822.7;169565.30,6784657.50;266520.40,6779439.00;255371.81,6774575.91;268863.41 ,6849415.51];
             critic_drainage_areas=[40000,10000,40000,20000,40000];
-            folder_directory='C:\Users\Jean\Documents\Données\Synthetic\MorphologicInputs';
+            folder_directory='C:\Users\Jean\Documents\Donnï¿½es\Synthetic\MorphologicInputs';
             
             for j=1:length(dem_filenames)
                 obj=watershed;
@@ -137,19 +138,6 @@ classdef watershed
                 name_watershed = name_watershed(~isspace(name_watershed));
                 save(strcat(folder_directory,'\watershed',name_watershed,'.mat'),'obj');
             end
-        end
-        
-        function extract_one_equivalent_hillslope
-            Distances_to_stream=flowdistance(obj.FD,obj.S);
-            DZ = vertdistance2stream(obj.FD,obj.S,obj.DEM);
-            hillslope_equiv=hillslope(1);
-            Channel_equiv=[];
-            for i=1:5
-                Channel_equiv=[Channel_equiv;obj.Channels{i}];
-            end
-            FD=obj.FD;
-            hillslope_equiv=hillslope_equiv.extract_equivalent_hillslope_from_channel(obj.DEM,Channel_equiv,FD,Distances_to_stream,obj.Outlet,DZ);
-            hillslope_equiv=hillslope_equiv.extract_equivalent_hillslope_from_channel(obj.DEM,Channel_equiv,obj.FD,Distances_to_stream,obj.Outlet,DZ);
         end
     end
     
@@ -181,7 +169,7 @@ classdef watershed
                 [~,IX] = max([STATS.Area]);
                 obj.DEM.Z(DB.Z~=IX)=NaN;
             else
-                W=A>400;%>1111;%>40000;%
+                W=A>40000;%>1111;%>40000;%
                 S=STREAMobj(FD,W);
                 [xriv,yriv] = snap2stream(S,manual_outlet_coord(1),manual_outlet_coord(2));
                 DB = drainagebasins(FD,xriv,yriv);
@@ -308,6 +296,19 @@ classdef watershed
                     compt=compt+1;
                 end
             end
+        end
+        
+        function hillslope_equiv=extract_one_equivalent_hillslope(obj)
+            Distances_to_stream=flowdistance(obj.FD,obj.S);
+            DZ = vertdistance2stream(obj.FD,obj.S,obj.DEM);
+            hillslope_equiv=hillslope(1);
+            Channel_equiv=[];
+            for i=1:length(obj.Channels)
+                Channel_equiv=[Channel_equiv;obj.Channels{i}];
+            end
+            FD=obj.FD;
+            hillslope_equiv=hillslope_equiv.extract_equivalent_hillslope_from_channel(obj.DEM,Channel_equiv,FD,Distances_to_stream,obj.Outlet,DZ);
+            hillslope_equiv=hillslope_equiv.compute_hillslope1D(obj.DEM.cellsize);
         end
         
         function obj=create_hillslopes1D(obj)
