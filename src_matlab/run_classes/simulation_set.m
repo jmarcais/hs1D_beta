@@ -876,14 +876,15 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function [Q_out2,residual2,Q_out,residual,run_obj,obj,x,w,slope_angle]=run_simulation_rooting(k1,soil_coef,file_path,f1)
+         function [Q_mod,nse,nse_log,kge,r,alpha,beta,run_obj,obj,x,w,slope_angle]=run_simulation_performance(f1,k1,file_path,Nx)
+%         function [Q_out2,residual2,Q_mod,nse,run_obj,obj,x,w,slope_angle]=run_simulation_rooting(k1,soil_coef,file_path,f1)
 % %             if(nargin<3)
 % %                 f1=0.2;
 % %             end
-            tic
-            range_=  4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%
+%             tic
+            range_= 4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
             if(nargin<4)
-                f1=0.2;
+                Nx=100;% number of discretized elements
             end
             if(nargin<3)
 %                 folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Guillec2';
@@ -895,7 +896,7 @@ classdef simulation_set
                 folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
                     d_init_add=2.7707;%24;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
@@ -978,8 +979,9 @@ classdef simulation_set
                     t1=datetime(1998,01,15);
                     t=t+datenum(t1)*24*3600-t(range_(1));
                     t_old=t;
-                    t=(linspace(t(1),t(end),2*(length(t)-1)+1))';
+                    t=(linspace(t(1),t(end),2*(length(t)-1)+1))';%(linspace(t(1),t(end),length(t)))';%
                     recharge_chronicle=interpn(t_old,(M(:,2:end))',t');%recharge_chronicle=(M(:,2:end))';
+                    range_=(range_-1)*2+1;
 % % %                     t2=(linspace(t(1),t(end),length(t)*2-1))';
 % % %                     f=@(t_bis)nakeinterp1(t,recharge_chronicle,t_bis);
 % % %                     recharge_chronicle=(f(t2))';
@@ -1016,46 +1018,55 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty',Nx);
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    Nx=100; % number of discretized elements
                     run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty',Nx);
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
-                    slope_angle_top=interpn(x,slope_angle,x_Q1);
-                    toc
+%                     slope_angle_top=interpn(x,slope_angle,x_Q1);
+%                     toc
                     
                     Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
-                    Q_out=Q_temp(range_);
+                    Q_mod=Q_temp(range_);
                     
-                    Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,soil_coef);
-                    Q_out2=Q_temp2(range_);
+%                     Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,soil_coef);
+%                     Q_out2=Q_temp2(range_);
 
                     
-                    Q_out=Q_out+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
-                    Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
+                    Q_mod=Q_mod+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
+%                     Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
 %                     toc
                     t1=datetime(1998,01,15);
                     t2=datetime(2012,06,15);
                     tt=t1:calmonths(1):t2;
                     
-                    residual=nan;
-                    residual2=nan;
-%                     load(file_path);
+                    
+                    load(file_path);
 %                     Q_real=(Ecoflux_data.Q(1:174))';
 %                     t_real=Ecoflux_data.t(1:174);
-%                     
-%                     if(length(Q_real)==length(Q_out))
+                    
+                    if(length(Q_real)==length(Q_mod))
 %                         residual2=Q_out2-Q_real;
 %                         residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-%                         
-%                         residual=Q_out-Q_real;
-%                         residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-%                     else
-%                         residual2=nan;
-%                         residual=nan;
-%                     end
+                        
+                        nse=Q_mod-Q_real;
+                        nse=nansum(nse.^2)/nansum((Q_real-nanmean(Q_real)).^2);
+                        nse=1-nse;
+                        
+                        nse_log=log10(Q_mod)-log10(Q_real);
+                        nse_log=nansum(nse_log.^2)/nansum((log10(Q_real)-nanmean(log10(Q_real))).^2);
+                        nse_log=1-nse_log;
+                        
+                        r=corr(Q_mod',Q_real');
+                        alpha=nanstd(Q_mod)/nanstd(Q_real);
+                        beta=nanmean(Q_mod)/nanmean(Q_real);
+                        kge=1-sqrt((r-1)^2+(alpha-1)^2+(beta-1)^2);
+                    else
+                        nse=nan;
+                        nse_log=nan;
+                        kge=nan;
+                    end
                 else
                     Q_out2=nan;
                     

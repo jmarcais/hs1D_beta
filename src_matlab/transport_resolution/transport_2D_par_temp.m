@@ -161,8 +161,8 @@ classdef transport_2D_par_temp
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<1e15)%15e9)
-                    numCores = feature('numcores');
-                    p = parpool(numCores);%                     p = parpool(24);
+%                     numCores = feature('numcores');
+%                     p = parpool(numCores);%                     p = parpool(24);
                     mat_pos_allocate_x_z=cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%[];%
                     t_in=cell(length(obj.t_inj),1);
                     t_out=cell(length(obj.t_inj),1);
@@ -250,10 +250,10 @@ classdef transport_2D_par_temp
 %                             end
                         end
                         % to know at what injection we are
-                         fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
+%                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
                     end
-                    poolobj = gcp('nocreate');
-                    delete(poolobj);
+%                     poolobj = gcp('nocreate');
+%                     delete(poolobj);
                     % rebuild the (x,z) trajectories in the trajectory matrix
                     mat_pos_allocate_x_z=vertcat(mat_pos_allocate_x_z{:});
                     t_in=vertcat(t_in{:});
@@ -778,6 +778,9 @@ classdef transport_2D_par_temp
                 weights(obj.DPSA==1)=weights(obj.DPSA==1);
                 weights=[weights;obj.weight(obj.DPSA>0 & obj.DPSA<1).*obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
                 distance=[distance;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
+                x_fin=[x_fin;x_fin(obj.DPSA>0 & obj.DPSA<1)];
+                x_init=[x_init;x_init(obj.DPSA>0 & obj.DPSA<1)];
+                z_fin=[z_fin;z_fin(obj.DPSA>0 & obj.DPSA<1)];
             end
             distance(distance<(obj.x(2)-obj.x(1)))=obj.x(2)-obj.x(1);
         end
@@ -1088,7 +1091,7 @@ classdef transport_2D_par_temp
 %             DGW_prop(obj.N_inj==0)=0;
        end
        
-       function check_particle_tracking_flux_conservation(obj,t_out,weights,DPSA_,RF_spat,Error_RF_DGW,Error_ET)
+       function [Q_DP_out,Q_GW_part]=check_particle_tracking_flux_conservation(obj,t_out,weights,DPSA_,RF_spat,plot_option,Error_RF_DGW,Error_ET)
            speed_option='slow';
            dt=obj.t(2:end)-obj.t(1:end-1);
            t_edge1=obj.t-[dt(1),dt]/2;
@@ -1118,32 +1121,35 @@ classdef transport_2D_par_temp
            else
                t=datetime(datestr(obj.t/(24*3600))); 
            end
-           figure; hold on
-           if(nargin>5)
-               plot(t(1:end-1),Error_RF_DGW)
-               plot(t,Q_NA_out,'--')
-               legend('Error made on Return Flow flux')
+           Q_GW_part=Q_Seep+Q_DGW_out;
+           if(strcmp(plot_option,'on'))
+               figure; hold on
+               if(nargin>5)
+                   plot(t(1:end-1),Error_RF_DGW)
+                   plot(t,Q_NA_out,'--')
+                   legend('Error made on Return Flow flux')
+               end
+               if(nargin>6)
+                   plot(t(1:end-1),Error_ET,'--')
+                   legend('Error made on Return Flow flux','Error made on ET')
+               end
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,DPSA_)
+               plot(t,Q_DP_out,'--')
+               legend('hs1D DPSA','Particle tracking DPSA')
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,RF_+DGW_)
+               plot(t,Q_Seep+Q_DGW_out,'--')
+               legend('hs1D RF','Particle tracking RF')
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,RF_+DGW_+DPSA_)
+               plot(t,Q_Seep+Q_DGW_out+Q_DP_out,'--')
+               legend('hs1D River discharge','Particle tracking river discharge')
+               ylabel('Flux [m^{3}/s]')
            end
-           if(nargin>6)
-               plot(t(1:end-1),Error_ET,'--')
-               legend('Error made on Return Flow flux','Error made on ET')
-           end
-           ylabel('Flux [m^{3}/s]')
-           figure; hold on
-           plot(t,DPSA_)
-           plot(t,Q_DP_out,'--')
-           legend('hs1D DPSA','Particle tracking DPSA')
-           ylabel('Flux [m^{3}/s]')
-           figure; hold on
-           plot(t,RF_+DGW_)
-           plot(t,Q_Seep+Q_DGW_out,'--')
-           legend('hs1D RF','Particle tracking RF')
-           ylabel('Flux [m^{3}/s]')
-           figure; hold on
-           plot(t,RF_+DGW_+DPSA_)
-           plot(t,Q_Seep+Q_DGW_out+Q_DP_out,'--')
-           legend('hs1D River discharge','Particle tracking river discharge')
-           ylabel('Flux [m^{3}/s]')
        end
     end
     methods(Static)
@@ -1213,7 +1219,7 @@ classdef transport_2D_par_temp
 %             
 %         end
 
-        function [obj,mat_pos_allocate_x_z,t_out_groundwater,transit_times_groundwater,distance,weights,t_inj]=transport_main(hs1D_run)
+        function [obj,mat_pos_allocate_x_z,t_out_groundwater,transit_times_groundwater,distance,weights,t_in,x_fin,DPSA_part,GW_part]=transport_main(hs1D_run)
             % instantiate transport_2D_par_temp object
             [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
             block_size=length(x_S);
@@ -1258,8 +1264,9 @@ classdef transport_2D_par_temp
 % % % %             [t_out_groundwater,transit_times_groundwater,distance,t_in,weights,x_fin,x_init]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
 % % % %             toc
 % % % %             % check the quality of the particle tracking strategy, ie if the particle tracking flux equals the flux computed with hs1D
-% % % %             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
-% % % %             obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,Error_RF_DGW,Error_ET);
+            DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
+            plot_option='off';
+            [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,plot_option);
         end
         
         function transport_2compartments(run_shallow,run_deep)
@@ -1438,6 +1445,11 @@ classdef transport_2D_par_temp
             dvxdx=-runs.boussinesq_simulation.discretization.A*(velocity);
             dvxdx=[2*dvxdx(1,:)-3/2*dvxdx(2,:)+1/2*dvxdx(3,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;2*dvxdx(end,:)-3/2*dvxdx(end-1,:)+1/2*dvxdx(end-2,:)];%             dvxdx=[3/2*dvxdx(1,:)-1/2*dvxdx(2,:);(dvxdx(2:end,:)+dvxdx(1:end-1,:))/2;3/2*dvxdx(end,:)-1/2*dvxdx(end-1,:)];
             dvydy=bsxfun(@times,velocity,(runs.boussinesq_simulation.discretization.B*width)./width_edges);
+%             % test 2nd option
+%             w_prime=runs.boussinesq_simulation.discretization.B*width;
+%             w_second=runs.boussinesq_simulation.discretization.A*(w_prime);
+%             w_second=[2*w_second(1,:)-3/2*w_second(2,:)+1/2*w_second(3,:);(w_second(2:end,:)+w_second(1:end-1,:))/2;2*w_second(end,:)-3/2*w_second(end-1,:)+1/2*w_second(end-2,:)];
+%             dvydy=bsxfun(@times,velocity,w_second./w_prime);
             dvzdz=dvxdx-dvydy;
             % compute the hydraulic head
             hydraulic_head=bsxfun(@rdivide,runs.simulation_results.S,f.*width);
