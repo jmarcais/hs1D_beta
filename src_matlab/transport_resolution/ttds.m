@@ -37,11 +37,13 @@ classdef ttds
             obj.weights=accumarray(X,1:size(weights,1),[],@(r){weights(r)});
         end
         
-        function obj=compute_ttds(obj,times_out,transit_times,weights,travel_distance)
+        function obj=compute_ttds(obj,times_out,transit_times,weights,travel_distance,x_fin)
             % Gelhar et al. 1992 WRR : alpha_disp/transit_distance = 0.04
             alpha_disp=0.1*travel_distance;
-            pdf=@(t)(bsxfun(@rdivide,(transit_times./(4*pi*alpha_disp./travel_distance)),t.^3)).^0.5.*...
-                exp(-(bsxfun(@minus,transit_times,t)).^2./((bsxfun(@times,4*alpha_disp.*transit_times./travel_distance,t))));
+%             pdf=@(t)(bsxfun(@rdivide,(transit_times./(4*pi*alpha_disp./travel_distance)),t.^3)).^0.5.*...
+%                 exp(-(bsxfun(@minus,transit_times,t)).^2./((bsxfun(@times,4*alpha_disp.*transit_times./travel_distance,t))));
+            pdf=@(t)0.5*(bsxfun(@rdivide,travel_distance./(alpha_disp*pi.*transit_times),t)).^0.5.*(1+bsxfun(@rdivide,bsxfun(@minus,transit_times,t),2*t)).*...
+                exp(bsxfun(@rdivide,-bsxfun(@times,travel_distance,(bsxfun(@minus,transit_times,t)).^2),(bsxfun(@times,4*alpha_disp.*transit_times,t))));
             
             weighted_pdf=pdf(obj.time_support);   
             % #JM a better way to handle this rather than a Dirac ??
@@ -49,11 +51,22 @@ classdef ttds
             if(obj.time_support(1)==0)
                 weighted_pdf(:,1)=0;
             end
-            t_min=min(transit_times(transit_times~=0))/4;%obj.time_support(2);
-            pdf_temp=alpha^alpha*(obj.time_support).^(alpha-1).*exp(-alpha.*obj.time_support/t_min)./(gamma(alpha)*(t_min)^alpha);
-%             weighted_pdf(transit_times==0,1)=2/(obj.time_support(2)-obj.time_support(1));
-%             weighted_pdf(transit_times==0,2:end)=0;
-            weighted_pdf(transit_times==0,:)=repmat(pdf_temp,sum(transit_times==0),1);
+            if(nargin<6)
+                t_min=min(transit_times(transit_times~=0))/4;%obj.time_support(2);
+                pdf_temp=alpha^alpha*(obj.time_support).^(alpha-1).*exp(-alpha.*obj.time_support/t_min)./(gamma(alpha)*(t_min)^alpha);
+                %             weighted_pdf(transit_times==0,1)=2/(obj.time_support(2)-obj.time_support(1));
+                %             weighted_pdf(transit_times==0,2:end)=0;
+                pdf_temp(1)=pdf_temp(2)^2/pdf_temp(3);
+                weighted_pdf(transit_times==0,:)=repmat(pdf_temp,sum(transit_times==0),1);
+            else
+                t_min=min(transit_times(transit_times~=0))*(1-exp(-1));%obj.time_support(2);
+                coef_soil_lambda=x_fin(transit_times==0)/mean(x_fin(transit_times==0));
+                coef_soil_lambda(coef_soil_lambda<=0)=min(coef_soil_lambda(coef_soil_lambda>0));
+                pdf_temp=bsxfun(@rdivide,bsxfun(@times,alpha^alpha*(obj.time_support).^(alpha-1),exp(-alpha.*bsxfun(@rdivide,obj.time_support,t_min*coef_soil_lambda))),gamma(alpha)*(t_min*coef_soil_lambda).^alpha);
+                pdf_temp(:,1)=pdf_temp(:,2).^2./pdf_temp(:,3);
+                weighted_pdf(transit_times==0,:)=pdf_temp;
+            end
+
             
             weighted_pdf=bsxfun(@rdivide,weighted_pdf,trapz(obj.time_support,weighted_pdf,2));
             weighted_pdf=bsxfun(@times,weighted_pdf,weights);
@@ -180,25 +193,31 @@ classdef ttds
     end
     
     methods(Static)
-        function obj=retrieve_ttds(times_out,transit_times,weights,travel_distances,time_support)
+        function obj=retrieve_ttds(times_out,transit_times,weights,travel_distances,x_fin,time_support)
             transit_times=transit_times(~isnan(times_out));
             weights=weights(~isnan(times_out));
-            times_out=times_out(~isnan(times_out));
             if(nargin<4)
                 travel_distances=ones(size(times_out));
             else
                 travel_distances=travel_distances(~isnan(times_out));
             end
             if(nargin<5)
-                t1=min(transit_times(transit_times~=0));
-                t2=max(transit_times(transit_times~=0));
-                time_support=logspace(log10(t1/10),log10(t2*10),1000);
+                x_fin=ones(size(times_out));
+            else
+                x_fin=x_fin(~isnan(times_out));
+            end
+            times_out=times_out(~isnan(times_out));
+            if(nargin<6)
+% %                 t1=min(transit_times(transit_times~=0));
+% %                 t2=max(transit_times(transit_times~=0));
+% %                 time_support=logspace(log10(t1/10),log10(t2*10),1000);
+                time_support=(0:0.01:100)*24*365*3600;
 % %                 time_support=[linspace(0.25,95,95*4+1)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
 %                 time_support=logspace(-5,2,1000)*24*3600*365.25;%[linspace(0.25,95,95*4)*3600,linspace(4,364,361)*24*3600,linspace(1,100,100)*24*3600*365];
             end
             obj=ttds;
             obj=obj.instantiate_ttds(time_support);
-            obj=obj.compute_ttds(times_out,transit_times,weights,travel_distances);
+            obj=obj.compute_ttds(times_out,transit_times,weights,travel_distances,x_fin);
             obj=obj.compute_ttds_moments;
             obj=obj.compute_youngwaterfraction;
             obj=obj.store_cell_matrices_data(times_out,transit_times,weights,travel_distances);
