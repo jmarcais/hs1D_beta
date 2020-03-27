@@ -409,6 +409,7 @@ classdef source
         
         function obj=load_source_class_from_txt_file(source_file_path)
             [t,R]=source.read_recharge_chronicle(source_file_path);
+            R=R';
             t=t/(24*3600);
             obj=source('data_based',-1);
             [~,obj]=obj.set_recharge_chronicle_data_based(t,1,R,'m/s',nan);
