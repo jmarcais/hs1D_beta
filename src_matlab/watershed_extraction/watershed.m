@@ -159,8 +159,10 @@ classdef watershed
             obj.DEM=fillsinks(obj.DEM);
         end
         
-        function [obj,xriv,yriv]=get_watershed_DEM(obj,manual_outlet_coord)
+        function [obj,xriv,yriv]=get_watershed_DEM(obj,manual_outlet_coord,critical_drainage_area)
             if(nargin<2) manual_outlet_coord=[];    end
+            if(nargin<3) critical_drainage_area=floor(1e6/obj.DEM.cellsize^2);    end
+            
             FD=FLOWobj(obj.DEM);
             obj.FD=FD;
             A=flowacc(FD);
@@ -173,7 +175,7 @@ classdef watershed
                 [~,IX] = max([STATS.Area]);
                 obj.DEM.Z(DB.Z~=IX)=NaN;
             else
-                W=A>40000;%>1111;%>40000;%
+                W=A>critical_drainage_area;%>1111;%>40000;%
                 S=STREAMobj(FD,W);
                 [xriv,yriv] = snap2stream(S,manual_outlet_coord(1),manual_outlet_coord(2));
                 DB = drainagebasins(FD,xriv,yriv);
@@ -409,7 +411,7 @@ classdef watershed
             if(outlet_coord==-1)
                 [obj,xriv,yriv]=obj.get_watershed_DEM;
             else
-                [obj,xriv,yriv]=obj.get_watershed_DEM(outlet_coord);
+                [obj,xriv,yriv]=obj.get_watershed_DEM(outlet_coord,critic_drainage_area);
             end
             if(critic_drainage_area==-1)
                 obj=obj.extract_stream_and_singular_points(xriv,yriv);
