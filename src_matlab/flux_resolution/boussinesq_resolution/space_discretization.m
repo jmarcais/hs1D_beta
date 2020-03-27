@@ -88,7 +88,13 @@ classdef space_discretization
             discretization_type=obj.discretization_type;
         end
                 
-        function [obj,Matrix_link]=resample_hs1D_spatial_variables(obj,x,w,soil_depth,angle,f,k)
+        function [obj,hs1D]=resample_hs1D_spatial_variables(obj,hs1D)
+            [x,w,soil_depth,angle,z]=hs1D.get_spatial_properties;
+            if(hs1D.Id==-1) % Identifier property at -1 is the identifier for hillslope with unsaturated simulation
+                [f,k,phi]=hs1D.get_hydraulic_properties;
+            else
+                [f,k]=hs1D.get_hydraulic_properties;
+            end
             Distance=pdist2(x,obj.x_S);
             [~,MinDistPos]=min(Distance,[],2);
             Matrix_link=zeros(length(x),length(obj.x_S));
@@ -124,6 +130,10 @@ classdef space_discretization
             obj.k=interpn(x,k,obj.x);
             obj.f=interpn(x,f,obj.x_S);
             obj.f_edges=interpn(x,f,obj.x);
+            hs1D.x=obj.x_S; hs1D.w=obj.w_resampled; hs1D.soil_depth=obj.soil_depth_resampled; hs1D.i=interpn(x,angle,obj.x_S); hs1D.f=obj.f;hs1D.k=interpn(x,k,obj.x_S);
+            hs1D.z=interpn(x,z,obj.x);
+            hs1D.z=hs1D.z(1)+cumtrapz(hs1D.x,hs1D.i)+hs1D.soil_depth;
+            hs1D.link_hs1D=Matrix_link;
         end
         
         function [x_S,w_resampled,soil_depth_resampled,angle_resampled,x,f,k,f_edges]=get_resampled_variables(obj)

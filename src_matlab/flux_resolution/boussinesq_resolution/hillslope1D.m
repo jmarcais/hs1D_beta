@@ -45,12 +45,15 @@ classdef hillslope1D
             obj.i=atan(0.05)*ones(size(obj.x));
         end
         
-        function obj=set_spatial_parameters(obj,x,w,angle,soil_depth)
+        function obj=set_spatial_parameters(obj,x,w,angle,soil_depth,z)
             obj.x=x;
             obj.w=w;
             obj.i=angle;
             if(nargin>4)
                 obj.soil_depth=soil_depth;
+            end
+            if(nargin>5)
+                obj.z=z;
             end
         end
         
@@ -156,11 +159,12 @@ classdef hillslope1D
             obj.saturated_length=obj.x(x_max_pos)/max(obj.x);
         end
         
-        function [x,w,soil_depth,i]=get_spatial_properties(obj)
+        function [x,w,soil_depth,i,z]=get_spatial_properties(obj)
             x=obj.x;
             w=obj.w;
             soil_depth=obj.soil_depth;
             i=obj.i;
+            z=obj.z;
         end
         
         function [f,k]=get_hydraulic_properties(obj)
@@ -374,8 +378,8 @@ classdef hillslope1D
         function generate_Troch_hs1D(number_hillslopes,number_parameters)
             omega={[-1e-3,1e-3],'lin'};
             n={[0.1,4],'lin'};
-%             folder_initial='C:\Users\Jean\Documents\Données\SyntheticDataHillslope';
-            folder_initial='C:\Users\Jean\Documents\Données\SyntheticData';
+%             folder_initial='C:\Users\Jean\Documents\Donnï¿½es\SyntheticDataHillslope';
+            folder_initial='C:\Users\Jean\Documents\Donnï¿½es\SyntheticData';
             n_param=(number_hillslopes)^0.5;
             p{1}=parameter_grid(omega{1}(1),omega{1}(2),n_param,strcmp(omega{2},'log'));
             p{2}=parameter_grid(n{1}(1),n{1}(2),n_param,strcmp(n{2},'log'));

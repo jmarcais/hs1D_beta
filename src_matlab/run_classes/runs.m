@@ -92,13 +92,13 @@ classdef runs
                 f=0.1; k=0.8e-6*3600;
                 obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
             else
-                [x,w,soil_depth,angle]=hs1D.get_spatial_properties;
+                [x,w,soil_depth,angle,z]=hs1D.get_spatial_properties;
                 if(hs1D.Id>0)
-                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth);
+                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,z);
                     [f,k]=hs1D.get_hydraulic_properties;
                     obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
                 elseif(hs1D.Id==-1)
-                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,hs1D.Id);
+                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,z,hs1D.Id);
                     [f,k,phi]=hs1D.get_hydraulic_properties;
                     obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f,phi);
                 end
@@ -242,7 +242,16 @@ classdef runs
             dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
         end
         
-        function hs1D=set_hillslope_geomorphologic_properties(obj,x,angle,w,soil_depth,unsat_Id)
+        function hs1D=set_hillslope_geomorphologic_properties(obj,x,angle,w,soil_depth,z,unsat_Id)
+            if(nargin<6)
+                z=ones(size(x));
+            elseif(length(z)==1)
+                z=z*ones(size(x));
+            elseif(length(z)~=length(x))
+                fprintf('no consistency betweeen x and soil depth information \n');
+                fprintf('uniform depth of 1 m will be assumed \n');
+                z=ones(size(x));
+            end
             if(nargin<5)
                 soil_depth=ones(size(x));
             elseif(length(soil_depth)==1)
@@ -277,6 +286,7 @@ classdef runs
                     wint=interpn(x,w,xint,'linear');
                     soil_depthint=interpn(x,soil_depth,xint,'linear');
                     angleint=interpn(x,angle,xint,'linear');
+                    zint=interpn(x,z,xint,'linear');
                 case 0
                     fprintf('x cannot be empty! \n');
                 otherwise
@@ -284,15 +294,16 @@ classdef runs
                     wint=w;
                     soil_depthint=soil_depth;
                     angleint=angle;
+                    zint=z;
             end
-            if(nargin>5)
+            if(nargin>6)
                  hs1D=hillslope1D_unsat;
                  hs1D=hs1D.set_properties(unsat_Id);
             else
                 hs1D=hillslope1D;
                 hs1D=hs1D.set_properties(1);
             end
-            hs1D=hs1D.set_spatial_parameters(xint,wint,angleint,soil_depthint);
+            hs1D=hs1D.set_spatial_parameters(xint,wint,angleint,soil_depthint,zint);
         end
         
         function hs1D=change_hillslope_hydraulic_properties(obj,f,k)
@@ -314,20 +325,16 @@ classdef runs
             if(nargin<4) xcustom=-1; end
             if(nargin<3) type='lin'; end
             if(nargin<2) Nx=100; end
-            [x,w,soil_depth,angle]=obj.hs1D.get_spatial_properties;
+            x=obj.hs1D.get_spatial_properties;
             xmin=x(1); xmax=x(end);
             if(obj.hs1D.Id==-1) % Identifier property at -1 is the identifier for hillslope with unsaturated simulation
-                [f,k,phi]=obj.hs1D.get_hydraulic_properties;
                 discretization=space_discretization_unsat;
-                discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
-                [discretization,link_hs1D]=discretization.resample_hs1D_spatial_variables(x,w,soil_depth,angle,f,k,phi);
             else
-                [f,k]=obj.hs1D.get_hydraulic_properties;
                 discretization=space_discretization;
-                discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
-                [discretization,link_hs1D]=discretization.resample_hs1D_spatial_variables(x,w,soil_depth,angle,f,k);
             end
-            obj.hs1D.link_hs1D=link_hs1D;
+            discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
+            [discretization,hs1D]=discretization.resample_hs1D_spatial_variables(obj.hs1D);
+            obj.hs1D=hs1D;
             discretization=discretization.set_matrix_properties;
         end
         
