@@ -14,14 +14,18 @@ classdef watershed
     end
     
     methods(Static)
-        function [obj,hillslope_equiv]=test(critic_drainage_area)
+        function [obj,hillslope_equiv]=test(DEM_filepath,outlet_coordinates,critic_drainage_area)
+            if(nargin<3)
+                critic_drainage_area=40000;
+            end
+            if(nargin<2)
+                outlet_coordinates=[364778.7,6834822.7];
+            end
             if(nargin<1)
-                critic_drainage_area=1000;
+                DEM_filepath='MNT_PF_5m.tif';
             end
             obj=watershed;
-            outlet_coord_BV6=[364778.7,6834822.7];
-            critic_drainage_area=40000;
-            obj=obj.analyze_hillslopes('MNT_PF_5m.tif',outlet_coord_BV6,critic_drainage_area);
+            obj=obj.analyze_hillslopes(DEM_filepath,outlet_coordinates,critic_drainage_area);
             hillslope_equiv=extract_one_equivalent_hillslope(obj);
 % % %             outlet_coord_BV6=[265549.0,6783308.0];%[214629.641,2346729.811];% (265549 6783308)
 % % %             critic_drainage_area=40000;
