@@ -9,6 +9,8 @@ classdef hillslope
         Hilltype    % hillslope type 1: Head Hillslope 2 Channel Hillslope
         hsB         % hillslope1D (from Troch et al. 2003) ie class hillslope1D
         link_hillslope_hs1D % link hillslope hs1D
+        volume % volume contained between the stream base level and the DEM point
+        z0 % average stream level
     end
     
     methods(Access=public)
@@ -59,6 +61,8 @@ classdef hillslope
                 VertDist=vertdistance2stream.Z(:);
                 Average_river_elevation=mean(Average_river_elevation(VertDist==0));
                 obj.z=vertdistance2stream.Z(hillslope.Z==1)+Average_river_elevation;
+                obj.volume=vertdistance2stream.Z(hillslope.Z==1)*(DEM.cellsize)^2;
+                obj.z0=Average_river_elevation;
             else
                 obj.z=DEM.Z(hillslope.Z==1);
             end
@@ -120,7 +124,11 @@ classdef hillslope
             end
             obj.hsB=hillslope1D;
             obj.hsB=obj.hsB.set_properties(obj.Id);
-            [obj.hsB,obj.link_hillslope_hs1D]=obj.hsB.set_parameters(obj.distance,obj.z,DEM_resolution);
+            if(isempty(obj.volume))
+                [obj.hsB,obj.link_hillslope_hs1D]=obj.hsB.set_parameters(obj.distance,obj.z,DEM_resolution);
+            else
+                [obj.hsB,obj.link_hillslope_hs1D]=obj.hsB.set_parameters(obj.distance,obj.z,DEM_resolution,obj.volume,obj.z0);
+            end
 %             obj.hsB=obj.hsB.transform_to_constant_slope;
             obj.hsB=obj.hsB.transform_to_spline_slope(0.0001);
 %             obj.hsB=obj.hsB.compute_beven_ratio;
@@ -152,7 +160,7 @@ classdef hillslope
 
             coordinate_string_folder=['X_',num2str(round(x_coord_hillslope)),'_Y_',num2str(round(y_coord_hillslope))];
             folder_name=coordinate_string_folder;
-            file_output=strcat(folder_directory,'\',folder_name);
+            file_output=strcat(folder_directory,'/',folder_name);
 
             folder_directories=obj.hsB.save_hillslope(file_output,name_watershed);
             for j=1:length(folder_directories)
@@ -163,7 +171,7 @@ classdef hillslope
         end
         
         function save_hillslope_object(obj,folder)
-            save(strcat(folder,'\hillslope.mat'),'obj');
+            save(strcat(folder,'/hillslope.mat'),'obj');
         end
         function [x_bound,y_bound]=compute_hillslope_contour(obj)
             k=boundary(obj.x,obj.y);
@@ -172,7 +180,7 @@ classdef hillslope
         end
             
         function save_hillslope_contour(obj,x_bound,y_bound,folder)
-            filename=strcat(folder,'\contour.struct');
+            filename=strcat(folder,'/contour.struct');
             M=nan(length(x_bound),2); M(:,1)=x_bound; M(:,2)=y_bound;
             fid = fopen(filename, 'w');
             string_char=sprintf('Contour data of the hillslope \n');
@@ -198,8 +206,8 @@ classdef hillslope
             ylabel('Y coordinates [m]');
             legend('hillslope','contour','river');
             if(nargin>=4)
-                savefig([folder,'\contour.fig']);
-                print([folder,'\contour.png'],'-dpng');
+                savefig([folder,'/contour.fig']);
+                print([folder,'/contour.png'],'-dpng');
             end
             close all;
         end
