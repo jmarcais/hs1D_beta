@@ -545,9 +545,9 @@ classdef simulation_set
             odeset_struct=odeset('RelTol',2.5e-14,  'Events',detect_steady_state);
             solver_options=prerun_steady.set_solver_options(odeset_struct);
             Sinitial=nan;
-            if(nargin<5)
+            if(nargin<4)
                 prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial);
-            elseif(nargin<6)
+            elseif(nargin<5)
                 prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river);
             else
                 prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river,Nx);    
@@ -883,7 +883,6 @@ classdef simulation_set
 % %                 f1=0.2;
 % %             end
 %             tic
-            range_= 4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
             if(nargin<4)
                 Nx=100;% number of discretized elements
             end
@@ -907,9 +906,20 @@ classdef simulation_set
                     d_init_add=0.9392;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
                     d_init_add=1.7655;
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin'))
+                    d_init_add=2.7707;%24;%6.5;%
                 else
                     d_init_add=2;%2.7707;%20;
                 end
+            end
+            load(file_path);
+            range_= 4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+            if(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin'))
+                range_1=815+(3997-721);
+                range_1_to_fin=639;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
             end
 %             folder_root='C:\Users\Jean\Documents\ProjectDSi\GuillecEquiv';
             
@@ -972,17 +982,19 @@ classdef simulation_set
                     hs1D=hillslope1D;
                     hs1D=hs1D.set_properties(1,f,k);
                     
-                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
+                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d,z_top);
                     
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
+%                     recharge_chronicle=(M(:,2:end))';
                     %#temp
-                    t1=datetime(1998,01,15);
-                    t=t+datenum(t1)*24*3600-t(range_(1));
+% %                     t1=datetime(1998,01,15);
+% %                     t=t+datenum(t1)*24*3600-t(range_(1));
                     t_old=t;
                     t=(linspace(t(1),t(end),2*(length(t)-1)+1))';%(linspace(t(1),t(end),length(t)))';%
-                    recharge_chronicle=interpn(t_old,(M(:,2:end))',t');%recharge_chronicle=(M(:,2:end))';
+                    recharge_chronicle=interpn(t_old,(M(:,2:end))',t');
                     range_=(range_-1)*2+1;
+                    
 % % %                     t2=(linspace(t(1),t(end),length(t)*2-1))';
 % % %                     f=@(t_bis)nakeinterp1(t,recharge_chronicle,t_bis);
 % % %                     recharge_chronicle=(f(t2))';
@@ -1043,11 +1055,10 @@ classdef simulation_set
                     tt=t1:calmonths(1):t2;
                     
                     
-                    load(file_path);
 %                     Q_real=(Ecoflux_data.Q(1:174))';
 %                     t_real=Ecoflux_data.t(1:174);
                     
-                    if(length(Q_real)==length(Q_mod))
+                    if(sum(size(Q_real)==size(Q_mod))==2)
 %                         residual2=Q_out2-Q_real;
 %                         residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
                         
@@ -1059,7 +1070,7 @@ classdef simulation_set
                         nse_log=nansum(nse_log.^2)/nansum((log10(Q_real)-nanmean(log10(Q_real))).^2);
                         nse_log=1-nse_log;
                         
-                        r=corr(Q_mod',Q_real');
+                        r=corr(Q_mod',Q_real', 'rows','complete');
                         alpha=nanstd(Q_mod)/nanstd(Q_real);
                         beta=nanmean(Q_mod)/nanmean(Q_real);
                         kge=1-sqrt((r-1)^2+(alpha-1)^2+(beta-1)^2);
