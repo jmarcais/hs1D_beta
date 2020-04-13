@@ -39,11 +39,11 @@ classdef ttds
         
         function obj=compute_ttds(obj,times_out,transit_times,weights,travel_distance,x_fin)
             % Gelhar et al. 1992 WRR : alpha_disp/transit_distance = 0.04
-            alpha_disp=0.1*travel_distance;
-%             pdf=@(t)(bsxfun(@rdivide,(transit_times./(4*pi*alpha_disp./travel_distance)),t.^3)).^0.5.*...
-%                 exp(-(bsxfun(@minus,transit_times,t)).^2./((bsxfun(@times,4*alpha_disp.*transit_times./travel_distance,t))));
-            pdf=@(t)0.5*(bsxfun(@rdivide,travel_distance./(alpha_disp*pi.*transit_times),t)).^0.5.*(1+bsxfun(@rdivide,bsxfun(@minus,transit_times,t),2*t)).*...
-                exp(bsxfun(@rdivide,-bsxfun(@times,travel_distance,(bsxfun(@minus,transit_times,t)).^2),(bsxfun(@times,4*alpha_disp.*transit_times,t))));
+            alpha_disp=1/25*travel_distance;
+            pdf=@(t)(bsxfun(@rdivide,(transit_times./(4*pi*alpha_disp./travel_distance)),t.^3)).^0.5.*...
+                exp(-(bsxfun(@minus,transit_times,t)).^2./((bsxfun(@times,4*alpha_disp.*transit_times./travel_distance,t))));
+%             pdf=@(t)0.5*(bsxfun(@rdivide,travel_distance./(alpha_disp*pi.*transit_times),t)).^0.5.*(1+bsxfun(@rdivide,bsxfun(@minus,transit_times,t),2*t)).*...
+%                 exp(bsxfun(@rdivide,-bsxfun(@times,travel_distance,(bsxfun(@minus,transit_times,t)).^2),(bsxfun(@times,4*alpha_disp.*transit_times,t))));
             
             weighted_pdf=pdf(obj.time_support);   
             % #JM a better way to handle this rather than a Dirac ??

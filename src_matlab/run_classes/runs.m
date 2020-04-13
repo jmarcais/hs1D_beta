@@ -248,7 +248,7 @@ classdef runs
             elseif(length(z)==1)
                 z=z*ones(size(x));
             elseif(length(z)~=length(x))
-                fprintf('no consistency betweeen x and soil depth information \n');
+                fprintf('no consistency betweeen x and elevation information \n');
                 fprintf('uniform depth of 1 m will be assumed \n');
                 z=ones(size(x));
             end

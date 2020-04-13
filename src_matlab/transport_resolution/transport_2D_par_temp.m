@@ -129,7 +129,7 @@ classdef transport_2D_par_temp
             threshold=0;
             obj.x=x_S;
             if(nargin<8 | strcmp(speed_option,'fast'))
-                stop_conditions=x_Q(2);
+                stop_conditions=x_S(37);%x_Q(2);
             elseif(strcmp(speed_option,'slow'))
                 stop_conditions=2*max(hydraulic_head(:));%x_Q(1);%x_S(1)/100;%1e16;%100;%000;%1e-9;%1e12;%
             end
@@ -1063,7 +1063,7 @@ classdef transport_2D_par_temp
         end
         
         function [x,isterm,dir] = eventfun_2D(obj,t,y,xlim)
-            x = -(y(end)-xlim);%y(end/2)-xlim;
+            x = y(end/2)-xlim;%-(y(end)-xlim);%
             isterm = 1;
             dir = 0;  %or -1, doesn't matter
         end
@@ -1227,7 +1227,7 @@ classdef transport_2D_par_temp
             
             % compute the trajectories inside the aquifer
             tic
-            speed_option='slow';
+            speed_option='fast';%'slow';
             distance_2D_option='on';
             [obj,mat_pos_allocate_x_z,t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%[obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
 % % % % % %             if(sum(RF_spat(:)<0)>0)
