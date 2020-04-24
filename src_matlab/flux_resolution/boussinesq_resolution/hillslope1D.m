@@ -87,13 +87,13 @@ classdef hillslope1D
                 obj.z=double(obj.z);
                 ztemp=obj.z(~isnan(obj.z));
                 xtemp=obj.x(~isnan(obj.z));
-                if(~isempty(xtemp) && length(xtemp)>1)
+                if(~isempty(xtemp) && length(xtemp)>1 && license('test', 'curve_fitting_toolbox'))
                     f3 = fit(xtemp, ztemp,  'smoothingspline', 'SmoothingParam', 0.0001);
                     obj.z(isnan(obj.z))=f3(obj.x(isnan(obj.z)));
                 end
                 wtemp=obj.w(~isnan(obj.w));
                 xtemp=obj.x(~isnan(obj.w));
-                if(~isempty(xtemp) && length(xtemp)>1)
+                if(~isempty(xtemp) && length(xtemp)>1 && license('test', 'curve_fitting_toolbox'))
                     f3 = fit(xtemp, wtemp,  'smoothingspline', 'SmoothingParam', 0.0001);
                     obj.w(isnan(obj.w))=f3(obj.x(isnan(obj.w)));
                 end
