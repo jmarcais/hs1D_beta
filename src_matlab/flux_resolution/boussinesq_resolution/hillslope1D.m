@@ -137,8 +137,12 @@ classdef hillslope1D
             if(length(obj.x)>2)
                 z=double(obj.z);
                 x=double(obj.x);
-                f3 = fit(x, z,  'smoothingspline', 'SmoothingParam', SmoothingParam);
-                obj.z_predicted=f3(obj.x);
+                if(license('test', 'curve_fitting_toolbox'))
+                    f3 = fit(x, z,  'smoothingspline', 'SmoothingParam', SmoothingParam);
+                    obj.z_predicted=f3(obj.x);
+                else
+                    fprintf('WARNING: transformation to spline slope for z failed because you do not have curve fitting toolbox \n');
+                end
                 x2=obj.x+1; z2=f3(x2); 
                 x3=obj.x-1; z3=f3(x3);
 %                 z2(end)=2*obj.z(end)-z3(end);
