@@ -1063,7 +1063,7 @@ classdef transport_2D_par_temp
         end
         
         function [x,isterm,dir] = eventfun_2D(obj,t,y,xlim)
-            x = y(end/2)-xlim;%-(y(end)-xlim);%
+            x = -(y(end)-xlim);%y(end/2)-xlim;%
             isterm = 1;
             dir = 0;  %or -1, doesn't matter
         end
@@ -1219,15 +1219,19 @@ classdef transport_2D_par_temp
 %             
 %         end
 
-        function [obj,mat_pos_allocate_x_z,t_out_groundwater,transit_times_groundwater,distance,weights,t_in,x_fin,DPSA_part,GW_part]=transport_main(hs1D_run)
+        function [obj,mat_pos_allocate_x_z,t_out_groundwater,transit_times_groundwater,distance,weights,t_in,x_fin,DPSA_part,GW_part]=transport_main(hs1D_run,phi_tot)
+            if(nargin<2)
+                [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
+            else
+                [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run,phi_tot);
+            end
             % instantiate transport_2D_par_temp object
-            [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
             block_size=length(x_S);
             %             dx=x_Q(2:end)-x_Q(1:end-1);
             
             % compute the trajectories inside the aquifer
             tic
-            speed_option='fast';%'slow';
+            speed_option='slow';%'fast';%
             distance_2D_option='on';
             [obj,mat_pos_allocate_x_z,t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%[obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
 % % % % % %             if(sum(RF_spat(:)<0)>0)
@@ -1400,8 +1404,8 @@ classdef transport_2D_par_temp
             end
         end
         
-        function [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,dvzdz,hydraulic_head]=instantiate_transport_and_velocity_field(runs,threshold)
-            if(nargin<2)
+        function [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,dvzdz,hydraulic_head]=instantiate_transport_and_velocity_field(runs,phi_tot,threshold)
+            if(nargin<3)
                 threshold=0;
             end
             sim_res=runs.simulation_results;
@@ -1410,6 +1414,9 @@ classdef transport_2D_par_temp
             t=sim_res.t;
             N_in=bouss_sim.compute_recharge(t);
             [~,width,~,slope_,~,f,k,f_edges]=bouss_sim.discretization.get_resampled_variables;
+            if(nargin<2)
+                phi_tot=f_edges;
+            end
             %[x,w1,d1,slope_angle1,x_Q1,f1,k1]
             x_S=sim_res.x_S;
             x_Q=sim_res.x_Q;
@@ -1454,6 +1461,8 @@ classdef transport_2D_par_temp
             % compute the hydraulic head
             hydraulic_head=bsxfun(@rdivide,runs.simulation_results.S,f.*width);
             hydraulic_head=[2*hydraulic_head(1,:)-3/2*hydraulic_head(2,:)+1/2*hydraulic_head(3,:);(hydraulic_head(1:end-1,:)+hydraulic_head(2:end,:))/2;2*hydraulic_head(end,:)-3/2*hydraulic_head(end-1,:)+1/2*hydraulic_head(end-2,:)];%hydraulic_head2=[3/2*hydraulic_head(1,:)-1/2*hydraulic_head(2,:);(hydraulic_head(1:end-1,:)+hydraulic_head(2:end,:))/2;3/2*hydraulic_head(end,:)-1/2*hydraulic_head(end-1,:)];
+            velocity=bsxfun(@times,velocity,f_edges./phi_tot);
+            dvzdz=bsxfun(@times,dvzdz,f_edges./phi_tot);
         end
         
         function [obj,DPSA_,RF_,x_S]=run_transport_simu(run_boussinesq)
