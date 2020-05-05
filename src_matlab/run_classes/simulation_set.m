@@ -908,13 +908,15 @@ classdef simulation_set
                     d_init_add=1.7655;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin'))
                     d_init_add=2.7707;%24;%6.5;%
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
+                    d_init_add=2.2063;   
                 else
                     d_init_add=2;%2.7707;%20;
                 end
             end
             load(file_path);
             range_= 4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
-            if(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin'))
+            if(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
                 range_1=815+(3997-721);
                 range_1_to_fin=639;
                 range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
