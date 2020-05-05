@@ -15,6 +15,7 @@ classdef hillslope1D
         saturated_area
         saturated_length
         link_hs1D
+        volume % m3 of porous medium above the stream base level
     end
     
     methods(Access=public)
@@ -62,7 +63,7 @@ classdef hillslope1D
             obj.f=f;
         end
 
-        function [obj,Matrix_link]=set_parameters(obj,distance,z,DEM_resolution)
+        function [obj,Matrix_link]=set_parameters(obj,distance,z,DEM_resolution,volume,z0)
             if(nargin<4)
                 DEM_resolution=5;
             end
@@ -74,22 +75,25 @@ classdef hillslope1D
                 Position_distance=(1:1:length(distance))';
                 Ind_matrix_link=sub2ind(size(Matrix_link),Position_distance,MinDistPos);
                 Matrix_link(Ind_matrix_link)=1;
-                obj.z=accumarray(MinDistPos,z,[],@nanmean,single(NaN));
                 % Number of tile at the same distance from the stream and each tile is 5 m large
                 obj.w=accumarray(MinDistPos,1,[],@nansum,double(NaN))*DEM_resolution;
+                if(nargin<5)
+                    obj.z=accumarray(MinDistPos,z,[],@nanmean,single(NaN));
+                else
+                    obj.z=accumarray(MinDistPos,volume,[],@nansum,single(NaN))./(obj.w*DEM_resolution)+z0;
+                    obj.volume=accumarray(MinDistPos,volume,[],@nansum,single(NaN));
+                end
                 obj.x=double(obj.x);
                 obj.z=double(obj.z);
                 ztemp=obj.z(~isnan(obj.z));
                 xtemp=obj.x(~isnan(obj.z));
-                if(~isempty(xtemp) && length(xtemp)>1)
+                if(~isempty(xtemp) && length(xtemp)>1 && license('test', 'curve_fitting_toolbox'))
                     f3 = fit(xtemp, ztemp,  'smoothingspline', 'SmoothingParam', 0.0001);
                     obj.z(isnan(obj.z))=f3(obj.x(isnan(obj.z)));
-                else
-                    AA=1;
                 end
                 wtemp=obj.w(~isnan(obj.w));
                 xtemp=obj.x(~isnan(obj.w));
-                if(~isempty(xtemp) && length(xtemp)>1)
+                if(~isempty(xtemp) && length(xtemp)>1 && license('test', 'curve_fitting_toolbox'))
                     f3 = fit(xtemp, wtemp,  'smoothingspline', 'SmoothingParam', 0.0001);
                     obj.w(isnan(obj.w))=f3(obj.x(isnan(obj.w)));
                 end
@@ -133,8 +137,12 @@ classdef hillslope1D
             if(length(obj.x)>2)
                 z=double(obj.z);
                 x=double(obj.x);
-                f3 = fit(x, z,  'smoothingspline', 'SmoothingParam', SmoothingParam);
-                obj.z_predicted=f3(obj.x);
+                if(license('test', 'curve_fitting_toolbox'))
+                    f3 = fit(x, z,  'smoothingspline', 'SmoothingParam', SmoothingParam);
+                    obj.z_predicted=f3(obj.x);
+                else
+                    fprintf('WARNING: transformation to spline slope for z failed because you do not have curve fitting toolbox \n');
+                end
                 x2=obj.x+1; z2=f3(x2); 
                 x3=obj.x-1; z3=f3(x3);
 %                 z2(end)=2*obj.z(end)-z3(end);
@@ -187,7 +195,7 @@ classdef hillslope1D
             % save one hillslope with constant slope (approximation with a linear fitting)
             file_output1=[file_output,'_slopcst'];
             folder_create(file_output1);
-            filename=strcat(file_output1,'\morphologic.input');
+            filename=strcat(file_output1,'/morphologic.input');
 %             obj=obj.transform_to_constant_slope;
             M=nan(length(obj.x),5); M(:,1)=obj.x; M(:,2)=obj.w; M(:,3)=obj.i; M(:,4)=obj.z; M(:,5)=obj.z_predicted;
             fid = fopen(filename, 'w');
@@ -207,7 +215,7 @@ classdef hillslope1D
             fprintf(fid, string_char);
             fclose(fid);
             dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
-            save([file_output1,'\hs1D.mat'],'obj');
+            save([file_output1,'/hs1D.mat'],'obj');
             obj.plot_save_width_function(file_output1);
             obj.plot_save_elevation_function(file_output1);
             obj.plot_save_slope_angle_function(file_output1);
@@ -216,7 +224,7 @@ classdef hillslope1D
             % save one hillslope with non constant slope (approximation with spline curves)
             file_output2=[file_output,'_slopvar'];
             folder_create(file_output2);
-            filename=strcat(file_output2,'\morphologic.input');
+            filename=strcat(file_output2,'/morphologic.input');
             SmoothingParam=1e-6;
 %             SmoothingParam=0.5;
 %             obj=obj.transform_to_spline_slope(SmoothingParam);
@@ -234,7 +242,7 @@ classdef hillslope1D
             fprintf(fid, string_char);
             fclose(fid);
             dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
-            save([file_output2,'\hs1D.mat'],'obj');
+            save([file_output2,'/hs1D.mat'],'obj');
             obj.plot_save_width_function(file_output2);
             obj.plot_save_elevation_function(file_output2);
             obj.plot_save_slope_angle_function(file_output2);
@@ -252,8 +260,8 @@ classdef hillslope1D
             xlabel('distance to the channel [m]');
             ylabel('width [m]');
             box on;
-            savefig([filename,'\width_function.fig']); 
-            print([filename,'\width_function.png'],'-dpng'); 
+            savefig([filename,'/width_function.fig']); 
+            print([filename,'/width_function.png'],'-dpng'); 
         end
         
         function plot_save_elevation_function(obj,filename)
@@ -272,8 +280,8 @@ classdef hillslope1D
             else
                 legend('obtained from the dem');
             end
-            savefig([filename,'\elevation_function.fig']);
-            print([filename,'\elevation_function.png'],'-dpng');
+            savefig([filename,'/elevation_function.fig']);
+            print([filename,'/elevation_function.png'],'-dpng');
             close all
         end
         
@@ -294,8 +302,8 @@ classdef hillslope1D
                     ylim([imin imax]);
                 end
             end
-            savefig([filename,'\slope_angle_function.fig']);
-            print([filename,'\slope_angle_function.png'],'-dpng');
+            savefig([filename,'/slope_angle_function.fig']);
+            print([filename,'/slope_angle_function.png'],'-dpng');
             close all
         end
     end

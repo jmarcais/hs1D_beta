@@ -60,15 +60,16 @@ classdef space_discretization_unsat < space_discretization
 %             obj.soil_depth_resampled=interpn(x,soil_depth,obj.x_S);
 %             obj.angle_resampled=interpn(x,angle,obj.x);
 %             smooth_width_function = fit(x, w,  'smoothingspline', 'SmoothingParam', 0.0001);
-% #JM to change
-            smooth_width_function = fit(x, w,  'smoothingspline', 'SmoothingParam', 0.9);
-            obj.w_resampled=smooth_width_function(obj.x_S);
-%             smooth_slope_function = fit(x, angle,  'smoothingspline', 'SmoothingParam', 0.0001);
-% #JM to change
-            smooth_slope_function = fit(x, angle,  'smoothingspline', 'SmoothingParam', 0.9);
-            obj.angle_resampled=smooth_slope_function(obj.x);
+            if(license('test', 'curve_fitting_toolbox'))
+                smooth_width_function = fit(x, w,  'smoothingspline', 'SmoothingParam', 0.9);
+                obj.w_resampled=smooth_width_function(obj.x_S);
+                smooth_slope_function = fit(x, angle,  'smoothingspline', 'SmoothingParam', 0.9);
+                obj.angle_resampled=smooth_slope_function(obj.x);
+            else
+                obj.w_resampled=interpn(x,w,obj.x_S);
+                obj.angle_resampled=interpn(x,angle,obj.x_S);
+            end
             obj.soil_depth_resampled=interpn(x,soil_depth,obj.x_S);
-            
             if(length(k)==1)
                 k=k*ones(size(x));
             end

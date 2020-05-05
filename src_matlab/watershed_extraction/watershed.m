@@ -14,7 +14,7 @@ classdef watershed
     end
     
     methods(Static)
-        function [obj,hillslope_equiv]=test(DEM_filepath,outlet_coordinates,critic_drainage_area)
+        function [obj,hillslope_equiv]=test(DEM_filepath,outlet_coordinates,critic_drainage_area,wgs84arg)
             if(nargin<3)
                 critic_drainage_area=40000;
             end
@@ -25,7 +25,10 @@ classdef watershed
                 DEM_filepath='MNT_PF_5m.tif';
             end
             obj=watershed;
-            obj=obj.analyze_hillslopes(DEM_filepath,outlet_coordinates,critic_drainage_area);
+            if(nargin<4)
+                wgs84arg=0;
+            end
+            obj=obj.analyze_hillslopes(DEM_filepath,outlet_coordinates,critic_drainage_area,wgs84arg);
             hillslope_equiv=extract_one_equivalent_hillslope(obj);
 % % %             outlet_coord_BV6=[265549.0,6783308.0];%[214629.641,2346729.811];% (265549 6783308)
 % % %             critic_drainage_area=40000;
@@ -406,8 +409,11 @@ classdef watershed
             end
         end
         
-        function obj=analyze_hillslopes(obj,dem_filename,outlet_coord,critic_drainage_area)
+        function obj=analyze_hillslopes(obj,dem_filename,outlet_coord,critic_drainage_area,wgs84arg)
             obj=obj.load_DEM(dem_filename);
+            if(nargin>4 && wgs84arg>0)
+                obj.DEM=reproject2utm(obj.DEM,30,'zone','30U');
+            end
             if(outlet_coord==-1)
                 [obj,xriv,yriv]=obj.get_watershed_DEM;
             else

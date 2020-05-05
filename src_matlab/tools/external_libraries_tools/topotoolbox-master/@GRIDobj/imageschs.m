@@ -375,6 +375,7 @@ end
 
 % plot
 if nargout == 0
+    box on
     imagesc(x,y,RGB);
     axis xy
     axis image
