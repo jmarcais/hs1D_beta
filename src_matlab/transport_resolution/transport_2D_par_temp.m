@@ -161,8 +161,8 @@ classdef transport_2D_par_temp
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<1e15)%15e9)
-%                     numCores = feature('numcores');
-%                     p = parpool(numCores);%                     p = parpool(24);
+                    numCores = feature('numcores');
+                    p = parpool(numCores);%                     p = parpool(24);
                     mat_pos_allocate_x_z=cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%[];%
                     t_in=cell(length(obj.t_inj),1);
                     t_out=cell(length(obj.t_inj),1);
@@ -250,10 +250,10 @@ classdef transport_2D_par_temp
 %                             end
                         end
                         % to know at what injection we are
-%                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
+                         fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
                     end
-%                     poolobj = gcp('nocreate');
-%                     delete(poolobj);
+                    poolobj = gcp('nocreate');
+                    delete(poolobj);
                     % rebuild the (x,z) trajectories in the trajectory matrix
                     mat_pos_allocate_x_z=vertcat(mat_pos_allocate_x_z{:});
                     t_in=vertcat(t_in{:});

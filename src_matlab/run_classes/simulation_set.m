@@ -942,6 +942,7 @@ classdef simulation_set
                 
                 % first option
                 z_top=cumtrapz(x,slope_angle);
+                z_top(2:end)=10000;
                 slope_angle2=0*slope_angle;%atan((d1)/(x(end)-x(1)))*ones(size(slope_angle));%zeros(size(slope_angle));
                 z_bottom=cumtrapz(x,slope_angle2)-d_init_add;
                 d=z_top-z_bottom;
