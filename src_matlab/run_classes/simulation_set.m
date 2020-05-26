@@ -921,9 +921,10 @@ classdef simulation_set
                 t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
                 Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
             elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_Qdaily'))
-                range_1=366;
-                range_1_to_fin=639;
+                range_1=3234;
+                range_1_to_fin=19412;
                 range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                Q_real_daily = retime(Q_real_daily, 'daily', 'fillwithmissing');
                 t_real=Q_real_daily.Time(1:1:range_1_to_fin);
                 Q_real=(Q_real_daily.Discharge(1:1:range_1_to_fin))';
             end
