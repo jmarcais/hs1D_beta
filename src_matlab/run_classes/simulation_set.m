@@ -896,7 +896,7 @@ classdef simulation_set
                 folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
                 if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
                     d_init_add=0;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2') || strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_Qdaily'))
                     d_init_add=2.7707;%24;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
                     d_init_add=0.9249;
@@ -906,8 +906,6 @@ classdef simulation_set
                     d_init_add=0.9392;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
                     d_init_add=1.7655;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin'))
-                    d_init_add=2.7707;%24;%6.5;%
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
                     d_init_add=2.2063;   
                 else
@@ -922,6 +920,12 @@ classdef simulation_set
                 range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
                 t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
                 Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
+            elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_Qdaily'))
+                range_1=366;
+                range_1_to_fin=639;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_daily.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_daily.Discharge(1:1:range_1_to_fin))';
             end
 %             folder_root='C:\Users\Jean\Documents\ProjectDSi\GuillecEquiv';
             
