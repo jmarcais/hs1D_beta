@@ -147,9 +147,11 @@ classdef transport_1D_par
                 size_row=length(obj.t_inj)*length(obj.x);
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
-                if(size_row*size_column<15e9)
+                if(size_row*size_column<5e10)%15e9)
                     mat_pos_allocate=cell(length(obj.t_inj_pos),1);
-                    for i=1:length(obj.t_inj_pos)
+                    numCores = feature('numcores');
+                    p = parpool(numCores);%      
+                    parfor i=1:length(obj.t_inj_pos)
                         pos_temp=obj.t_inj_pos(i);
                         size_N=size(obj.N);
                         if(size_N(1)>1)
@@ -182,8 +184,10 @@ classdef transport_1D_par
                         x_traj_temp=x_traj_temp(:);
                         mat_pos_allocate{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];
                         % #JM comment to gain speed
-                        % fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
+                        fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
                     end
+                    poolobj = gcp('nocreate');
+                    delete(poolobj);
                     % rebuild the (x,z) trajectories in the result matrix
                     mat_pos_allocate=vertcat(mat_pos_allocate{:});
                     obj.x_traj=sparse(mat_pos_allocate(:,1),mat_pos_allocate(:,2),mat_pos_allocate(:,3),size_row,size_column);
@@ -536,7 +540,7 @@ classdef transport_1D_par
                     Weight_partial=obj.weight(particle_subject_to_seep)/(1000*dt(i));
                     pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
                     Initial_infiltration_point=x_S(pos_2);
-                    [~,Index_]=sort(Initial_infiltration_point);
+                    [~,Index_]=sort(Initial_infiltration_point); %Index_ = randperm(length(Initial_infiltration_point));
                     Weight_cum=cumsum(Weight_partial(Index_));
                     Particle_Position_to_delete=particle_subject_to_seep(Index_(Weight_cum<=Seep_m3s));
                     obj.RF(Particle_Position_to_delete)=obj.RF(Particle_Position_to_delete)+1;
