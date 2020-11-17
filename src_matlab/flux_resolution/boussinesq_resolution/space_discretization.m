@@ -106,14 +106,14 @@ classdef space_discretization
                 w_resampled_temp=accumarray(MinDistPos,w,[],@nanmean,double(NaN));
             end
             
-            if(license('test', 'curve_fitting_toolbox'))
+            if(license('test', 'curve_fitting_toolbox') && ~strcmp(class(x),'double'))
                 smooth_width_function = fit(x, w,  'smoothingspline', 'SmoothingParam', 0.9);
                 obj.w_resampled=smooth_width_function(obj.x_S);
                 smooth_slope_function = fit(x, angle,  'smoothingspline', 'SmoothingParam', 0.9);
                 obj.angle_resampled=smooth_slope_function(obj.x);
             else
                 obj.w_resampled=interpn(x,w,obj.x_S);
-                obj.angle_resampled=interpn(x,angle,obj.x_S);
+                obj.angle_resampled=interpn(x,angle,obj.x);
             end
             obj.soil_depth_resampled=interpn(x,soil_depth,obj.x_S);
             obj.soil_depth_resampled(1)=soil_depth(1);

@@ -149,7 +149,9 @@ classdef transport_1D
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<15e9)
                     mat_pos_allocate=cell(length(obj.t_inj_pos),1);
-                    for i=1:length(obj.t_inj_pos)
+                    numCores = feature('numcores');
+                    p = parpool(numCores);
+                    parfor i=1:length(obj.t_inj_pos)
                         pos_temp=obj.t_inj_pos(i);
                         size_N=size(obj.N);
                         if(size_N(1)>1)
@@ -182,7 +184,7 @@ classdef transport_1D
                         x_traj_temp=x_traj_temp(:);
                         mat_pos_allocate{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];
                         % #JM comment to gain speed
-                        % fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
+                        fprintf(strcat(num2str(i),'/',num2str(length(obj.t_inj)),'\n'));
                     end
                     % rebuild the (x,z) trajectories in the result matrix
                     mat_pos_allocate=vertcat(mat_pos_allocate{:});
@@ -311,9 +313,9 @@ classdef transport_1D
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<1e11)%15e9)
-%                     numCores = feature('numcores');
-%                     p = parpool(numCores);
-                    p = parpool(4);
+                    numCores = feature('numcores');
+                    p = parpool(numCores);
+%                     p = parpool(4);
                     mat_pos_allocate_x=cell(length(obj.t_inj)-1,1);%zeros(size_row*size_column,3);%[];%
                     N_b=obj.N;
                     t_inj_pos_b=obj.t_inj_pos;
@@ -358,7 +360,7 @@ classdef transport_1D
                             mat_pos_allocate_x{i}=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%mat_pos_allocate(compt:compt+sum(~bool_delete)-1,:)=[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)];%=[mat_pos_allocate_x;[matrix_positions(~bool_delete,:),x_traj_temp(~bool_delete)]];%
                         end
                         % to know at what injection we are
-%                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)-1),'\n'));
+                         fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)-1),'\n'));
                         
                     end
                     % rebuild the (x,z) trajectories in the trajectory matrix
@@ -557,7 +559,7 @@ classdef transport_1D
         
         % analyze particle paths present in the same element of the hillslope at a given time. If seepage is occuring in this element
         % then a certain number of particle is exiting the medium according to the ratio of seepage vs total flow the element is experiencing
-        function [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x]=cut_trajectory_ET_RF(obj,block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option,mat_pos_allocate_x_sorted)
+        function [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x_sorted]=cut_trajectory_ET_RF(obj,block_size,x_S,x_Q,Flux_in_spat,RF_spat,speed_option,mat_pos_allocate_x_sorted)
             if(nargin<7 | strcmp(speed_option,'fast'))
                 % not considering the "seepage" coming out the river and then deep groundwater flow is computed as soon as the particle cross the aquifer river border
                 speed_option='fast';
@@ -632,7 +634,7 @@ classdef transport_1D
 
                     pos_2=mod(particle_subject_to_seep,block_size); pos_2(pos_2==0)=block_size;
                     Initial_infiltration_point=x_S(pos_2);
-                    [~,Index_]=sort(Initial_infiltration_point);
+                    Index_ = randperm(length(Initial_infiltration_point));%[~,Index_]=sort(Initial_infiltration_point); %
                     if(pos_==1)
                         Index_=flip(Index_);
                     end
@@ -690,9 +692,9 @@ classdef transport_1D
             size_column=length(obj.t);
             Position_to_tag_before_deletion2=[(1:1:size_row)',ones(size_row,1)*size_column];
             Position_to_tag_before_deletion2(Position_to_tag_before_deletion(:,1),2)=Position_to_tag_before_deletion(:,2);
-            mat_pos_allocate_x_sorted=vertcat(mat_pos_allocate_x_sorted);
+            mat_pos_allocate_x_sorted=vertcat(mat_pos_allocate_x_sorted{:});
             keep=mat_pos_allocate_x_sorted(:,2)<=Position_to_tag_before_deletion2(mat_pos_allocate_x_sorted(:,1),2);
-            mat_pos_allocate_x=mat_pos_allocate_x_sorted(keep,:);
+            mat_pos_allocate_x_sorted=mat_pos_allocate_x_sorted(keep,:);
             
 
             clear obj.x_traj Position_to_tag_before_deletion2 keep
@@ -874,6 +876,8 @@ classdef transport_1D
                     weights(obj.RF>0)=weights(obj.RF>0).*obj.RF(obj.RF>0);
                     weights(obj.DPSA==1)=weights(obj.DPSA==1);
                     weights=[weights;obj.weight(obj.DPSA>0 & obj.DPSA<1).*obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
+                    x_fin=ones(size(weights));
+                    delta_x_groundwater=ones(size(weights));
                 else
                     weights=obj.weight;
                 end
