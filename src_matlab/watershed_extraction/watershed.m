@@ -129,7 +129,148 @@ classdef watershed
 %             critic_drainage_area=400;
 %             obj=obj.analyze_hillslopes('MNT2_temp4.tif',outlet_coord_Quentin,critic_drainage_area);
         end
-      
+        
+%         function [x,y]=contour(DEM_filepath,outlet_coordinates,critic_drainage_area,Output_folder,wgs84arg)
+        function Err=contour(DEM_filepath,outlet_coordinates,critic_drainage_area,Output_folder,Station_Name,accumulation_vectorize,wgs84arg)
+             if(nargin<5)
+                Station_Name='PeineFougeres.shp';
+            end
+            if(nargin<4)
+                Output_folder='/home/jean.marcais/Bureau/';
+            end
+
+            if(nargin<2)
+                outlet_coordinates=[364778.7,6834822.7];
+            end
+            if(nargin<1)
+                DEM_filepath='MNT_PF_5m.tif';
+            end
+            obj=watershed;
+            if(nargin<7)
+                wgs84arg=0;
+            end
+            
+            if(ischar(DEM_filepath) || isstr(DEM_filepath))
+                obj=obj.load_DEM(DEM_filepath);
+            else
+                obj = DEM_filepath;
+            end
+            if(nargin<3)
+                critic_drainage_area=1e6;
+            end
+            if(nargin>6 && wgs84arg>0)
+                obj.DEM=reproject2utm(obj.DEM,30,'zone','30U');
+            end
+            if(outlet_coordinates==-1)
+                [obj,xriv,yriv]=obj.get_watershed_DEM;
+            elseif(nargin>5 && ~isnumeric(accumulation_vectorize))
+                [obj,xriv,yriv]=obj.get_watershed_DEM(outlet_coordinates,floor(critic_drainage_area/obj.DEM.cellsize^2),accumulation_vectorize);
+            else
+                [obj,xriv,yriv]=obj.get_watershed_DEM(outlet_coordinates,floor(critic_drainage_area/obj.DEM.cellsize^2));
+            end
+            
+            % first alternative
+%             if(critic_drainage_area==-1)
+%                 obj=obj.extract_stream_and_singular_points(xriv,yriv);
+%             else
+%                 obj=obj.extract_stream_and_singular_points(xriv,yriv,critic_drainage_area);
+%             end
+%             
+%             hillslope_equiv=obj.extract_one_equivalent_hillslope;
+%             
+%             k=boundary(hillslope_equiv.x,hillslope_equiv.y,1);
+%             x=hillslope_equiv.x(k);
+%             y=hillslope_equiv.y(k);
+            
+            % second alternative
+            [x,y] = getcoordinates(obj.DEM,'matrix');
+            size_=size(obj.DEM.Z);
+
+            x= reshape(x,size_(1)*size_(2),1);
+            y= reshape(y,size_(1)*size_(2),1);
+            z= reshape(obj.DEM.Z,size_(1)*size_(2),1);
+            x=x(~isnan(z));
+            y=y(~isnan(z));
+            
+%             if(length(x)<1.1e7)
+                k1=boundary(x,y,1);
+                x=x(k1);
+                y=y(k1);
+                polyout = polyshape(x,y);
+%             elseif(length(x)>=1.1e7 && length(x)<2e7)
+%                 x1=x(1:floor(5*length(x)/9));
+%                 y1=y(1:floor(5*length(x)/9));
+%                 x2=x(end-floor(5*length(x)/9):end);
+%                 y2=y(end-floor(5*length(x)/9):end);
+%                 
+%                 k1=boundary(x1,y1,1);
+%                 k2=boundary(x2,y2,1);
+%                 x1=x1(k1);
+%                 y1=y1(k1);
+%                 x2=x2(k2);
+%                 y2=y2(k2);
+%                 polyout1 = polyshape(x1,y1);
+%                 polyout2 = polyshape(x2,y2);
+%                 polyout = union(polyout1,polyout2);
+%             elseif(length(x)>=2e7 && length(x)<1e8)
+%                 x1=x(1:floor(length(x)/3));
+%                 y1=y(1:floor(length(x)/3));
+%                 x2=x(floor(length(x)/3)+1:2*floor(length(x)/3));
+%                 y2=y(floor(length(x)/3)+1:2*floor(length(x)/3));
+%                 x3=x(2*floor(length(x)/3)+1:end);
+%                 y3=y(2*floor(length(x)/3)+1:end);
+%                 
+%                 k1=boundary(x1,y1,1);
+%                 k2=boundary(x2,y2,1);
+%                 k3=boundary(x3,y3,1);
+%                 
+%                 x1=x1(k1);
+%                 y1=y1(k1);
+%                 x2=x2(k2);
+%                 y2=y2(k2);
+%                 x3=x3(k3);
+%                 y3=y3(k3);
+%                 polyout1 = polyshape(x1,y1);
+%                 polyout2 = polyshape(x2,y2);
+%                 polyout3 = polyshape(x3,y3);
+%                 polyout = union(polyout1,polyout2);
+%                 polyout = union(polyout,polyout3);
+%             else
+%             end
+
+            
+% % %             [X_1,~,index]=unique(x);
+% % %             y_1=accumarray(index,y,[],@max)+obj.DEM.cellsize/2;
+% % %             y_2=accumarray(index,y,[],@min)-obj.DEM.cellsize/2;
+% % %             [Y_1,~,index_2]=unique(y);
+% % %             x_1=accumarray(index_2,x,[],@max)+obj.DEM.cellsize/2;
+% % %             x_2=accumarray(index_2,x,[],@min)-obj.DEM.cellsize/2;
+% % %             X_11=[X_1;flip(X_1)];
+% % %             Y_11=[y_1;flip(y_2)];
+% % %             X_12=[x_1;flip(x_2)];
+% % %             Y_12=[Y_1;flip(Y_1)];
+% % %             
+% % %             poly1 = polyshape(X_11,Y_11);
+% % %             poly2 = polyshape(X_12,Y_12);
+% % %             polyout = intersect(poly1,poly2);
+            
+            
+            Data.Geometry = 'Polygon' ;
+            Data.X = polyout.Vertices(:,1) ;  % latitude
+            Data.Y = polyout.Vertices(:,2)  ;  % longitude
+            Data.Name = Station_Name ;   % some random attribute/ name
+            Data.AreaTopoTB = area(polyout); %sum(~isnan(obj.DEM.Z(:)))*obj.DEM.cellsize^2;
+            Data.AreaBH = critic_drainage_area/0.7;
+            Err = (critic_drainage_area/0.7 - Data.AreaTopoTB)/(critic_drainage_area/0.7);
+            Data.DiffRelArea = Err;
+            Data.X_Out_TopoTB = xriv;
+            Data.Y_Out_TopoTB = yriv;
+            Data.X_Out_BH = outlet_coordinates(1);
+            Data.Y_Out_BH = outlet_coordinates(2);
+            Data.Outlet_Dist_Err = sqrt(sum((outlet_coordinates(1)-xriv)^2+(outlet_coordinates(2)-yriv)^2));
+            shapewrite(Data, strcat(Output_folder,'/',Station_Name,'.shp'));
+        end
+        
         function generate_hillslopes_from_dems
             dem_filenames={'MNT_PF_5m.tif','MNT_Kerb_5m.tif','Naizin_surrounding.tif','Blavet.tif','Ic_BV2.tif'};
             name_watersheds={'Pleine Fougeres','Kerbernez extended','Naizin extended','Blavet','Ic at Binic'};
@@ -158,17 +299,21 @@ classdef watershed
 %             file_directory=which(filename);
             obj.DEM=GRIDobj(filename);
             % remove aberrant values into nan
-            obj.DEM.Z(obj.DEM.Z<-10)=nan;
+%             obj.DEM.Z(obj.DEM.Z<-10)=nan;
             obj.DEM=fillsinks(obj.DEM);
         end
         
-        function [obj,xriv,yriv]=get_watershed_DEM(obj,manual_outlet_coord,critical_drainage_area)
+        function [obj,xriv,yriv]=get_watershed_DEM(obj,manual_outlet_coord,critical_drainage_area,accumulation_option)
             if(nargin<2) manual_outlet_coord=[];    end
             if(nargin<3) critical_drainage_area=floor(1e6/obj.DEM.cellsize^2);    end
             
-            FD=FLOWobj(obj.DEM);
-            obj.FD=FD;
-            A=flowacc(FD);
+            if(nargin<4 || ( isnumeric(accumulation_option) && accumulation_option==0))
+                FD=FLOWobj(obj.DEM);
+                obj.FD=FD;
+                A=flowacc(FD);
+            else 
+                A=accumulation_option;
+            end
             
             if(isempty(manual_outlet_coord))
                 DB = drainagebasins(FD);
@@ -179,9 +324,9 @@ classdef watershed
                 obj.DEM.Z(DB.Z~=IX)=NaN;
             else
                 W=A>critical_drainage_area;%>1111;%>40000;%
-                S=STREAMobj(FD,W);
+                S=STREAMobj(obj.FD,W);
                 [xriv,yriv] = snap2stream(S,manual_outlet_coord(1),manual_outlet_coord(2));
-                DB = drainagebasins(FD,xriv,yriv);
+                DB = drainagebasins(obj.FD,xriv,yriv);
 %                 Outlets_coord=streampoi(FD,W,'outlets','xy');
 %                 Outlets_coord=Outlets_coord(find(min(((Outlets_coord(:,1)-manual_outlet_coord(1)).^2+(Outlets_coord(:,2)-manual_outlet_coord(2)).^2).^0.5)));
 %                 DB = drainagebasins(FD,Outlets_coord(1),Outlets_coord(2));
@@ -512,6 +657,64 @@ classdef watershed
             obj.geomorphologic_prop.slope=slope;
             obj.geomorphologic_prop.convergence=convergence;
             obj.geomorphologic_prop.StreamOrder=StreamOrder;
+        end
+    end
+    
+    methods(Static)
+        function [Catchment_error_list,Catchment_error_values]=extract_BH_stations
+            warning('off','all');
+            Stations_Shp = shaperead('~/Donnees/BanqueHydro/Shapefiles/BanqueHydro_StationsSignature.shp');
+%             RegHy =
+%             {'A','B','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','U','V','W','X','Y'};
+%             Pb on H & L & M & Q & V
+%             RegHy =
+%             {'I','J','K','L','M','N','O','P','Q','R','S','U','V','W','X','Y'};
+%             Pb on L & M & Q & V
+%             RegHy = { 'N','O','P','Q','R','S','U','V','W','X','Y'};
+%             RegHy = {'R','S','U','V','W','X','Y'};
+%             RegHy = {'A','B','D','E','F','G','I','J','K'};%'W','X',
+            RegHy = {'O'};
+            save_folder='/home/jean.marcais/Donnees/Carthage/tmp/ContourWatershedFrance/';
+            Catchment_error_list={};
+            Catchment_error_values=[];
+            count = 1;
+            for k=1:length(RegHy)
+                DEM_filepath=strcat('~/Donnees/Carthage/tmp/ZoneHydro_UniqueCdRegionHy_2/CdRegionHy_',RegHy{k},'.tif');
+                obj=watershed;
+                obj=obj.load_DEM(DEM_filepath);
+%                 obj.DEM.Z(obj.DEM.Z<=0)=nan;
+                
+                obj.FD=FLOWobj(obj.DEM);
+                A=flowacc(obj.FD);
+                save_folder_RegHy=strcat(save_folder,'/RegHy_',RegHy{k},'_4/');
+                test_ = mkdir(save_folder_RegHy);
+                for i=1070:length(Stations_Shp)
+                    fprintf(strcat('Hydrologic Region ',RegHy{k},' ---- Station number',num2str(i),' over ',num2str(length(Stations_Shp)),'\n'));
+                    if(Stations_Shp(i).CdStationH(1)==RegHy{k})
+                        fprintf(strcat('Station BELONGS to the Hydrologic Region', RegHy{k},'. \n'));
+                        Err = watershed.contour(obj,[Stations_Shp(i).X,Stations_Shp(i).Y],0.7*Stations_Shp(i).Area_BH*1e6,save_folder_RegHy,Stations_Shp(i).CdStationH,A); 
+                        if(abs(Err)>0.1)
+                            fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+                            fprintf(strcat('Potential error on watershed ', Stations_Shp(i).CdStationH,' \n'));
+                            fprintf(strcat('Error is ', num2str(Err*100),' %%. \n'));
+                            fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+                            Catchment_error_values(count) = Err;
+                            Catchment_error_list{count} = Stations_Shp(i).CdStationH;
+                            count = count+1;
+                        else
+                            fprintf(strcat('Error is ', num2str(Err*100),' %%. SEEMS OK \n'));
+                        end
+                    else
+                        fprintf(strcat('Station NOT in the Hydrologic Region', RegHy{k},'. \n'));
+                    end
+                end
+                fprintf('==================  ====================\n');
+                fprintf('==================  ====================\n');
+                fprintf(strcat('================== Hydrologic Region ',RegHy{k},' is completed !! ====================\n'));
+                fprintf('==================  ====================\n');
+                fprintf('==================  ====================\n');
+
+            end
         end
     end
 end
