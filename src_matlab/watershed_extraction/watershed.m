@@ -161,9 +161,9 @@ classdef watershed
                 Area_BH=critic_drainage_area(1);
                 Area_TBH=critic_drainage_area(2);
                 if(Area_TBH>0)
-                    critic_drainage_area=0.8*Area_TBH*1e6;
+                    critic_drainage_area=0.7*Area_TBH*1e6;
                 elseif(Area_BH>0)
-                    critic_drainage_area=0.6*Area_BH*1e6;
+                    critic_drainage_area=0.5*Area_BH*1e6;
                 else
                     critic_drainage_area=1e6;
                 end
