@@ -131,7 +131,7 @@ classdef watershed
         end
         
 %         function [x,y]=contour(DEM_filepath,outlet_coordinates,critic_drainage_area,Output_folder,wgs84arg)
-        function Err=contour(DEM_filepath,outlet_coordinates,critic_drainage_area,Output_folder,Station_Name,accumulation_vectorize,wgs84arg)
+        function [RelAreaErr,ErrRelDist]=contour(DEM_filepath,outlet_coordinates,critic_drainage_area,Output_folder,Station_Name,accumulation_vectorize,wgs84arg)
              if(nargin<5)
                 Station_Name='PeineFougeres.shp';
             end
@@ -157,12 +157,28 @@ classdef watershed
             end
             if(nargin<3)
                 critic_drainage_area=1e6;
+            elseif(length(critic_drainage_area)==2)
+                Area_BH=critic_drainage_area(1);
+                Area_TBH=critic_drainage_area(2);
+                if(Area_TBH>0)
+                    critic_drainage_area=0.8*Area_TBH*1e6;
+                elseif(Area_BH>0)
+                    critic_drainage_area=0.6*Area_BH*1e6;
+                else
+                    critic_drainage_area=1e6;
+                end
+            elseif(length(critic_drainage_area)==1 && critic_drainage_area==-1)
+                critic_drainage_area=1e6;
             end
             if(nargin>6 && wgs84arg>0)
-                obj.DEM=reproject2utm(obj.DEM,30,'zone','30U');
+                obj.DEM=reproject2utm(obj.DEM,30);
+                if(nargin>5 && ~isnumeric(accumulation_vectorize))
+                    obj.FD=FLOWobj(obj.DEM,'preprocess','fill');
+                    accumulation_vectorize=flowacc(obj.FD);
+                end
             end
             if(outlet_coordinates==-1)
-                [obj,xriv,yriv]=obj.get_watershed_DEM;
+                [obj,xriv,yriv] = obj.get_watershed_DEM;
             elseif(nargin>5 && ~isnumeric(accumulation_vectorize))
                 [obj,xriv,yriv]=obj.get_watershed_DEM(outlet_coordinates,floor(critic_drainage_area/obj.DEM.cellsize^2),accumulation_vectorize);
             else
@@ -259,15 +275,34 @@ classdef watershed
             Data.X = polyout.Vertices(:,1) ;  % latitude
             Data.Y = polyout.Vertices(:,2)  ;  % longitude
             Data.Name = Station_Name ;   % some random attribute/ name
-            Data.AreaTopoTB = area(polyout); %sum(~isnan(obj.DEM.Z(:)))*obj.DEM.cellsize^2;
-            Data.AreaBH = critic_drainage_area/0.7;
-            Err = (critic_drainage_area/0.7 - Data.AreaTopoTB)/(critic_drainage_area/0.7);
-            Data.DiffRelArea = Err;
-            Data.X_Out_TopoTB = xriv;
-            Data.Y_Out_TopoTB = yriv;
+            Data.AreaTTB = area(polyout)/1e6; %sum(~isnan(obj.DEM.Z(:)))*obj.DEM.cellsize^2;
+            if(length(critic_drainage_area)==2)
+                Data.Area_BH = Area_BH;
+                Data.Area_TBH = Area_TBH;
+                if(Area_TBH>0)
+                    RelAreaErr = (Area_TBH - Data.AreaTTTB)/(Area_TBH);
+                    AbsAreaErr = (Area_TBH - Data.AreaTTTB);
+                elseif(Area_TBH>0)
+                    RelAreaErr = (Area_BH - Data.AreaTTTB)/(Area_BH);
+                    AbsAreaErr = (Area_BH - Data.AreaTTTB);
+                else
+                    RelAreaErr = nan;
+                    AbsAreaErr = nan;
+                end
+            else
+                RelAreaErr = nan;
+                AbsAreaErr = nan;
+            end
+            Data.X_Out_TTB = xriv;
+            Data.Y_Out_TTB = yriv;
             Data.X_Out_BH = outlet_coordinates(1);
             Data.Y_Out_BH = outlet_coordinates(2);
-            Data.Outlet_Dist_Err = sqrt(sum((outlet_coordinates(1)-xriv)^2+(outlet_coordinates(2)-yriv)^2));
+            Data.ErrRelArea = RelAreaErr;
+            Data.ErrAbsArea = AbsAreaErr;
+            ErrDist = sqrt(sum((outlet_coordinates(1)-xriv)^2+(outlet_coordinates(2)-yriv)^2));
+            ErrRelDist = ErrDist/sqrt(Data.AreaTTB*1e6);
+            Data.ErrAbsDist = ErrDist;
+            Data.ErrRelDist = ErrRelDist;
             shapewrite(Data, strcat(Output_folder,'/',Station_Name,'.shp'));
         end
         
@@ -663,36 +698,97 @@ classdef watershed
     methods(Static)
         function [Catchment_error_list,Catchment_error_values]=extract_BH_stations
             warning('off','all');
-            Stations_Shp = shaperead('~/Donnees/BanqueHydro/Shapefiles/BanqueHydro_StationsSignature.shp');
-%             RegHy =
-%             {'A','B','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','U','V','W','X','Y'};
-%             Pb on H & L & M & Q & V
-%             RegHy =
-%             {'I','J','K','L','M','N','O','P','Q','R','S','U','V','W','X','Y'};
-%             Pb on L & M & Q & V
-%             RegHy = { 'N','O','P','Q','R','S','U','V','W','X','Y'};
-%             RegHy = {'R','S','U','V','W','X','Y'};
-%             RegHy = {'A','B','D','E','F','G','I','J','K'};%'W','X',
-            RegHy = {'O'};
+            root_folder = '/home/jean.marcais/Bureau/tmp/WatershedDelineationProj/';
+            Stations_Shp = shaperead(strcat(root_folder,'StationHydro_withBHareas.shp'));
+            RegHy = {'A','B','D','E','F','G','H','H2','I','J','K','L','L2','M','M2','N','O','P','Q','R','S','U','V','V2','W','X','Y','Y2','Z'};
+            save_folder=strcat(root_folder,'ContourWatershedFrance/');
+            Catchment_error_list={};
+            Catchment_error_values=[];
+            count = 1;
+            for k=1:length(RegHy)
+                DEM_filepath=strcat(root_folder,'CdRegionHy_',RegHy{k},'.tif');
+                obj=watershed;
+                obj.DEM=GRIDobj(DEM_filepath);
+%                 obj.DEM=carve(obj.DEM); %fillsinks(obj.DEM);
+%                 obj.DEM.Z(obj.DEM.Z<=0)=nan;
+                
+                obj.FD=FLOWobj(obj.DEM,'preprocess','fill');
+                A=flowacc(obj.FD);
+                save_folder_RegHy=strcat(save_folder,'/RegHy_',RegHy{k},'_4/');
+                [~] = mkdir(save_folder_RegHy);
+
+                filename_err=strcat(save_folder_RegHy,'PotentialDelineationErr.txt');
+                fid = fopen(filename_err, 'w');
+                string_char=sprintf(['Station Code','\t','RelAreaErr','\t','RelDistErr',' \n']);
+                fprintf(fid, string_char);
+                
+                for i=1:length(Stations_Shp)
+%                     if(Stations_Shp(i).Area_BH<11000)
+                    fprintf(strcat('Hydrologic Region ',RegHy{k},' ---- Station number',Stations_Shp(i).CdStationH,'--------- Number',num2str(i),' over ',num2str(length(Stations_Shp)),'\n'));
+                    if(Stations_Shp(i).ZoneHyd==RegHy{k})
+                        fprintf(strcat('Station',Stations_Shp(i).CdStationH,' BELONGS to the Hydrologic Region', RegHy{k},'. \n'));
+                        [ErrArea, ErrRelDist] = watershed.contour(obj,[Stations_Shp(i).X,Stations_Shp(i).Y],[Stations_Shp(i).Area_BH,Stations_Shp(i).Area_TBH],save_folder_RegHy,Stations_Shp(i).CdStationH,A);
+                        if(abs(ErrArea)>0.1  || abs(ErrRelDist)>0.04)
+                            fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+                            fprintf(strcat('Potential error on watershed ', Stations_Shp(i).CdStationH,' \n'));
+                            fprintf(strcat('Relative Area Error is ', num2str(ErrArea*100),' %%.','Relative Dist Error is ', num2str(ErrRelDist*100),' %%.',' \n'));
+                            fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+                            Catchment_error_values(count) = ErrArea;
+                            Catchment_error_list{count} = Stations_Shp(i).CdStationH;
+                            
+                            string_char=sprintf([Stations_Shp(i).CdStationH,'\t',num2str(ErrArea,'%.6f'),'\t',num2str(ErrRelDist,'%.6f'),' \n']);
+                            fprintf(fid, string_char);
+                            count = count+1;
+                        else
+                            fprintf(strcat('Relative Area Error is ', num2str(ErrArea*100),' %%.','Relative Dist Error is ', num2str(ErrRelDist*100),' %%. SEEMS OK \n'));
+%                             fprintf(strcat('Error is ', num2str(ErrArea*100),' %%. SEEMS OK \n'));
+                        end
+                    else
+                        fprintf(strcat('Station NOT in the Hydrologic Region', RegHy{k},'. \n'));
+                    end
+%                     end
+                end
+                fclose(fid);
+                fprintf('==================  ====================\n');
+                fprintf('==================  ====================\n');
+                fprintf(strcat('================== Hydrologic Region ',RegHy{k},' is completed !! ====================\n'));
+                fprintf('==================  ====================\n');
+                fprintf('==================  ====================\n');
+
+            end
+        end
+        
+        function [Catchment_error_list,Catchment_error_values]=extract_OutreMer_BH_stations
+            warning('off','all');
+            Shape_cell={'/home/jean.marcais/Donnees/BanqueHydro/Shapefiles/StationHydro_GLP.shp/StationHydro_GLP_3.shp','/home/jean.marcais/Donnees/BanqueHydro/Shapefiles/StationHydro_MTQ.shp/StationHydro_MTQ_3.shp', ...
+                '/home/jean.marcais/Donnees/BanqueHydro/Shapefiles/StationHydro_REU.shp/StationHydro_REU_3.shp'};
+            DEM_file={'/home/jean.marcais/Donnees/SRTM30m/WGS84/Guadeloupe_SRTM30_WGS84.tif','/home/jean.marcais/Donnees/SRTM30m/WGS84/Martinique_SRTM30_WGS84.tif','/home/jean.marcais/Donnees/SRTM30m/WGS84/Reunion_SRTM30_WGS84.tif'};
+            RegHy = {'GLP','MTQ','REU'};
             save_folder='/home/jean.marcais/Donnees/Carthage/tmp/ContourWatershedFrance/';
             Catchment_error_list={};
             Catchment_error_values=[];
             count = 1;
             for k=1:length(RegHy)
-                DEM_filepath=strcat('~/Donnees/Carthage/tmp/ZoneHydro_UniqueCdRegionHy_2/CdRegionHy_',RegHy{k},'.tif');
+                Stations_Shp = shaperead(Shape_cell{k});
+                DEM_filepath=strcat(DEM_file{k});
                 obj=watershed;
                 obj=obj.load_DEM(DEM_filepath);
 %                 obj.DEM.Z(obj.DEM.Z<=0)=nan;
                 
+                obj.DEM=reproject2utm(obj.DEM,30);
                 obj.FD=FLOWobj(obj.DEM);
                 A=flowacc(obj.FD);
                 save_folder_RegHy=strcat(save_folder,'/RegHy_',RegHy{k},'_4/');
                 test_ = mkdir(save_folder_RegHy);
-                for i=1070:length(Stations_Shp)
-                    fprintf(strcat('Hydrologic Region ',RegHy{k},' ---- Station number',num2str(i),' over ',num2str(length(Stations_Shp)),'\n'));
-                    if(Stations_Shp(i).CdStationH(1)==RegHy{k})
+                for i=1:length(Stations_Shp)
+                    if(Stations_Shp(i).Area_BH<11000)
+                        fprintf(strcat('Hydrologic Region ',RegHy{k},' ---- Station number',num2str(i),' over ',num2str(length(Stations_Shp)),'\n'));
                         fprintf(strcat('Station BELONGS to the Hydrologic Region', RegHy{k},'. \n'));
-                        Err = watershed.contour(obj,[Stations_Shp(i).X,Stations_Shp(i).Y],0.7*Stations_Shp(i).Area_BH*1e6,save_folder_RegHy,Stations_Shp(i).CdStationH,A); 
+                        if(Stations_Shp(i).Area_BH>0)
+                            Err = watershed.contour(obj,[Stations_Shp(i).X_UTM,Stations_Shp(i).Y_UTM],0.7*Stations_Shp(i).Area_BH*1e6,save_folder_RegHy,Stations_Shp(i).CdStationH,A);
+                        elseif(Stations_Shp(i).Area_BH<=0)
+                            Err = watershed.contour(obj,[Stations_Shp(i).X_UTM,Stations_Shp(i).Y_UTM],0.7*0.5*1e6,save_folder_RegHy,Stations_Shp(i).CdStationH,A);
+                        end
                         if(abs(Err)>0.1)
                             fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
                             fprintf(strcat('Potential error on watershed ', Stations_Shp(i).CdStationH,' \n'));
@@ -704,8 +800,6 @@ classdef watershed
                         else
                             fprintf(strcat('Error is ', num2str(Err*100),' %%. SEEMS OK \n'));
                         end
-                    else
-                        fprintf(strcat('Station NOT in the Hydrologic Region', RegHy{k},'. \n'));
                     end
                 end
                 fprintf('==================  ====================\n');
