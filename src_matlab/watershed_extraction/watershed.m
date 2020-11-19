@@ -212,7 +212,11 @@ classdef watershed
                 k1=boundary(x,y,1);
                 x=x(k1);
                 y=y(k1);
-                polyout = polyshape(x,y);
+                if(length(x)>=3)
+                    polyout = polyshape(x,y);
+                else
+                    polyout = polyshape();
+                end
 %             elseif(length(x)>=1.1e7 && length(x)<2e7)
 %                 x1=x(1:floor(5*length(x)/9));
 %                 y1=y(1:floor(5*length(x)/9));
@@ -276,15 +280,15 @@ classdef watershed
             Data.Y = polyout.Vertices(:,2)  ;  % longitude
             Data.Name = Station_Name ;   % some random attribute/ name
             Data.AreaTTB = area(polyout)/1e6; %sum(~isnan(obj.DEM.Z(:)))*obj.DEM.cellsize^2;
-            if(length(critic_drainage_area)==2)
+            if(exist('Area_BH','var'))
                 Data.Area_BH = Area_BH;
                 Data.Area_TBH = Area_TBH;
                 if(Area_TBH>0)
-                    RelAreaErr = (Area_TBH - Data.AreaTTTB)/(Area_TBH);
-                    AbsAreaErr = (Area_TBH - Data.AreaTTTB);
+                    RelAreaErr = (Area_TBH - Data.AreaTTB)/(Area_TBH);
+                    AbsAreaErr = (Area_TBH - Data.AreaTTB);
                 elseif(Area_TBH>0)
-                    RelAreaErr = (Area_BH - Data.AreaTTTB)/(Area_BH);
-                    AbsAreaErr = (Area_BH - Data.AreaTTTB);
+                    RelAreaErr = (Area_BH - Data.AreaTTB)/(Area_BH);
+                    AbsAreaErr = (Area_BH - Data.AreaTTB);
                 else
                     RelAreaErr = nan;
                     AbsAreaErr = nan;
@@ -300,7 +304,11 @@ classdef watershed
             Data.ErrRelArea = RelAreaErr;
             Data.ErrAbsArea = AbsAreaErr;
             ErrDist = sqrt(sum((outlet_coordinates(1)-xriv)^2+(outlet_coordinates(2)-yriv)^2));
-            ErrRelDist = ErrDist/sqrt(Data.AreaTTB*1e6);
+            if(Data.AreaTTB>0)
+                ErrRelDist = ErrDist/sqrt(Data.AreaTTB*1e6);
+            else
+                ErrRelDist = nan;
+            end
             Data.ErrAbsDist = ErrDist;
             Data.ErrRelDist = ErrRelDist;
             shapewrite(Data, strcat(Output_folder,'/',Station_Name,'.shp'));
@@ -697,7 +705,7 @@ classdef watershed
     
     methods(Static)
         function [Catchment_error_list,Catchment_error_values]=extract_BH_stations
-            warning('off','all');
+%             warning('off','all');
             root_folder = '/home/jean.marcais/Bureau/tmp/WatershedDelineationProj/';
             Stations_Shp = shaperead(strcat(root_folder,'StationHydro_withBHareas.shp'));
             RegHy = {'A','B','D','E','F','G','H','H2','I','J','K','L','L2','M','M2','N','O','P','Q','R','S','U','V','V2','W','X','Y','Y2','Z'};
