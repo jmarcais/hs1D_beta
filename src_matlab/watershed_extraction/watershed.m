@@ -736,7 +736,7 @@ classdef watershed
                     if(Stations_Shp(i).ZoneHyd==RegHy{k})
                         fprintf(strcat('Station',Stations_Shp(i).CdStationH,' BELONGS to the Hydrologic Region', RegHy{k},'. \n'));
                         [ErrArea, ErrRelDist] = watershed.contour(obj,[Stations_Shp(i).X,Stations_Shp(i).Y],[Stations_Shp(i).Area_BH,Stations_Shp(i).Area_TBH],save_folder_RegHy,Stations_Shp(i).CdStationH,A);
-                        if(abs(ErrArea)>0.1  || abs(ErrRelDist)>0.04)
+                        if(abs(ErrArea)>0.1  || abs(ErrRelDist)>0.05)
                             fprintf('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
                             fprintf(strcat('Potential error on watershed ', Stations_Shp(i).CdStationH,' \n'));
                             fprintf(strcat('Relative Area Error is ', num2str(ErrArea*100),' %%.','Relative Dist Error is ', num2str(ErrRelDist*100),' %%.',' \n'));
