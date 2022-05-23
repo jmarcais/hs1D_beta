@@ -249,7 +249,7 @@ classdef runs
                 z=z*ones(size(x));
             elseif(length(z)~=length(x))
                 fprintf('no consistency betweeen x and elevation information \n');
-                fprintf('uniform depth of 1 m will be assumed \n');
+                fprintf('uniform elevation of 1 m will be assumed \n');
                 z=ones(size(x));
             end
             if(nargin<5)
