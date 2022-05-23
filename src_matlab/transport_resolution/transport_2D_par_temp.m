@@ -8,10 +8,10 @@ classdef transport_2D_par_temp
         N_inj       % [(size(t_inj)*N_x) x 1] array containing the recharge corresponding to individual trajectory
         x           % [N_x x 1] array containing the river distance aray x [m]
         weight      % [(size(t_inj)*N_x) x 1] array containing the weight to apply to the trajectories
-        ET          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via ET
-        DGW         % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via deep groundwater
-        RF          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via seepage
-        DPSA        % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via direct precipitations
+        ET          % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via ET (in proportion)
+        DGW         % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via deep groundwater (in proportion)
+        RF          % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via seepage (in proportion)
+        DPSA        % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via direct precipitations (in proportion)
         NA
     end
     
