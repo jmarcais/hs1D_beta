@@ -70,7 +70,7 @@ classdef hillslope1D
             obj.x=(min(distance):DEM_resolution:max(distance))';
             Distance=pdist2(distance,obj.x);
             [~,MinDistPos]=min(Distance,[],2);
-            Matrix_link=zeros(length(distance),length(obj.x));
+            Matrix_link=sparse(length(distance),length(obj.x));
             if(~isempty(MinDistPos))
                 Position_distance=(1:1:length(distance))';
                 Ind_matrix_link=sub2ind(size(Matrix_link),Position_distance,MinDistPos);
@@ -78,10 +78,10 @@ classdef hillslope1D
                 % Number of tile at the same distance from the stream and each tile is 5 m large
                 obj.w=accumarray(MinDistPos,1,[],@nansum,double(NaN))*DEM_resolution;
                 if(nargin<5)
-                    obj.z=accumarray(MinDistPos,z,[],@nanmean,single(NaN));
+                    obj.z=accumarray(double(MinDistPos),double(z),[],@nanmean,double(NaN));
                 else
-                    obj.z=accumarray(MinDistPos,volume,[],@nansum,single(NaN))./(obj.w*DEM_resolution)+z0;
-                    obj.volume=accumarray(MinDistPos,volume,[],@nansum,single(NaN));
+                    obj.z=accumarray(double(MinDistPos),double(volume),[],@nansum,double(NaN))./(double(obj.w)*double(DEM_resolution))+double(z0);
+                    obj.volume=accumarray(double(MinDistPos),double(volume),[],@nansum,double(NaN));
                 end
                 obj.x=double(obj.x);
                 obj.z=double(obj.z);
@@ -192,34 +192,36 @@ classdef hillslope1D
         end
         
         function folder_directories=save_hillslope(obj,file_output,name_watershed)
-            % save one hillslope with constant slope (approximation with a linear fitting)
-            file_output1=[file_output,'_slopcst'];
-            folder_create(file_output1);
-            filename=strcat(file_output1,'/morphologic.input');
-%             obj=obj.transform_to_constant_slope;
-            M=nan(length(obj.x),5); M(:,1)=obj.x; M(:,2)=obj.w; M(:,3)=obj.i; M(:,4)=obj.z; M(:,5)=obj.z_predicted;
-            fid = fopen(filename, 'w');
-            if(nargin>=3)
-                string_char=sprintf(['Real morphologic data taken in ',name_watershed ,' watershed. Slope is assumed constant \n']);
-            else
-                string_char=sprintf('Real morphologic data taken. Slope is assumed constant \n');
-            end
-            fprintf(fid, string_char);
             X_pos=strfind(file_output,'X'); 
             Y_pos=strfind(file_output,'Y'); 
             X_coord=file_output(X_pos(end)+2:Y_pos(end)-2);
             Y_coord=file_output(Y_pos(end)+2:length(file_output));
-            string_char=sprintf(['Hillslope coordinates: X= ',X_coord ,' Y= ',Y_coord,'\n']);
-            fprintf(fid, string_char);
-            string_char=sprintf('x\tw\ti\tz_true\tz_mod\n');
-            fprintf(fid, string_char);
-            fclose(fid);
-            dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
-            save([file_output1,'/hs1D.mat'],'obj');
-            obj.plot_save_width_function(file_output1);
-            obj.plot_save_elevation_function(file_output1);
-            obj.plot_save_slope_angle_function(file_output1);
-            close all;
+            folder_directories=[];
+% % %             % save one hillslope with constant slope (approximation with a linear fitting)
+% % %             file_output1=[file_output,'_slopcst'];
+% % %             folder_create(file_output1);
+% % %             filename=strcat(file_output1,'/morphologic.input');
+% % % %             obj=obj.transform_to_constant_slope;
+% % %             M=nan(length(obj.x),5); M(:,1)=obj.x; M(:,2)=obj.w; M(:,3)=obj.i; M(:,4)=obj.z; M(:,5)=obj.z_predicted;
+% % %             fid = fopen(filename, 'w');
+% % %             if(nargin>=3)
+% % %                 string_char=sprintf(['Real morphologic data taken in ',name_watershed ,' watershed. Slope is assumed constant \n']);
+% % %             else
+% % %                 string_char=sprintf('Real morphologic data taken. Slope is assumed constant \n');
+% % %             end
+% % %             fprintf(fid, string_char);
+% % %             string_char=sprintf(['Hillslope coordinates: X= ',X_coord ,' Y= ',Y_coord,'\n']);
+% % %             fprintf(fid, string_char);
+% % %             string_char=sprintf('x\tw\ti\tz_true\tz_mod\n');
+% % %             fprintf(fid, string_char);
+% % %             fclose(fid);
+% % %             dlmwrite(filename,M, '-append', 'precision', '%E','delimiter','\t');
+% % %             save([file_output1,'/hs1D.mat'],'obj');
+% % %             obj.plot_save_width_function(file_output1);
+% % %             obj.plot_save_elevation_function(file_output1);
+% % %             obj.plot_save_slope_angle_function(file_output1);
+% % %             close all;
+% % %             folder_directories{2}=file_output1; 
             
             % save one hillslope with non constant slope (approximation with spline curves)
             file_output2=[file_output,'_slopvar'];
@@ -247,9 +249,7 @@ classdef hillslope1D
             obj.plot_save_elevation_function(file_output2);
             obj.plot_save_slope_angle_function(file_output2);
             close all;
-            folder_directories=[];
-            folder_directories{1}=file_output1;
-            folder_directories{2}=file_output2;
+            folder_directories{1}=file_output2;
         end
        
         function plot_save_width_function(obj,filename)
