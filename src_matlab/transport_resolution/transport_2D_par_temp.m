@@ -8,10 +8,10 @@ classdef transport_2D_par_temp
         N_inj       % [(size(t_inj)*N_x) x 1] array containing the recharge corresponding to individual trajectory
         x           % [N_x x 1] array containing the river distance aray x [m]
         weight      % [(size(t_inj)*N_x) x 1] array containing the weight to apply to the trajectories
-        ET          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via ET
-        DGW         % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via deep groundwater
-        RF          % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via seepage
-        DPSA        % [(size(t_inj)*N_x) x 1] boolean array tagging the particles that are retrieved from the model via direct precipitations
+        ET          % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via ET (in proportion)
+        DGW         % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via deep groundwater (in proportion)
+        RF          % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via seepage (in proportion)
+        DPSA        % [(size(t_inj)*N_x) x 1] array tagging the particles that are retrieved from the model via direct precipitations (in proportion)
         NA
     end
     
@@ -83,11 +83,11 @@ classdef transport_2D_par_temp
                 t_edge1=obj.t-[dt(1),dt]/2;
                 t_edge2=obj.t+[dt,dt(end)]/2;
                 dt=t_edge2-t_edge1;
-                inmass_weight=(discretized_area*dt)*1000; % incoming mass in m2/s
+                inmass_weight=(discretized_area*dt)*1000; % in m2.s
                 inmass_weight=inmass_weight(:,obj.t_inj_pos);
                 size_inmass_weight=size(inmass_weight);
                 inmass_weight=reshape(inmass_weight,size_inmass_weight(1)*size_inmass_weight(2),1);
-                weight_temp=obj.N_inj.*inmass_weight;
+                weight_temp=obj.N_inj.*inmass_weight; % incoming mass in m3
 %                 inmass=obj.N.*(discretized_area*dt)*1000; % incoming mass in L
 % %                 inmass=bsxfun(@times,discretized_area,dt)*1000;
 %                 weight_temp=inmass(:,obj.t_inj_pos);
@@ -161,9 +161,9 @@ classdef transport_2D_par_temp
                 size_column=length(obj.t);
                 % choose the format of x_traj if not problem for matlab for allocating memory
                 if(size_row*size_column<1e15)%15e9)
-                    numCores = feature('numcores');
-                    p = parpool(numCores);%                     p = parpool(24);
-                    mat_pos_allocate_x_z=cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%[];%
+% %                     numCores = feature('numcores');
+% %                     p = parpool(numCores);%                     p = parpool(24);
+                    mat_pos_allocate_x_z=[];%cell(length(obj.t_inj),1);%zeros(size_row*size_column,3);%
                     t_in=cell(length(obj.t_inj),1);
                     t_out=cell(length(obj.t_inj),1);
                     delta_t=cell(length(obj.t_inj),1);
@@ -207,7 +207,7 @@ classdef transport_2D_par_temp
                                 x_traj_temp=x_traj_temp(:,[1,end]);
                                 z_traj_temp=z_traj_temp(:,[1,end]);
                             end
-                            matrix_positions=(combvec(block_size*(i-1)+1:block_size*i,t_inj_pos_b(i):size(x_traj_temp,2)+t_inj_pos_b(i)-1))';
+% %                             matrix_positions=(combvec(block_size*(i-1)+1:block_size*i,t_inj_pos_b(i):size(x_traj_temp,2)+t_inj_pos_b(i)-1))';
                             
                             if(strcmp(distance_option,'on'))
                                 elementary_distance=(([zeros(size(x_traj_temp,1),1),diff(x_traj_temp,1,2)]).^2+([zeros(size(z_traj_temp,1),1),diff(z_traj_temp,1,2)]).^2).^0.5;
@@ -236,8 +236,8 @@ classdef transport_2D_par_temp
                             distance{i}=cumsum(elementary_distance,2);
                             distance{i}=distance{i}(idx_);
                             weights{i}=weights_b(block_size*(i-1)+1:block_size*i);
-%                             % store x trajectories
-%                             elementary_distance=elementary_distance(:);
+                            % store x trajectories
+                            elementary_distance=elementary_distance(:);
 %                             bool_delete=bool_delete(:);
 %                             x_traj_temp=x_traj_temp(:);
 %                             z_traj_temp=z_traj_temp(:);
@@ -252,10 +252,10 @@ classdef transport_2D_par_temp
                         % to know at what injection we are
                          fprintf(strcat(num2str(i),'/',num2str(length(t_inj_b)),'\n'));
                     end
-                    poolobj = gcp('nocreate');
-                    delete(poolobj);
+% %                     poolobj = gcp('nocreate');
+% %                     delete(poolobj);
                     % rebuild the (x,z) trajectories in the trajectory matrix
-                    mat_pos_allocate_x_z=vertcat(mat_pos_allocate_x_z{:});
+%                     mat_pos_allocate_x_z=vertcat(mat_pos_allocate_x_z{:});
                     t_in=vertcat(t_in{:});
                     t_out=vertcat(t_out{:});
                     delta_t=vertcat(delta_t{:});
@@ -775,13 +775,63 @@ classdef transport_2D_par_temp
                 weights(obj.DGW>0)=weights(obj.DGW>0).*obj.DGW(obj.DGW>0);
                 weights(obj.NA>0)=weights(obj.NA>0).*obj.NA(obj.NA>0);
                 weights(obj.RF>0)=weights(obj.RF>0).*obj.RF(obj.RF>0);
-                weights(obj.DPSA==1)=weights(obj.DPSA==1);
                 weights=[weights;obj.weight(obj.DPSA>0 & obj.DPSA<1).*obj.DPSA(obj.DPSA>0 & obj.DPSA<1)];
                 distance=[distance;zeros(sum(obj.DPSA>0 & obj.DPSA<1),1)];
                 x_fin=[x_fin;x_fin(obj.DPSA>0 & obj.DPSA<1)];
                 x_init=[x_init;x_init(obj.DPSA>0 & obj.DPSA<1)];
                 z_fin=[z_fin;z_fin(obj.DPSA>0 & obj.DPSA<1)];
             end
+            
+            distance(distance<(obj.x(2)-obj.x(1)))=obj.x(2)-obj.x(1);
+        end
+        
+        function [t_in,t_out,delta_t,distance,x_fin,x_init,z_fin,weights,Flowpaths_id]=transform_times_complete(obj,t_in,t_out,delta_t,distance,x_fin,x_init,z_fin,weights)
+            t_out_DPSA=t_in(obj.DPSA>0);
+            delta_t_DPSA=zeros(sum(obj.DPSA>0),1);
+            t_in_DPSA=t_in(obj.DPSA>0);
+            distance_DPSA=zeros(sum(obj.DPSA>0),1);
+            x_fin_DPSA=x_init(obj.DPSA>0);
+            x_init_DPSA=x_init(obj.DPSA>0);
+            z_fin_DPSA=z_fin(obj.DPSA>0);
+            weights_DPSA=weights(obj.DPSA>0).*obj.DPSA(obj.DPSA>0);
+            
+            t_out_DGW=t_out(obj.DGW>0);
+            delta_t_DGW=delta_t(obj.DGW>0);
+            t_in_DGW=t_in(obj.DGW>0);
+            distance_DGW=distance(obj.DGW>0);
+            x_fin_DGW=x_fin(obj.DGW>0);
+            x_init_DGW=x_init(obj.DGW>0);
+            z_fin_DGW=z_fin(obj.DGW>0);
+            weights_DGW=weights(obj.DGW>0).*obj.DGW(obj.DGW>0);
+            
+            t_out_RF=t_out(obj.RF>0);
+            delta_t_RF=delta_t(obj.RF>0);
+            t_in_RF=t_in(obj.RF>0);
+            distance_RF=distance(obj.RF>0);
+            x_fin_RF=x_fin(obj.RF>0);
+            x_init_RF=x_init(obj.RF>0);
+            z_fin_RF=z_fin(obj.RF>0);
+            weights_RF=weights(obj.RF>0).*obj.RF(obj.RF>0);
+            
+            t_out_ET=t_out(obj.ET>0);
+            delta_t_ET=delta_t(obj.ET>0);
+            t_in_ET=t_in(obj.ET>0);
+            distance_ET=distance(obj.ET>0);
+            x_fin_ET=x_fin(obj.ET>0);
+            x_init_ET=x_init(obj.ET>0);
+            z_fin_ET=z_fin(obj.ET>0);
+            weights_ET=weights(obj.ET>0).*obj.ET(obj.ET>0);
+            
+            Flowpaths_id=[ones(size(t_out_DPSA));2*ones(size(t_out_RF));3*ones(size(t_out_DGW));4*ones(size(t_out_ET))]; %Id: 1=DPSA, 2:RF, 3:DGW, 4:ET
+            t_out=[t_out_DPSA;t_out_RF;t_out_DGW;t_out_ET];
+            delta_t=[delta_t_DPSA;delta_t_RF;delta_t_DGW;delta_t_ET];
+            t_in=[t_in_DPSA;t_in_RF;t_in_DGW;t_in_ET];
+            distance=[distance_DPSA;distance_RF;distance_DGW;distance_ET];
+            x_init=[x_init_DPSA;x_init_RF;x_init_DGW;x_init_ET];
+            x_fin=[x_fin_DPSA;x_fin_RF;x_fin_DGW;x_fin_ET];
+            z_fin=[z_fin_DPSA;z_fin_RF;z_fin_DGW;z_fin_ET];
+            weights=[weights_DPSA;weights_RF;weights_DGW;weights_ET];
+            
             distance(distance<(obj.x(2)-obj.x(1)))=obj.x(2)-obj.x(1);
         end
         
@@ -1091,6 +1141,22 @@ classdef transport_2D_par_temp
 %             DGW_prop(obj.N_inj==0)=0;
        end
        
+       function [BF_prop,RF_prop,ET_prop,BF,RF,ET]=compute_BF_RF_ET_proportion(obj,RF_spat,Flux_in_spat)
+           size_=size(RF_spat)
+           BF=sparse(size_(1),size_(2));
+           BF(1,:)=RF_spat(1,:);
+           RF=RF_spat;
+           RF(1,:)=0;
+           ET=Flux_in_spat;
+%            ET_spat_m3s=hs1D_run.boussinesq_simulation.source_terms.recharge_chronicle.*hs1D_run.hs1D.w.*diff(hs1D_run.simulation_results.x_Q);
+%         ET_spat_m3s(ET_spat_m3s<0)=-ET_spat_m3s(ET_spat_m3s<0);
+            ET(ET>0)=0;
+            ET(ET<0)=-ET(ET<0);
+            BF_prop=BF./(ET+RF+BF);
+            RF_prop=RF./(ET+RF+BF);
+            ET_prop=ET./(ET+RF+BF);
+       end
+       
        function [Q_DP_out,Q_GW_part]=check_particle_tracking_flux_conservation(obj,t_out,weights,DPSA_,RF_spat,plot_option,Error_RF_DGW,Error_ET)
            speed_option='slow';
            dt=obj.t(2:end)-obj.t(1:end-1);
@@ -1133,6 +1199,56 @@ classdef transport_2D_par_temp
                    plot(t(1:end-1),Error_ET,'--')
                    legend('Error made on Return Flow flux','Error made on ET')
                end
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,DPSA_)
+               plot(t,Q_DP_out,'--')
+               legend('hs1D DPSA','Particle tracking DPSA')
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,RF_+DGW_)
+               plot(t,Q_Seep+Q_DGW_out,'--')
+               legend('hs1D RF','Particle tracking RF')
+               ylabel('Flux [m^{3}/s]')
+               figure; hold on
+               plot(t,RF_+DGW_+DPSA_)
+               plot(t,Q_Seep+Q_DGW_out+Q_DP_out,'--')
+               legend('hs1D River discharge','Particle tracking river discharge')
+               ylabel('Flux [m^{3}/s]')
+           end
+       end
+       
+       function [Q_DP_out,Q_GW_part]=check_particle_tracking_flux_conservation_complete(obj,t_out,weights,Flowpaths_id,DPSA_,RF_,DGW_,ET_,plot_option,Error_RF_DGW,Error_ET)
+           dt=obj.t(2:end)-obj.t(1:end-1);
+           t_edge1=obj.t-[dt(1),dt]/2;
+           t_edge2=obj.t+[dt,dt(end)]/2;
+           dt=t_edge2-t_edge1;
+           
+           DPSA_select=Flowpaths_id==1;
+           DGW_select=Flowpaths_id==3;
+           RF_select=Flowpaths_id==2;
+           ET_select=Flowpaths_id==4;
+           Q_Seep=nan(length(obj.t),1);
+           Q_DP_out=nan(length(obj.t),1);
+           Q_DGW_out=nan(length(obj.t),1);
+           Q_ET_out=nan(length(obj.t),1);
+           for i=1:length(obj.t)
+               Q_Seep(i)=(sum(weights(obj.t(i)==t_out & RF_select>0)/1000)/(dt(i)))';
+               Q_DP_out(i)=(sum(weights(obj.t(i)==t_out & DPSA_select>0)/1000)/(dt(i)))';
+               Q_DGW_out(i)=(sum(weights(obj.t(i)==t_out & DGW_select>0)/1000)/(dt(i)))';
+               Q_ET_out(i)=(sum(weights(obj.t(i)==t_out & ET_select>0)/1000)/(dt(i)))';
+% %                if(strcmp(speed_option,'slow'))
+% %                    Q_NA_out(i)=(sum(weights(obj.t(i)==t_out & DGW_select2>0)/1000)/(dt(i)))';
+% %                end
+           end
+           if(obj.t(1)==0)
+               t=datetime(datestr(1+obj.t/(24*3600)));
+           else
+               t=datetime(datestr(obj.t/(24*3600))); 
+           end
+           Q_GW_part=Q_Seep+Q_DGW_out;
+           if(strcmp(plot_option,'on'))
+               figure; hold on
                ylabel('Flux [m^{3}/s]')
                figure; hold on
                plot(t,DPSA_)
@@ -1223,7 +1339,8 @@ classdef transport_2D_par_temp
             if(nargin<2)
                 [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
             else
-                [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run,phi_tot);
+                [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
+%                 [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run,phi_tot);
             end
             % instantiate transport_2D_par_temp object
             block_size=length(x_S);
@@ -1240,7 +1357,29 @@ classdef transport_2D_par_temp
 % % % % % %                 RF_spat(RF_spat<0)=0;
 % % % % % %             end
             toc
-            [t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.transform_times(t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights);
+            %% option 2
+            if(nargin>1)
+                [~,~,~,~,~,~,~,f_edges]=bouss_sim.discretization.get_resampled_variables;
+                transit_times_groundwater=transit_times_groundwater*phi_tot./unique(f_edges);
+                t_out_groundwater=t_in+transit_times_groundwater;
+            end
+            %% update the weight for DGW, RF and ET
+            [BF_prop,RF_prop,ET_prop,BF,RF,ET]=obj.compute_BF_RF_ET_proportion(RF_spat,Flux_in_spat);
+            [~,Ix]=min((abs(x_S-x_fin')));
+            Ix=Ix';
+            [~,It]=min((abs(hs1D_run.simulation_results.t-t_out_groundwater)),[],2);
+            ET_prop_particles=ET_prop(sub2ind(size(ET_prop),Ix,It));
+            RF_prop_particles=RF_prop(sub2ind(size(RF_prop),Ix,It));
+            BF_prop_particles=BF_prop(sub2ind(size(BF_prop),Ix,It));
+            ET_particles=ET(sub2ind(size(ET),Ix,It));
+            RF_particles=RF(sub2ind(size(RF),Ix,It));
+            BF_particles=BF(sub2ind(size(BF),Ix,It));
+            obj.ET=ET_prop_particles.*obj.DGW;
+            obj.RF=RF_prop_particles.*obj.DGW;
+            obj.DGW=BF_prop_particles.*obj.DGW;
+            [t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights,Flowpaths_id]=obj.transform_times_complete(t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights);
+
+%2022             [t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.transform_times(t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights);
             
 % %             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
 % %             obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat);
@@ -1270,7 +1409,11 @@ classdef transport_2D_par_temp
 % % % %             % check the quality of the particle tracking strategy, ie if the particle tracking flux equals the flux computed with hs1D
             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
             plot_option='off';
-            [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,plot_option);
+%2022             [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,plot_option);
+            RF_=sum(RF_spat(2:end,:));
+            BF_=RF_spat(1,:);
+            ET_=sum(ET);
+            [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation_complete(t_out_groundwater,weights,Flowpaths_id,DPSA_,RF_,BF_,ET_,plot_option);
         end
         
         function transport_2compartments(run_shallow,run_deep)
@@ -1431,6 +1574,7 @@ classdef transport_2D_par_temp
             obj=obj.compute_t_inj(spacing_,threshold);
             [DPSA_prop,GW_prop,RF_spat,Flux_in_spat]=obj.compute_DPSA_GW_proportion(runs);
             obj=obj.compute_weight(dx.*width);%(Flux_in_spat);%
+            
 %             if(nargin<2)
 %                 obj=obj.instantiate_exit_tags;
 %             else

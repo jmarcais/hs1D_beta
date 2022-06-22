@@ -13,12 +13,14 @@ classdef simulation_set
         end
         
         function obj=instantiate_all_inputs_directory(obj)
-            obj.geologic_inputs_directory=strcat(obj.mother_folder_directory,'geologic.input');
-            obj.morphologic_inputs_directory=strcat(obj.mother_folder_directory,'morphologic.input');
-            obj.hydrologic_inputs_directory=strcat(obj.mother_folder_directory,'hydrologic.input');
-%             obj.geologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'GeologicInputs');
-%             obj.morphologic_inputs_directory= obj.get_inputs(obj.mother_folder_directory,'MorphologicInputs');
-%             obj.hydrologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'HydrologicInputs');
+            % option 1
+%             obj.geologic_inputs_directory=strcat(obj.mother_folder_directory,'geologic.input');
+%             obj.morphologic_inputs_directory=strcat(obj.mother_folder_directory,'morphologic.input');
+%             obj.hydrologic_inputs_directory=strcat(obj.mother_folder_directory,'hydrologic.input');
+            % option 2
+            obj.geologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'GeologicInputs');
+            obj.morphologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'MorphologicInputs');
+            obj.hydrologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'HydrologicInputs');
             obj=obj.compute_all_possible_combination_between_inputs;
         end
         
@@ -901,26 +903,48 @@ classdef simulation_set
                     d_init_add=0;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2') || strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_Qdaily'))
                     d_init_add=2.7707;%24;%6.5;%
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen') || strcmp(file_path(occurence_slash(end)+1:end-4),'Jarlot_fin'))
                     d_init_add=0.9249;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff') || strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
                     d_init_add=2.2063;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Penze'))
+                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Penze') || strcmp(file_path(occurence_slash(end)+1:end-4),'Penze_fin'))
                     d_init_add=0.9392;
                 elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
-                    d_init_add=1.7655;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
-                    d_init_add=2.2063;   
+                    d_init_add=1.7655; 
                 else
                     d_init_add=2;%2.7707;%20;
                 end
             end
             load(file_path);
             range_= 4332:4505; %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
-            if(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin'))
+            if(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_new'))
                 range_1=815+(3997-721);
                 range_1_to_fin=639;
                 range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
+            elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff_new'))
+                range_1=816+(3997-721);
+                range_1_to_fin=639;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
+            elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Jarlot_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Jarlot_new'))
+                range_1=4361;
+                range_1_to_fin=372;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
+            elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Penze_fin') || strcmp(file_path(occurence_slash(end)+1:end-4),'Penze_new'))
+                range_1=4098;
+                range_1_to_fin=636;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;% 
+                t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
+                Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
+            elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris_new'))
+                range_1=4473;
+                range_1_to_fin=261;
+                range_= range_1:1:(range_1+range_1_to_fin-1); %1531:1704; %1:1465;%1:8759; %1:1500;%5332:5505;%
                 t_real=Q_real_monthly.Time(1:1:range_1_to_fin);
                 Q_real=(Q_real_monthly.Discharge(1:1:range_1_to_fin))';
             elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec_Qdaily'))
@@ -998,9 +1022,6 @@ classdef simulation_set
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
 %                     recharge_chronicle=(M(:,2:end))';
-                    %#temp
-% %                     t1=datetime(1998,01,15);
-% %                     t=t+datenum(t1)*24*3600-t(range_(1));
                     t_old=t;
                     t=(linspace(t(1),t(end),2*(length(t)-1)+1))';%(linspace(t(1),t(end),length(t)))';%
                     recharge_chronicle=interpn(t_old,(M(:,2:end))',t');
@@ -1061,9 +1082,9 @@ classdef simulation_set
                     Q_mod=Q_mod+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
 %                     Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
 %                     toc
-                    t1=datetime(1998,01,15);
-                    t2=datetime(2012,06,15);
-                    tt=t1:calmonths(1):t2;
+%                     t1=datetime(1998,01,15);
+%                     t2=datetime(2012,06,15);
+%                     tt=t1:calmonths(1):t2;
                     
                     
 %                     Q_real=(Ecoflux_data.Q(1:174))';
