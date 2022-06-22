@@ -257,7 +257,7 @@ classdef simulation_results
         end
         
         function save_results(obj,S_max,Watershed_area,foldername)
-            filename_S=strcat(foldername,'\storage.code');
+            filename_S=fullfile(foldername,'storage.code');
             fid = fopen(filename_S, 'w');
             fprintf(fid, 'First row: t, First column: x, S in the matrix (2:end,2:end) size(x,t) [m2] \n');
             fclose(fid);            
@@ -267,7 +267,7 @@ classdef simulation_results
             S(2:end,2:end)=obj.S;
             dlmwrite(filename_S,S, '-append', 'precision', '%E','delimiter','\t');
             
-            filename_QS=strcat(foldername,'\seepage_flux.code');
+            filename_QS=fullfile(foldername,'seepage_flux.code');
             fid = fopen(filename_QS, 'w');
             fprintf(fid, 'First row: t, First column: x, QS in the matrix (2:end,2:end) size(x,t) [m2/s] \n');
             fclose(fid);         
@@ -277,7 +277,7 @@ classdef simulation_results
             QS(2:end,2:end)=obj.QS;
             dlmwrite(filename_QS,QS, '-append', 'precision', '%E','delimiter','\t');
             
-            filename_Q=strcat(foldername,'\subsurface_flux.code');
+            filename_Q=fullfile(foldername,'subsurface_flux.code');
             fid = fopen(filename_Q, 'w');
             fprintf(fid, 'First row: t, First column: x, Q in the matrix (2:end,2:end) size(x,t) [m3/s] \n');
             fclose(fid);
@@ -289,7 +289,7 @@ classdef simulation_results
             
             % compute relative storage matrix := S/Smax
             relative_storage=bsxfun (@rdivide, obj.S, S_max/100);
-            filename_relstor=strcat(foldername,'\relative_storage.state');
+            filename_relstor=fullfile(foldername,'relative_storage.state');
             fid = fopen(filename_relstor, 'w');
             fprintf(fid, 'First row: t, First column: x, relative storage in the matrix (2:end,2:end) size(x,t) [percent] \n');
             fclose(fid);            
@@ -308,7 +308,7 @@ classdef simulation_results
                 river_pos=pos(end);
             end
             
-            filename_Q_river=strcat(foldername,'\river_flow_runoff.output');
+            filename_Q_river=fullfile(foldername,'river_flow_runoff.output');
             fid = fopen(filename_Q_river, 'w');
             fprintf(fid, 'First column: t, Q_river (total, at the channel) and runoff on the hillslope) in 2nd, 3rd and 4th column [m3/s]; columns 5th to 7th same metrics in [mm/d] \n');
             QS_out=obj.compute_seepage_spatialized;
@@ -334,7 +334,7 @@ classdef simulation_results
             Q_river(:,7)=Q_seep_hillslope_mmd;
             dlmwrite(filename_Q_river,Q_river, '-append', 'precision', '%E','delimiter','\t');
             
-            save(strcat(foldername,'\simulation_results.mat'),'obj');
+            save(fullfile(foldername,'simulation_results.mat'),'obj');
         end
         
         function generate_storage_video(obj,S_max,w,Watershed_Area,Watershed_Area_spatialized,Flux_in,dS)

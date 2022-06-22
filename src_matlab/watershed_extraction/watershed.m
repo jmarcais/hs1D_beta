@@ -600,7 +600,7 @@ classdef watershed
         function obj=analyze_hillslopes(obj,dem_filename,outlet_coord,critic_drainage_area,wgs84arg)
             obj=obj.load_DEM(dem_filename);
             if(nargin>4 && wgs84arg>0)
-                obj.DEM=reproject2utm(obj.DEM,30,'zone','30U');
+                obj.DEM=reproject2utm(obj.DEM,10,'zone','10S');
             end
             if(outlet_coord==-1)
                 [obj,xriv,yriv]=obj.get_watershed_DEM;

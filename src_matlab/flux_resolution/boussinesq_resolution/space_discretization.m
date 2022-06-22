@@ -128,8 +128,12 @@ classdef space_discretization
             obj.f=interpn(x,f,obj.x_S);
             obj.f_edges=interpn(x,f,obj.x);
             hs1D.x=obj.x_S; hs1D.w=obj.w_resampled; hs1D.soil_depth=obj.soil_depth_resampled; hs1D.i=interpn(x,angle,obj.x_S); hs1D.f=obj.f;hs1D.k=interpn(x,k,obj.x_S);
-            hs1D.z=interpn(x,z,obj.x);
-            hs1D.z=hs1D.z(1)+cumtrapz(hs1D.x,hs1D.i)+hs1D.soil_depth;
+            if(~isempty(z))
+                hs1D.z=interpn(x,z,obj.x);
+                hs1D.z=hs1D.z(1)+cumtrapz(hs1D.x,hs1D.i)+hs1D.soil_depth;
+            else
+                hs1D.z=cumtrapz(hs1D.x,hs1D.i)+hs1D.soil_depth;
+            end
             hs1D.link_hs1D=Matrix_link;
         end
         

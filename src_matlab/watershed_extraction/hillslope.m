@@ -199,7 +199,7 @@ classdef hillslope
             figure; hold on;
             plot(obj.x,obj.y,'Marker','o','Color',[0.9290 0.6940 0.1250],'LineStyle','none');
             plot(x_bound,y_bound,'linewidth',3,'Color',[0.8500 0.3250 0.0980]);
-            plot(x_riv,y_riv,'linewidth',3,'Color',[0 0.447 0.7410]);%,'LineStyle','none','Marker','.');
+            plot(x_riv,y_riv,'b.','Color',[0 0.447 0.7410]);%,'LineStyle','none','Marker','.');
             plot(x_coord_hillslope,y_coord_hillslope,'Color',[0.4940 0.1840 0.5560],'Marker','+','MarkerSize',12);
             title('Hillslope 2D structure');
             xlabel('X coordinates [m]');

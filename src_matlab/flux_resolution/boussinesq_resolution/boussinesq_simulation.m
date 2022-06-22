@@ -489,7 +489,7 @@ classdef boussinesq_simulation
             error=0;
             if(obj.sol_simulated.x(end)<tmax)
                 error=1;
-                filename_err=strcat(foldername,'\Error.err');
+                filename_err=fullfile(foldername,'Error.err');
                 fid = fopen(filename_err, 'w');
                 fprintf(fid, '1');
                 fclose(fid);

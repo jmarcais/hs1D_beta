@@ -255,7 +255,7 @@ classdef GRIDobj
                     % it is a GeoTiff
                     try 
                         % try to read using geotiffread (requires mapping
-                        % toolbox)
+                        % toolbox)geotiffinfo
                         [DEM.Z, DEM.refmat, ~] = geotiffread(filename);
                         gtiffinfo              = geotiffinfo(filename);
                         DEM.georef.SpatialRef  = gtiffinfo.SpatialRef; 
