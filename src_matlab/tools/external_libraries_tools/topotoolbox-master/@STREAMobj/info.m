@@ -12,7 +12,7 @@ function val = info(S,m)
 %     structure array.
 %
 %
-% See also: STREAMobj
+% See also: STREAMobjssible to do the same of slope-assible to do the same of slope-area but for Hack’s law in the form L = cA^(h)? I would like to extract a single stream using flowpathapp and then, with a linear fitting, compute c and h, similar to ks and theta in slope-area.rea but for Hack’s law in the form L = cA^(h)? I would like to extract a single stream using flowpathapp and then, with a linear fitting, compute c and h, similar to ks and theta in slope-area.
 %
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
 % Date: 4. March, 2016
