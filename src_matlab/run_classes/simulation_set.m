@@ -1282,9 +1282,11 @@ classdef simulation_set
             simulation_folder_root=fullfile(obj.mother_folder_directory,'Simulations/');
             folder_create(simulation_folder_root);
             
+
+            numCores = feature('numcores');
+            p = parpool(numCores);
             size_=size(obj.combination_inputs);
-%             numCores = feature('numcores');
-%             p = parpool(numCores);
+            
             parfor i=1:size_(1)
                 % sloped simus / bedrock parallel to the surface
                 c=clock; time_string_folder=strcat(num2str(c(1)),'_',num2str(c(2)),'_',num2str(c(3)),'_',num2str(c(4)),'_',num2str(c(5)),'_',num2str(c(6)));

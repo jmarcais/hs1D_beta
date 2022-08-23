@@ -309,12 +309,12 @@ classdef source
         function save_recharge_chronicle(obj,file_output,strfolder)
             % save one recharge chronicle
             folder_create(file_output);
-            filename=strcat(file_output,'\hydrologic.input');
+            filename=fullfile(file_output,'hydrologic.input');
             [t,unit]=obj.time.get_properties;
             size_=size(obj.recharge_chronicle);
             M=nan(size_(2),size_(1)+1); M(:,1)=t'; M(:,2:end)=(obj.recharge_chronicle)';
             fid = fopen(filename, 'w');
-            a=strfind(file_output,'\'); 
+            a=strfind(file_output,filesep); 
             recharge_type=file_output(a(end)+1:end); 
             string_char=sprintf([recharge_type,' \n']);
             string_char2=sprintf(strfolder);
@@ -324,7 +324,7 @@ classdef source
             fprintf(fid, string_char);
             fclose(fid);
             dlmwrite(filename,M, '-append', 'precision', '%.10E','delimiter','\t');
-            save([file_output,'\source.mat'],'obj');
+            save(fullfile(file_output,'source.mat'),'obj');
             obj.plot_save_recharge_chronicle(file_output,t);
             close all;
         end
@@ -335,8 +335,8 @@ classdef source
             title('recharge chronicle');
             xlabel('time [days]');
             ylabel('infiltration [mm/d]');
-            savefig([filename,'\recharge_chronicle.fig']); 
-            print([filename,'\recharge_chronicle.png'],'-dpng'); 
+            savefig(fullfile(filename,'recharge_chronicle.fig')); 
+            print(fullfile(filename,'recharge_chronicle.png'),'-dpng'); 
         end
     end
     methods(Static)
