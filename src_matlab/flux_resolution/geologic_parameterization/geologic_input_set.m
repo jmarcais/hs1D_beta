@@ -22,9 +22,9 @@ classdef geologic_input_set
         end
         
         function [geol_input_set,val]=generate_customed_hillslope_parametrization(file_directory)
-            f={[0.005,0.01,0.05,0.1,0.25,0.5],'custom'};
-            k={logspace(-8,0,9)*3600,'custom'};
-            d={[1,5,10,20,50,100],'custom'};
+            f={[0.005,0.01,0.1,0.3],'custom'};
+            k={logspace(-8,-2,7)*3600,'custom'};
+            d={[5,10,50],'custom'};
             nparam=nan;
             geol_input_set=geologic_input_set(f,k,d,nparam);
             [geol_input_set,val]=geol_input_set.set_different_parametrization;
