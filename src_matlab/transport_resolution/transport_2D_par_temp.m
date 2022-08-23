@@ -1218,7 +1218,7 @@ classdef transport_2D_par_temp
            end
        end
        
-       function [Q_DP_out,Q_GW_part]=check_particle_tracking_flux_conservation_complete(obj,t_out,weights,Flowpaths_id,DPSA_,RF_,DGW_,ET_,plot_option,Error_RF_DGW,Error_ET)
+       function [Q_DP_out,Q_GW_out,Q_Seep_out,Q_DGW_out,Q_ET_out]=check_particle_tracking_flux_conservation_complete(obj,t_out,weights,Flowpaths_id,DPSA_,RF_,DGW_,ET_,plot_option,Error_RF_DGW,Error_ET)
            dt=obj.t(2:end)-obj.t(1:end-1);
            t_edge1=obj.t-[dt(1),dt]/2;
            t_edge2=obj.t+[dt,dt(end)]/2;
@@ -1228,12 +1228,12 @@ classdef transport_2D_par_temp
            DGW_select=Flowpaths_id==3;
            RF_select=Flowpaths_id==2;
            ET_select=Flowpaths_id==4;
-           Q_Seep=nan(length(obj.t),1);
+           Q_Seep_out=nan(length(obj.t),1);
            Q_DP_out=nan(length(obj.t),1);
            Q_DGW_out=nan(length(obj.t),1);
            Q_ET_out=nan(length(obj.t),1);
            for i=1:length(obj.t)
-               Q_Seep(i)=(sum(weights(obj.t(i)==t_out & RF_select>0)/1000)/(dt(i)))';
+               Q_Seep_out(i)=(sum(weights(obj.t(i)==t_out & RF_select>0)/1000)/(dt(i)))';
                Q_DP_out(i)=(sum(weights(obj.t(i)==t_out & DPSA_select>0)/1000)/(dt(i)))';
                Q_DGW_out(i)=(sum(weights(obj.t(i)==t_out & DGW_select>0)/1000)/(dt(i)))';
                Q_ET_out(i)=(sum(weights(obj.t(i)==t_out & ET_select>0)/1000)/(dt(i)))';
@@ -1246,7 +1246,7 @@ classdef transport_2D_par_temp
            else
                t=datetime(datestr(obj.t/(24*3600))); 
            end
-           Q_GW_part=Q_Seep+Q_DGW_out;
+           Q_GW_out=Q_Seep_out+Q_DGW_out;
            if(strcmp(plot_option,'on'))
                figure; hold on
                ylabel('Flux [m^{3}/s]')
@@ -1257,12 +1257,12 @@ classdef transport_2D_par_temp
                ylabel('Flux [m^{3}/s]')
                figure; hold on
                plot(t,RF_+DGW_)
-               plot(t,Q_Seep+Q_DGW_out,'--')
+               plot(t,Q_Seep_out+Q_DGW_out,'--')
                legend('hs1D RF','Particle tracking RF')
                ylabel('Flux [m^{3}/s]')
                figure; hold on
                plot(t,RF_+DGW_+DPSA_)
-               plot(t,Q_Seep+Q_DGW_out+Q_DP_out,'--')
+               plot(t,Q_Seep_out+Q_DGW_out+Q_DP_out,'--')
                legend('hs1D River discharge','Particle tracking river discharge')
                ylabel('Flux [m^{3}/s]')
            end
@@ -1335,7 +1335,7 @@ classdef transport_2D_par_temp
 %             
 %         end
 
-        function [obj,mat_pos_allocate_x_z,t_out_groundwater,transit_times_groundwater,distance,weights,t_in,x_fin,DPSA_part,GW_part]=transport_main(hs1D_run,phi_tot)
+        function [obj,mat_pos_allocate_x_z,t_out,transit_times,distance,weights,t_in,x_fin,x_init,Flowpaths_id,DPSA_part,GW_part,Seep_part,DGW_part,ET_part]=transport_main(hs1D_run,phi_tot)
             if(nargin<2)
                 [obj,x_S,x_Q,width,velocity,RF_spat,Flux_in_spat,integrated_parsec,hydraulic_head]=transport_2D_par_temp.instantiate_transport_and_velocity_field(hs1D_run);
             else
@@ -1350,7 +1350,7 @@ classdef transport_2D_par_temp
             tic
             speed_option='slow';%'fast';%
             distance_2D_option='on';
-            [obj,mat_pos_allocate_x_z,t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%[obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
+            [obj,mat_pos_allocate_x_z,t_in,t_out,transit_times,distance,x_fin,x_init,z_fin,weights]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%[obj,mat_pos_allocate_x_z]=obj.compute_trajectories(velocity,block_size,x_S,x_Q,integrated_parsec,hydraulic_head,speed_option,distance_2D_option);%obj=obj.compute_trajectories3(velocity,block_size,x_S,x_Q,speed_option);%compute_trajectories2(velocity,block_size,x_S,x_Q,Bool_sat);
 % % % % % %             if(sum(RF_spat(:)<0)>0)
 % % % % % %                 min_index=find(RF_spat(:)==min(RF_spat(:)));
 % % % % % %                 fprintf(strcat('WARNING: \n',num2str(sum(RF_spat(:)<0)),' values in the spatialized matrix representing Return Flow \n','were negative (minimal values found:',num2str(RF_spat(min_index)),'). They have been replaced by 0.\n'));
@@ -1360,14 +1360,14 @@ classdef transport_2D_par_temp
             %% option 2
             if(nargin>1)
                 [~,~,~,~,~,~,~,f_edges]=bouss_sim.discretization.get_resampled_variables;
-                transit_times_groundwater=transit_times_groundwater*phi_tot./unique(f_edges);
-                t_out_groundwater=t_in+transit_times_groundwater;
+                transit_times=transit_times*phi_tot./unique(f_edges);
+                t_out=t_in+transit_times;
             end
             %% update the weight for DGW, RF and ET
             [BF_prop,RF_prop,ET_prop,BF,RF,ET]=obj.compute_BF_RF_ET_proportion(RF_spat,Flux_in_spat);
             [~,Ix]=min((abs(x_S-x_fin')));
             Ix=Ix';
-            [~,It]=min((abs(hs1D_run.simulation_results.t-t_out_groundwater)),[],2);
+            [~,It]=min((abs(hs1D_run.simulation_results.t-t_out)),[],2);
             ET_prop_particles=ET_prop(sub2ind(size(ET_prop),Ix,It));
             RF_prop_particles=RF_prop(sub2ind(size(RF_prop),Ix,It));
             BF_prop_particles=BF_prop(sub2ind(size(BF_prop),Ix,It));
@@ -1377,18 +1377,18 @@ classdef transport_2D_par_temp
             obj.ET=ET_prop_particles.*obj.DGW;
             obj.RF=RF_prop_particles.*obj.DGW;
             obj.DGW=BF_prop_particles.*obj.DGW;
-            [t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights,Flowpaths_id]=obj.transform_times_complete(t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights);
+            [t_in,t_out,transit_times,distance,x_fin,x_init,z_fin,weights,Flowpaths_id]=obj.transform_times_complete(t_in,t_out,transit_times,distance,x_fin,x_init,z_fin,weights);
 
-%2022             [t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights]=obj.transform_times(t_in,t_out_groundwater,transit_times_groundwater,distance,x_fin,x_init,z_fin,weights);
+%2022             [t_in,t_out,transit_times,distance,x_fin,x_init,z_fin,weights]=obj.transform_times(t_in,t_out,transit_times,distance,x_fin,x_init,z_fin,weights);
             
 % %             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
-% %             obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat);
+% %             obj.check_particle_tracking_flux_conservation(t_out,weights,DPSA_,RF_spat);
             % sort the trajectories points by individual time steps
-% % % % % % % % % % % % % % % % % % % %             matrix_times=[t_out_groundwater,transit_times_groundwater,distance,weights];
+% % % % % % % % % % % % % % % % % % % %             matrix_times=[t_out,transit_times,distance,weights];
 % % % % % % % % % % % % % % % % % % % %             subsample_nb=12;
 % % % % % % % % % % % % % % % % % % % %             matrix_times_resampled=obj.subsample_times(matrix_times,subsample_nb);
-% % % % % % % % % % % % % % % % % % % %             t_out_groundwater_resampled=matrix_times_resampled(:,1);
-% % % % % % % % % % % % % % % % % % % %             transit_times_groundwater_resampled=matrix_times_resampled(:,2);
+% % % % % % % % % % % % % % % % % % % %             t_out_resampled=matrix_times_resampled(:,1);
+% % % % % % % % % % % % % % % % % % % %             transit_times_resampled=matrix_times_resampled(:,2);
 % % % % % % % % % % % % % % % % % % % %             distance_resampled=matrix_times_resampled(:,3);
 % % % % % % % % % % % % % % % % % % % %             weights_resampled=matrix_times_resampled(:,4);
             
@@ -1404,16 +1404,16 @@ classdef transport_2D_par_temp
 % % % %             [obj,Error_RF_DGW,Error_ET,mat_pos_allocate_x_z]=obj.cut_trajectory_ET_RF2(x_Q,RF_spat,hydraulic_head,mat_pos_allocate_x_z);%cut_trajectory_seepage(block_size,x_S,x_Q,width,RF_spat);%ob
 % % % %             toc
 % % % %             % retrieve the sampling times, transit times, travel distances and associated weights of the injected particles
-% % % %             [t_out_groundwater,transit_times_groundwater,distance,t_in,weights,x_fin,x_init]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
+% % % %             [t_out,transit_times,distance,t_in,weights,x_fin,x_init]=obj.get_trajectory_properties(mat_pos_allocate_x_z,distance_2D_option);
 % % % %             toc
 % % % %             % check the quality of the particle tracking strategy, ie if the particle tracking flux equals the flux computed with hs1D
             DPSA_=compute_DPSA_RF(hs1D_run.simulation_results,hs1D_run.boussinesq_simulation);
             plot_option='off';
-%2022             [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation(t_out_groundwater,weights,DPSA_,RF_spat,plot_option);
+%2022             [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation(t_out,weights,DPSA_,RF_spat,plot_option);
             RF_=sum(RF_spat(2:end,:));
             BF_=RF_spat(1,:);
             ET_=sum(ET);
-            [DPSA_part,GW_part]=obj.check_particle_tracking_flux_conservation_complete(t_out_groundwater,weights,Flowpaths_id,DPSA_,RF_,BF_,ET_,plot_option);
+            [DPSA_part,GW_part,Seep_part,DGW_part,ET_part]=obj.check_particle_tracking_flux_conservation_complete(t_out,weights,Flowpaths_id,DPSA_,RF_,BF_,ET_,plot_option);
         end
         
         function transport_2compartments(run_shallow,run_deep)
