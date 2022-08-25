@@ -90,15 +90,6 @@ classdef source
                     size_=size(obj.recharge_chronicle);
                     if(size_(1)>1)
                        if(length(t)==1)
-% %                            Index=floor((t-t_chronicle(1))/(t_chronicle(2)-t_chronicle(1)))+1;
-% % %                            if(Index>length(t_chronicle))
-% % %                                 Index=length(t_chronicle);
-% % %                                 t=t_chronicle(end);
-% % %                            end
-% %                            Identif_Index=Index+(t-t_chronicle(Index))/(t_chronicle(2)-t_chronicle(1));
-% %                            Recharge=ScaleTime((obj.recharge_chronicle)',Identif_Index);
-                           
-                           
                             idx=find_idx(t,t_chronicle);
                             Rech1=obj.recharge_chronicle(:,floor(idx));
                             Rech2=obj.recharge_chronicle(:,ceil(idx)); 
@@ -114,31 +105,6 @@ classdef source
                         Recharge=nakeinterp1(t_chronicle',(obj.recharge_chronicle)',t');
                         Recharge=Recharge'; 
                     end
-                    
-% % % %                     Recharge=interpn(t_chronicle,obj.recharge_chronicle,t,'linear');
-% % %                     if(length(t)>1 && length(t)<length(t_chronicle) && sum(t_chronicle(1:length(t))-t)==0)
-% % %                         fprintf('WARNING: in compute_recharge_rate method time_results has not the same size as t_chronicle \n');
-% % %                         t_chronicle=t;
-% % %                     end
-% % %                     if(length(t)==length(t_chronicle) || length(t)==1)
-% % %                         % time_null=find(t-t_chronicle==0);
-% % %                         %if(~isempty(time_null))
-% % %                         time_null_bool=t-t_chronicle==0;
-% % %                         if(sum(time_null_bool)~=0)
-% % %                             Recharge=obj.recharge_chronicle(time_null_bool);
-% % %                         else
-% % %                             u=t_chronicle-t<0;
-% % %                             time_pos=find(u<0,1,'last');
-% % %                             time_neg=time_pos+1;
-% % % %                             time_neg=find(t-t_chronicle<0,1,'first');
-% % %                             t1=t_chronicle(time_pos);
-% % %                             t2=t_chronicle(time_neg);
-% % %                             Recharge1=obj.recharge_chronicle(time_pos); Recharge2=obj.recharge_chronicle(time_neg);
-% % %                             Recharge=(Recharge1*(t2-t)+Recharge2*(t-t1))/(t2-t1);
-% % %                         end
-% % %                     else
-% % %                         Recharge=interp1(t_chronicle,(obj.recharge_chronicle),t);
-% % %                     end
                 case -2
                     t2=obj.time.get_properties;
                     pos_tmax=find(obj.recharge_chronicle>0,1,'last');
@@ -173,17 +139,22 @@ classdef source
                         ETP=nan;
                     else
                         [t_chronicle,~]=obj.time.get_properties;
-                        %                     Recharge=interpn(t_chronicle,obj.recharge_chronicle,t,'linear');
-                        time_pos=find(t_chronicle-t<0,1,'last');
-                        time_neg=find(t-t_chronicle<0,1,'first');
-                        time_null=find(t-t_chronicle==0);
-                        if(~isempty(time_null))
-                            ETP=obj.ETP_chronicle(time_null);
+                        size_=size(obj.ETP_chronicle);
+                        if(size_(1)>1)
+                            if(length(t)==1)
+                                idx=find_idx(t,t_chronicle);
+                                ETP1=obj.ETP_chronicle(:,floor(idx));
+                                ETP2=obj.ETP_chronicle(:,ceil(idx)); 
+                                prop_=(idx-floor(idx));%/(ceil(idx)-floor(idx));
+                                ETP=ETP1*(1-prop_)+prop_*ETP2;
+                            else
+                                % #JM Is there a way to improve the speed of simulation with find_idx
+                                ETP=interp1(t_chronicle',(obj.ETP_chronicle)',t');
+                                ETP=ETP';
+                            end
                         else
-                            t1=t_chronicle(time_pos);
-                            t2=t_chronicle(time_neg);
-                            ETP1=obj.ETP_chronicle(time_pos); ETP2=obj.ETP_chronicle(time_neg);
-                            ETP=(ETP1*(t2-t)+ETP2*(t-t1))/(t2-t1);
+                            ETP=nakeinterp1(t_chronicle',(obj.ETP_chronicle)',t');
+                            ETP=ETP';
                         end
                     end
                 otherwise
