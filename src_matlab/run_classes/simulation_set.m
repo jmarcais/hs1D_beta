@@ -1321,11 +1321,14 @@ classdef simulation_set
                  [M,input_type]=obj.read_input_file(hydro_loc);
                  t=M(:,1);
                  recharge_chronicle=(M(:,2))';
-                 
                  ratio_P_R=1;
                  source_terms=source('data_based');
-                 [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                 ratio_P_R=1;%0.38;
+                 if(size(M,2)==2)
+                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                 elseif(size(M,2)==3)
+                     ETP_chronicle=(M(:,3))';
+                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s',ETP_chronicle);
+                 end
                  
                  % 3/ create a runs object and run the simulation
                  run_obj=runs;
@@ -1355,10 +1358,11 @@ classdef simulation_set
                  parsave(fullfile(folder_output,'hs1D.mat'),hs1D);
                  parsave(fullfile(folder_output,'simulation_results.mat'),simulation_results);
                  parsave(fullfile(folder_output,'boussinesq_simulation.mat'),boussinesq_simulation);
-                 
-%                  % flatted simus / bedrock horizontal
-%                  c=clock; time_string_folder=strcat(num2str(c(1)),'_',num2str(c(2)),'_',num2str(c(3)),'_',num2str(c(4)),'_',num2str(c(5)),'_',num2str(c(6)));
-%                 folder_output=strcat(simulation_folder_root,time_string_folder);
+                                 
+%                 % flatted simus / bedrock horizontal
+%                 c=clock; time_string_folder=strcat(num2str(c(1)),'_',num2str(c(2)),'_',num2str(c(3)),'_',num2str(c(4)),'_',num2str(c(5)),'_',num2str(c(6)));
+%                 t = getCurrentTask(); ID_string=num2str(t.ID);
+%                 folder_output=strcat(simulation_folder_root,time_string_folder,'_',ID_string);
 %                 folder_create(folder_output);
 %                 
 %                 hydro_loc=obj.combination_inputs{i,2};
@@ -1371,12 +1375,12 @@ classdef simulation_set
 %                 f1=M(1,1); k1=M(1,2); d1=M(1,3);
 %                 % geomorpho
 %                 M=obj.read_input_file(morpho_loc);
-%                  %#JM change after test
-%                  x=M(:,1); w=M(:,2); slope_angle=zeros(size(M(:,3)));
-%                  z_bottom=cumtrapz(x,slope_angle);
-%                  z_top=z_bottom+d1;
-%                  k=k1*ones(size(x));
-%                  f=f1*ones(size(x));
+%                 %#JM change after test
+%                 x=M(:,1); w=M(:,2); slope_angle=zeros(size(M(:,3)));
+%                 z_bottom=cumtrapz(x,slope_angle);
+%                 z_top=z_bottom+d1;
+%                 k=k1*ones(size(x));
+%                 f=f1*ones(size(x));
 %                  d=z_top-z_bottom;
 %                  
 %                  %set hs1D
@@ -1400,7 +1404,10 @@ classdef simulation_set
 %                  % set the solver options default or assigned in parameters via an odeset structure
 %                  % specify Refine options for real infiltrations chronicle because for accuracy you need
 %                  % to force matlab ode15s to compute where you know sthg is happening
-%                  odeset_struct=odeset('RelTol',1e-10);%2.5e-14);%,'Refine',-1);
+%                  t2=source_terms.time.get_properties;
+%                  dt=diff(t2);
+%                  dt_mean=mean(dt);
+%                  odeset_struct=odeset('RelTol',1e-3,'AbsTol',1e-8,'MaxStep',dt_mean);%2.5e-14);%,'Refine',-1);
 %                  solver_options=run_obj.set_solver_options(odeset_struct);
 %                  
 %                  % run the simulation starting from half empty hillslope
