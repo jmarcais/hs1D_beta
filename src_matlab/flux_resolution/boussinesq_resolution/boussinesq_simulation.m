@@ -176,7 +176,8 @@ classdef boussinesq_simulation
             block_size=obj.discretization.Nx; % size of the matrix (corresponds to the number of discretized elements)
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean; % kind of boundary conditions
             [~,w,d,angle,~,f,k,f_edges]=obj.discretization.get_resampled_variables; % properties of the hillslope
-            Thresh=threshold_function(y(1:block_size)./(f.*d.*w));
+            relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
+            Thresh=threshold_function(relative_occupancy_rate);
             A=obj.discretization.A; % derivation matrix 1
             B=obj.discretization.B; % derivation matrix 2
             %% compute recharge rate spatialized
@@ -186,13 +187,14 @@ classdef boussinesq_simulation
             end
             Recharge_rate_spatialized=Recharge_rate.*w;
             Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
-%             ETP_rate=obj.source_terms.compute_ETP_rate(t);
-%             if(~isnan(ETP_rate))
-%                 ETP_rate_spatialized=ETP_rate*w;
-%                 relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
-%                 ETR_rate_spatialized=ETP_rate_spatialized.*(relative_occupancy_rate>0.05);
-%                 Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
-%             end
+            % if there is an ETP time series given, compute ETR from ETP, Recharge and S/Smax
+            if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
+                ETP_rate=obj.source_terms.compute_ETP_rate(t);
+                ETP_rate_spatialized=ETP_rate.*w;
+                ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+                    (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate))); 
+                Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
+            end
             %% Compute darcy flux from one box to another with variable angle
             Q_from_S=obj.discretization.Omega; % Omega is directly in Q_from_S to gain speed
             Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
@@ -280,24 +282,17 @@ classdef boussinesq_simulation
             [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
             Recharge_rate_spatialized=Recharge_rate.*w;
-            Thresh=threshold_function(y(1:block_size)./(f.*d.*w));
+            relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
+            Thresh=threshold_function(relative_occupancy_rate);
             Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
-            ETP_rate=obj.source_terms.compute_ETP_rate(t);
-            if(~isnan(ETP_rate))
-                ETP_rate_spatialized=ETP_rate*w;
-                relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
-                r=0.1;
-                ETR_rate_spatialized=ETP_rate_spatialized.*(relative_occupancy_rate>0.05);
-% %                 ETR_rate_spatialized=ETP_rate_spatialized.*(ETP_rate_spatialized<=Recharge_rate_spatialized)+...
-% %                                     (Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-relative_occupancy_rate*1/r))).*(ETP_rate_spatialized>Recharge_rate_spatialized);
-%                 ETR_rate_spatialized=ETP_rate_spatialized.*(1-exp(-relative_occupancy_rate*1/r));
-                Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
-%                 Recharge_deep_spatialized=1e-6*relative_occupancy_rate.*w;
-%                 Recharge_rate_spatialized=Recharge_rate_spatialized-Recharge_deep_spatialized;
-%                 Recharge_rate_spatialized=0.75*Recharge_rate_spatialized;
+            
+            if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
+                ETP_rate=obj.source_terms.compute_ETP_rate(t);
+                ETP_rate_spatialized=ETP_rate.*w;
+                ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+                    (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate)));
+                Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized; 
             end
-%             Recharge_deep_spatialized=obj.compute_deep_recharge(y,k,f);
-%             Recharge_rate_spatialized=Recharge_rate_spatialized-Recharge_deep_spatialized;
         end
         
         function Recharge_deep_spatialized=compute_deep_recharge(obj,y,k,f)
@@ -451,13 +446,19 @@ classdef boussinesq_simulation
         end
         
         function ETR_OUT=compute_ETR_OUT(obj,t,S)
-            [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
-            ETP_rate=obj.source_terms.compute_ETP_rate(t);
-            if(~isnan(ETP_rate))
-                ETP_rate_spatialized=bsxfun(@times,ETP_rate,w);
+            if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
+                [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
+                Recharge_rate=obj.source_terms.compute_recharge_rate(t);
+                Recharge_rate_spatialized=Recharge_rate.*w;
                 relative_occupancy_rate=bsxfun(@rdivide,S,f*w.*d);
-                r=0.15;
-                ETR_OUT=ETP_rate_spatialized.*(1-exp(-relative_occupancy_rate*1/r));
+                Thresh=threshold_function(relative_occupancy_rate);
+                Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
+                ETP_rate=obj.source_terms.compute_ETP_rate(t);
+                ETP_rate_spatialized=ETP_rate.*w;
+                ETR_OUT=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+                    (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate)));
+            else
+                ETR_OUT=nan;
             end
         end
         
