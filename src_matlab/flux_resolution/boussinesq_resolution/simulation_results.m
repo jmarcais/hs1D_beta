@@ -438,15 +438,14 @@ classdef simulation_results
         end
         
         % m3/s -> 
-        function QS2=compute_seepage_spatialized_with_rooting(obj,k,slope_angle,coef_soil_perm)
+        function QS2=compute_seepage_spatialized_with_rooting(obj,k,slope_angle,k_soil)
             dx=obj.x_Q(2:end)-obj.x_Q(1:end-1);
             slope_angle1_top=interpn(obj.x_Q,slope_angle,obj.x_S);
             % parameter to inform that link rock hydraulic conductivity to soil hydraulic conductivity
             if(nargin<4)
                 k_soil=200*k;
             else
-                k_soil=coef_soil_perm*ones(size(k));
-%                 k_soil=coef_soil_perm*k;
+                k_soil=k_soil*ones(size(k));
             end
             k_soil2=interpn(obj.x_Q,k_soil,obj.x_S);
             velocity_soil=k_soil2.*sin(slope_angle1_top);
