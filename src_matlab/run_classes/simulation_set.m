@@ -883,7 +883,6 @@ classdef simulation_set
         end
         
          function [Q_mod,nse,nse_log,kge,r,alpha,beta,run_obj,obj,x,w,slope_angle]=run_simulation_performance(f1,k1,file_path,Nx)
-%         function [Q_out2,residual2,Q_mod,nse,run_obj,obj,x,w,slope_angle]=run_simulation_rooting(k1,soil_coef,file_path,f1)
 % %             if(nargin<3)
 % %                 f1=0.2;
 % %             end
@@ -1075,7 +1074,7 @@ classdef simulation_set
                     Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
                     Q_mod=Q_temp(range_);
                     
-%                     Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,soil_coef);
+%                     Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,k_soil);
 %                     Q_out2=Q_temp2(range_);
 
                     
@@ -1244,7 +1243,7 @@ classdef simulation_set
                     Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
                     Q_out=Q_temp(range_);
                     
-                    Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,soil_coef);
+                    Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,k_soil);
                     Q_out2=Q_temp2(range_);
 
                     
@@ -1272,6 +1271,7 @@ classdef simulation_set
         end
         
         
+%        function run_obj=run_simulation_temp(file_path)
         function run_simulation_temp(file_path)
             obj=simulation_set(file_path);
             obj.geologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'GeologicInputs');
@@ -1292,6 +1292,7 @@ classdef simulation_set
                 c=clock; time_string_folder=strcat(num2str(c(1)),'_',num2str(c(2)),'_',num2str(c(3)),'_',num2str(c(4)),'_',num2str(c(5)),'_',num2str(c(6)));
                 t = getCurrentTask(); ID_string=num2str(t.ID);
                 folder_output=strcat(simulation_folder_root,time_string_folder,'_',ID_string);
+%                 folder_output=strcat(simulation_folder_root,time_string_folder);
                 folder_create(folder_output);
                 
                 hydro_loc=obj.combination_inputs{i,2};
@@ -1637,9 +1638,9 @@ classdef simulation_set
         end
         
         function simulation_2compartments(k_bed,f_bed,k_soil,f_soil,file_path)
-            soil_coef=1;
             bound_river_soil='empty';
-            [~,~,Q_month,~,run_obj]=simulation_set.run_simulation_rooting(k_bed,soil_coef,file_path,f_bed);
+            Nx=100;
+            [~,~,Q_month,~,run_obj]=simulation_set.run_simulation_performance(f_bed,k_bed,file_path,Nx);
             [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
            
             % 2nd option
