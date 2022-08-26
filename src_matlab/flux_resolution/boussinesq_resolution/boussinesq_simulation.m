@@ -139,6 +139,12 @@ classdef boussinesq_simulation
                 Q(:,i)=-obj.compute_Q_from_S(S(:,i))*S(:,i);
                 QS(:,i)=obj.compute_QS_from_Q(S(:,i),t(i))*Q(:,i)+obj.partition_source_terms_QS(S(:,i),t(i)); %2*block_size+2:3*block_size+1,:);
             end
+% %             [~,Q_from_S]=obj.odefun(S,t);
+% %             Q2=pagemtimes(Q_from_S,S);
+% %             size_Q2=size(Q2);
+% %             Q2=reshape(Q2,size_Q2(1),1,[]);
+% %             Q2=Q2(:,:,1:size_Q2(2):end);
+% %             Q2=reshape(Q2,size_Q2(1),size_Q2(3));
             
             x_edge=obj.discretization.get_edges_coordinates;
             x_center=obj.discretization.get_center_coordinates;
@@ -171,12 +177,12 @@ classdef boussinesq_simulation
     methods(Access=private)
         
         % Computes array at a given y
-        function dy=odefun(obj,y,t)
+        function [dy,Q_from_S]=odefun(obj,y,t)
             %% some values necessary to compute
             block_size=obj.discretization.Nx; % size of the matrix (corresponds to the number of discretized elements)
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean; % kind of boundary conditions
             [~,w,d,angle,~,f,k,f_edges]=obj.discretization.get_resampled_variables; % properties of the hillslope
-            relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
+            relative_occupancy_rate=y(1:block_size,:)./(f.*w.*d);
             Thresh=threshold_function(relative_occupancy_rate);
             A=obj.discretization.A; % derivation matrix 1
             B=obj.discretization.B; % derivation matrix 2
@@ -198,34 +204,95 @@ classdef boussinesq_simulation
             %% Compute darcy flux from one box to another with variable angle
             Q_from_S=obj.discretization.Omega; % Omega is directly in Q_from_S to gain speed
             Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
-            Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;%
-            if(sum(angle)~=0)
-                Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
-                Q1_from_S=sparse(1:block_size,1:block_size,Q1_from_S,block_size+1,block_size);%sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
-                Q_from_S=Q_from_S+Q1_from_S;
+            % if resolution is simple (eg with ode15s)
+            if(size(Q1_from_S,2)==1)
+                Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;
+                if(sum(angle)~=0)
+                    Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
+                    Q1_from_S=sparse(1:block_size,1:block_size,Q1_from_S,block_size+1,block_size);%sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
+                    Q_from_S=Q_from_S+Q1_from_S;
+                end
+                % put boundary conditions on Q in the matrix
+                Q_from_S(1,:)=(1-Edges(3))*Q_from_S(1,:);
+                Q_from_S(block_size+1,:)=(1-Edges(4))*Q_from_S(block_size+1,:);
+                dQ_from_S=A*Q_from_S;
+                %% compute test if potential seepage
+                Test_Deriv=dQ_from_S*y+Recharge_rate_spatialized;
+                Test_Deriv=Test_Deriv>=0;
+                alpha=Thresh.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
+                
+                %% compute C
+                C    = sparse(1:block_size,1:block_size,alpha)*dQ_from_S;
+                C(1,:)=(1-Edges(1))*C(1,:);
+                C(block_size,:)=(1-Edges(2))*C(block_size,:);
+                %             C=sparse(C); % ###check necessity
+                %% compute D
+                D=alpha.*Recharge_rate_spatialized;
+                D(1,:)=(1-Edges(1))*D(1,:);
+                D(block_size,:)=(1-Edges(2))*D(block_size,:);
+                D=sparse(D); % ###check necessity
+                %% compute dy
+                dy=C*y+D;
+            % vectorized operations (eg for postprocessing purposes)
+            else
+                [r,c]=size(Q1_from_S);
+                r=1:r;
+                c=1:c;
+                [r,c] = meshgrid(r,c);
+                c=cat(2,r',c');
+                Elements=reshape(c,[],2);%Elements=combvec(r,c);
+                %Elements=Elements';
+                Elements=[Elements(:,1),Elements(:,1),Elements(:,2)];
+                Q1_from_S=Q1_from_S(:);
+                Q_from_S=pagemtimes(full(ndSparse.build( Elements ,Q1_from_S)),full(Q_from_S));
+                if(sum(angle)~=0)
+                    Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
+                    Q1_from_S=sparse(1:block_size,1:block_size,Q1_from_S,block_size+1,block_size);%sparse(1:block_size+1,1:block_size+1,Q1_from_S)*D;%sparse(diag(Q1_from_S))*D;%bsxfun(@times,Q2_from_S,D);%Q2_from_S.*D;%
+                    Q_from_S=Q_from_S+Q1_from_S;
+                end
+                % put boundary conditions on Q in the matrix
+                Q_from_S(1,:)=(1-Edges(3))*Q_from_S(1,:);
+                Q_from_S(block_size+1,:)=(1-Edges(4))*Q_from_S(block_size+1,:);
+                dQ_from_S=pagemtimes(full(A),Q_from_S);
+                
+                %% compute test if potential seepage
+                Test_Deriv=pagemtimes(dQ_from_S,y)+Recharge_rate_spatialized;
+                Test_Deriv=Test_Deriv>=0;
+                alpha=Thresh.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
+                size_alpha=size(alpha);
+                alpha=reshape(alpha,size_alpha(1),1,[]);
+                alpha=alpha(:,:,1:size_alpha(3):end);
+                alpha=reshape(alpha,size_alpha(1),size_alpha(3));
+                [r,c]=size(alpha);
+                r=1:r; c=1:c;
+                [r,c] = meshgrid(r,c);
+                c=cat(2,r',c');
+                Elements=reshape(c,[],2);%Elements=combvec(r,c);
+                %Elements=Elements';
+                Elements=[Elements(:,1),Elements(:,1),Elements(:,2)];
+                alpha=alpha(:);
+                alpha=full(ndSparse.build( Elements ,alpha));
+                
+                %% compute C
+                C = pagemtimes(alpha,full(dQ_from_S));
+                C(1,:)=(1-Edges(1))*C(1,:);
+                C(block_size,:)=(1-Edges(2))*C(block_size,:);
+                size_C=size(C);
+                C=reshape(C,size_C(1),1,[]);
+                C=C(:,:,1:size_C(2):end);
+                C=reshape(C,size_C(1),size_C(3));
+                %% compute D
+                size_alpha=size(alpha);
+                alpha=reshape(alpha,size_alpha(1),1,[]);
+                alpha=alpha(:,:,1:size_alpha(2):end);
+                alpha=reshape(alpha,size_alpha(1),size_alpha(3));
+                D=alpha.*Recharge_rate_spatialized;
+                D(1,:)=(1-Edges(1))*D(1,:);
+                D(block_size,:)=(1-Edges(2))*D(block_size,:);
+                D=sparse(D); % ###check necessity
+                %% compute dy
+                dy=C.*y+D;
             end
-            % put boundary conditions on Q in the matrix
-            Q_from_S(1,:)=(1-Edges(3))*Q_from_S(1,:);
-            Q_from_S(block_size+1,:)=(1-Edges(4))*Q_from_S(block_size+1,:);
-            dQ_from_S=A*Q_from_S;
-            
-            %% compute test if potential seepage 
-            Test_Deriv=dQ_from_S*y+Recharge_rate_spatialized;
-            Test_Deriv=Test_Deriv>=0;
-            alpha=Thresh.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
-            
-            %% compute C
-            C    = sparse(1:block_size,1:block_size,alpha)*dQ_from_S;
-            C(1,:)=(1-Edges(1))*C(1,:);
-            C(block_size,:)=(1-Edges(2))*C(block_size,:);
-%             C=sparse(C); % ###check necessity
-            %% compute D
-            D=alpha.*Recharge_rate_spatialized;
-            D(1,:)=(1-Edges(1))*D(1,:);
-            D(block_size,:)=(1-Edges(2))*D(block_size,:);
-            D=sparse(D); % ###check necessity
-            %% compute dy
-            dy=C*y+D;
         end
 
         
