@@ -247,7 +247,7 @@ classdef boussinesq_simulation
             end
             
             Recharge_rate_spatialized=Recharge_rate.*w;
-            Recharge_rate_spatialized=(Threshold*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
+%#To test but weird to appear here             Recharge_rate_spatialized=(Threshold*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
             % if there is an ETP time series given, compute ETR from ETP, Recharge and S/Smax
             if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
