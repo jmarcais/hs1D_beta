@@ -200,7 +200,6 @@ classdef boussinesq_simulation
             %% compute dy
             dy=C*y+D;
         end
-
         
         function D=partition_source_terms_QS(obj,y,t)
             alpha_complementar=1-obj.alpha(y,t);
@@ -236,18 +235,6 @@ classdef boussinesq_simulation
             QS_from_Q=-sparse(diag(1-obj.alpha(y,t)))*obj.discretization.A;
         end
         
-        function dSdt_from_Q=compute_dSdt_from_Q(obj,y,t)
-            dSdt_from_Q=-sparse(diag(obj.alpha(y,t)))*obj.discretization.A;
-        end
-        
-        function dSdt_from_leakage=compute_deep_dSdt_from_leakage(obj,y)
-            [~,~,~,~,~,f,k]=obj.discretization.get_resampled_variables;
-            Recharge_deep_spatialized=obj.compute_deep_recharge(y,k,f);
-            dx=obj.discretization.compute_dx;
-            k2=1/3600/10;
-            dSdt_from_leakage=sum(Recharge_deep_spatialized.*dx)-k2*y(end);
-        end
-        
         function [Recharge_rate_spatialized,Threshold]=compute_source_term_spatialized(obj,y,t,w,d,f)
             if(nargin<4)
                 [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
@@ -269,20 +256,6 @@ classdef boussinesq_simulation
                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate))); 
                 Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
             end
-            
-%             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
-%             Recharge_rate_spatialized=Recharge_rate.*w;
-%             relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
-%             Thresh=threshold_function(relative_occupancy_rate);
-%             Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
-%             
-%             if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
-%                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
-%                 ETP_rate_spatialized=ETP_rate.*w;
-%                 ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
-%                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate)));
-%                 Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized; 
-%             end
         end
         
         function Recharge_deep_spatialized=compute_deep_recharge(obj,y,k,f)
@@ -293,10 +266,6 @@ classdef boussinesq_simulation
         
         function OUT=Test_Derivative(obj,y,t)
             A=obj.discretization.A;
-%             block_size=obj.discretization.Nx;
-%             [~,w,~,~]=obj.discretization.get_resampled_variables;
-%             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
-%             Recharge_rate_spatialized=Recharge_rate*w;
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
             OUT=-A*(-obj.compute_Q_from_S(y)*y)+Recharge_rate_spatialized;
             OUT=OUT>=0;
