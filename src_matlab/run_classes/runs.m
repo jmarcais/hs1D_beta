@@ -93,15 +93,15 @@ classdef runs
                 obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
             else
                 [x,w,soil_depth,angle,z]=hs1D.get_spatial_properties;
-                if(hs1D.Id>0)
-                    obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,z);
-                    [f,k]=hs1D.get_hydraulic_properties;
-                    obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
-                elseif(hs1D.Id==-1)
+%                 if(hs1D.Id>0)
+%                     obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,z);
+%                     [f,k]=hs1D.get_hydraulic_properties;
+%                     obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f);
+%                 elseif(hs1D.Id==-1)
                     obj.hs1D=obj.set_hillslope_geomorphologic_properties(x,angle,w,soil_depth,z,hs1D.Id);
                     [f,k,phi]=hs1D.get_hydraulic_properties;
                     obj.hs1D=obj.hs1D.set_hydraulic_parameters(k,f,phi);
-                end
+%                 end
             end
             % spatial discretization
             if(nargin<3)
@@ -243,14 +243,21 @@ classdef runs
         end
         
         function hs1D=set_hillslope_geomorphologic_properties(obj,x,angle,w,soil_depth,z,unsat_Id)
-            if(nargin<6)
-                z=ones(size(x));
-            elseif(length(z)==1)
-                z=z*ones(size(x));
-            elseif(length(z)~=length(x))
-                fprintf('no consistency betweeen x and elevation information \n');
-                fprintf('uniform elevation of 1 m will be assumed \n');
-                z=ones(size(x));
+            if(nargin<3)
+                angle=ones(size(x));
+            elseif(length(angle)==1)
+                angle=angle*ones(size(x));
+            elseif(length(angle)~=length(x))
+                fprintf('no consistency betweeen x and angle information i \n');
+                fprintf('uniform slope of 0.05 \n');
+                angle=0.05*ones(size(x));
+            end
+            if(nargin<4)
+                w=ones(size(x));
+            elseif(length(w)~=length(x))
+                fprintf('no consistency betweeen x and width function w \n');
+                fprintf('uniform hillslopes of width 1 will be assumed \n');
+                w=ones(size(x));
             end
             if(nargin<5)
                 soil_depth=ones(size(x));
@@ -261,21 +268,14 @@ classdef runs
                 fprintf('uniform depth of 1 m will be assumed \n');
                 soil_depth=ones(size(x));
             end
-            if(nargin<4)
-                w=ones(size(x));
-            elseif(length(w)~=length(x))
-                fprintf('no consistency betweeen x and width function w \n');
-                fprintf('uniform hillslopes of width 1 will be assumed \n');
-                w=ones(size(x));
-            end
-            if(nargin<3)
-                angle=ones(size(x));
-            elseif(length(angle)==1)
-                angle=angle*ones(size(x));
-            elseif(length(angle)~=length(x))
-                fprintf('no consistency betweeen x and angle information i \n');
-                fprintf('uniform slope of 0.05 \n');
-                angle=0.05*ones(size(x));
+            if(nargin<6)
+                z=ones(size(x));
+            elseif(length(z)==1)
+                z=z*ones(size(x));
+            elseif(length(z)~=length(x))
+                fprintf('no consistency betweeen x and elevation information \n');
+                fprintf('elevation consistant with angle and soil depth will be assumed \n');
+                z=cumtrapz(x,angle)+soil_depth;
             end
             switch length(x)
                 case 1
@@ -296,11 +296,10 @@ classdef runs
                     angleint=angle;
                     zint=z;
             end
+            hs1D=hillslope1D;
             if(nargin>6)
-                 hs1D=hillslope1D_unsat;
-                 hs1D=hs1D.set_properties(unsat_Id);
-            else
-                hs1D=hillslope1D;
+                hs1D=hs1D.set_properties(unsat_Id);
+            else                
                 hs1D=hs1D.set_properties(1);
             end
             hs1D=hs1D.set_spatial_parameters(xint,wint,angleint,soil_depthint,zint);
@@ -327,13 +326,10 @@ classdef runs
             if(nargin<2) Nx=100; end
             x=obj.hs1D.get_spatial_properties;
             xmin=x(1); xmax=x(end);
-            if(obj.hs1D.Id==-1) % Identifier property at -1 is the identifier for hillslope with unsaturated simulation
-                discretization=space_discretization_unsat;
-            else
-                discretization=space_discretization;
-            end
+            discretization=space_discretization;
             discretization=discretization.set_space_discretization_properties(xmin,xmax,Nx,type,xcustom);
             [discretization,hs1D]=discretization.resample_hs1D_spatial_variables(obj.hs1D);
+            
             obj.hs1D=hs1D;
             discretization=discretization.set_matrix_properties;
         end

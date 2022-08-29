@@ -14,6 +14,10 @@ classdef space_discretization
         f
         k
         f_edges
+        phi                       % (Nx X 1) total porosity in the unsaturated portion of the hillslope
+                                  % by opposition to f which is the
+                                  % drainable porosity can be empty if no
+                                  % resolution of the unsaturated zone
     end
     
     properties(Access=public)
@@ -90,11 +94,7 @@ classdef space_discretization
                 
         function [obj,hs1D]=resample_hs1D_spatial_variables(obj,hs1D)
             [x,w,soil_depth,angle,z]=hs1D.get_spatial_properties;
-            if(hs1D.Id==-1) % Identifier property at -1 is the identifier for hillslope with unsaturated simulation
-                [f,k,phi]=hs1D.get_hydraulic_properties;
-            else
-                [f,k]=hs1D.get_hydraulic_properties;
-            end
+            [f,k,phi]=hs1D.get_hydraulic_properties;
             Distance=pdist2(x,obj.x_S);
             [~,MinDistPos]=min(Distance,[],2);
             Matrix_link=zeros(length(x),length(obj.x_S));
@@ -124,8 +124,14 @@ classdef space_discretization
             if(length(f)==1)
                 f=f*ones(size(x));
             end
+            if(length(phi)==1)
+                phi=phi*ones(size(x));
+            end
             obj.k=interpn(x,k,obj.x);
             obj.f=interpn(x,f,obj.x_S);
+            if(~isempty(phi))
+                obj.phi=interpn(x,phi,obj.x_S);
+            end
             obj.f_edges=interpn(x,f,obj.x);
             hs1D.x=obj.x_S; hs1D.w=obj.w_resampled; hs1D.soil_depth=obj.soil_depth_resampled; hs1D.i=interpn(x,angle,obj.x_S); hs1D.f=obj.f;hs1D.k=interpn(x,k,obj.x_S);
             if(~isempty(z))
@@ -137,7 +143,7 @@ classdef space_discretization
             hs1D.link_hs1D=Matrix_link;
         end
         
-        function [x_S,w_resampled,soil_depth_resampled,angle_resampled,x,f,k,f_edges]=get_resampled_variables(obj)
+        function [x_S,w_resampled,soil_depth_resampled,angle_resampled,x,f,k,f_edges,phi]=get_resampled_variables(obj)
             x_S=obj.x_S;
             w_resampled=obj.w_resampled;
             soil_depth_resampled=obj.soil_depth_resampled;
@@ -146,6 +152,7 @@ classdef space_discretization
             f=obj.f;
             k=obj.k;
             f_edges=obj.f_edges;
+            phi=obj.phi;
         end
                 
         function obj=set_matrix_properties(obj)

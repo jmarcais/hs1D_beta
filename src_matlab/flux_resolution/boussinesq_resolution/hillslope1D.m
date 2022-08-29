@@ -10,6 +10,7 @@ classdef hillslope1D
         soil_depth   % 1D array mean soil depth according to the distance to the stream x (m)
         f            % drainable porosity f constant for the all hillslope (-)
         k            % soil hydraulic conductivity (m/s)
+        phi          % unsaturated total porosity
         saturation   % 1D (Nix1) array saturation proportion according to real data proportion of saturation of each storage for a given lateral distance x
         beven_ratio  % A/(w0.sin(i0))
         saturated_area
@@ -23,7 +24,7 @@ classdef hillslope1D
         function obj=hillslope1D
         end
         
-        function obj=set_properties(obj,Id,f,k)
+        function obj=set_properties(obj,Id,f,k,phi)
             if(nargin<4)
                 k=1/3600; %fprintf('default hydraulic conductivity 1 m/h \n');
                 if(nargin<3)
@@ -36,6 +37,9 @@ classdef hillslope1D
             obj.Id=Id;
             obj.f=f;
             obj.k=k;
+            if(nargin>4)
+                obj.phi=phi;
+            end
         end
         
         function obj=set_space_default_parameters(obj)
@@ -58,9 +62,12 @@ classdef hillslope1D
             end
         end
         
-        function obj=set_hydraulic_parameters(obj,k,f)
+        function obj=set_hydraulic_parameters(obj,k,f,phi)
             obj.k=k/(3600);
             obj.f=f;
+            if(nargin>3)
+                obj.phi=phi;
+            end
         end
 
         function [obj,Matrix_link]=set_parameters(obj,distance,z,DEM_resolution,volume,z0)
@@ -175,10 +182,11 @@ classdef hillslope1D
             z=obj.z;
         end
         
-        function [f,k]=get_hydraulic_properties(obj)
+        function [f,k,phi]=get_hydraulic_properties(obj)
 %             i=obj.i;
             f=obj.f;
             k=obj.k;
+            phi=obj.phi;
         end
         
         function [obj,x_mean,z,s]=compute_elevation(obj)
