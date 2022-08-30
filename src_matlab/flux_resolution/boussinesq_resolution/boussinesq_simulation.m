@@ -263,9 +263,10 @@ classdef boussinesq_simulation
         end
         
         function OUT=Test_Derivative(obj,y,t)
+            block_size=obj.discretization.Nx;
             A=obj.discretization.A;
             Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-            OUT=-A*(-obj.compute_Q_from_S(y)*y)+Recharge_rate_spatialized;
+            OUT=A*(obj.compute_Q_from_S(y)*y(1:block_size))+Recharge_rate_spatialized;
             OUT=OUT>=0;
         end
         
@@ -289,7 +290,8 @@ classdef boussinesq_simulation
         
         function [x,isterm,dir] = eventfun(obj,t,y)
             block_size=obj.discretization.Nx;
-            dy=obj.odefun(y,t);
+            dy=obj.odefun(y,t); 
+            dy=dy(1:block_size);
             [~,w,soil_depth,~,~,f]=obj.discretization.get_resampled_variables;
             dy=dy./(f.*w.*soil_depth);
             x = max(abs(dy)) - 5e-11;%5e-11; %5e-8; %#JM think to change it 5e-8
