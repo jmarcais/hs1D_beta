@@ -174,7 +174,6 @@ classdef boussinesq_simulation
             Edges=obj.boundary_cond.fixed_edge_matrix_boolean; % kind of boundary conditions
             [~,w,d,angle,~,f,k,f_edges]=obj.discretization.get_resampled_variables; % properties of the hillslope
             A=obj.discretization.A; % derivation matrix 1
-            B=obj.discretization.B; % derivation matrix 2
             %% compute recharge rate spatialized
             [Recharge_rate_spatialized,Threshold]=obj.compute_source_term_spatialized(y,t,w,d,f);
             %% Compute darcy flux from one box to another with variable angle
