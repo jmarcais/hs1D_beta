@@ -161,9 +161,6 @@ classdef boussinesq_simulation
             % return flow
             RF_spat=obj.compute_QS_from_Q(S,t)*Q;
             % direct precipitations onto saturated areas
-%             Source_Partitioned=obj.partition_source_terms(S,t);
-%             Recharge_rate_spatialized=obj.compute_source_term_spatialized(S,t);
-%             DPSA_spat=Recharge_rate_spatialized-Source_Partitioned;
             DPSA_spat=obj.partition_source_terms_QS(S,t);
         end
     end
@@ -218,7 +215,7 @@ classdef boussinesq_simulation
             B=obj.discretization.B;
             Q_from_S=obj.discretization.Omega; % Omega is directly in Q_from_S to gain speed
             % Compute darcy flux from one box to another with variable angle
-            Q1_from_S=k./f_edges.*cos(angle).*(B*(y./(f.*w)));
+            Q1_from_S=k./f_edges.*cos(angle).*(B*(y(1:block_size)./(f.*w)));
             Q_from_S=sparse(1:block_size+1,1:block_size+1,Q1_from_S)*Q_from_S;%sparse(diag(Q1_from_S))*Q_from_S;%=bsxfun(@times,Q1_from_S,Omega);%Q1_from_S.*Omega;
             if(sum(angle)~=0)
                 Q1_from_S=k./f_edges.*sin(angle); Q1_from_S=Q1_from_S(1:end-1);%Q1_from_S(end)=0;
@@ -239,11 +236,12 @@ classdef boussinesq_simulation
             if(nargin<4)
                 [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
             end
-            relative_occupancy_rate=y./(f.*w.*d);
+            block_size=obj.discretization.Nx;
+            relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
             Threshold=threshold_function(relative_occupancy_rate);
             Recharge_rate=obj.source_terms.compute_recharge_rate(t);
             if(Recharge_rate<0)
-                Recharge_rate=Recharge_rate.*[1;(1-exp(-10*((y(2:end)-f(2:end).*w(2:end).*d(1))./(f(2:end).*w(2:end).*(d(2:end)-d(1))))))];%                Recharge_rate=Recharge_rate.*(1-exp(-1000*(1-min(1,-Recharge_rate*3600./(y./(f.*w)-d(1))))));
+                Recharge_rate=Recharge_rate.*[1;(1-exp(-10*((y(2:block_size)-f(2:block_size).*w(2:block_size).*d(1))./(f(2:block_size).*w(2:block_size).*(d(2:block_size)-d(1))))))];%                Recharge_rate=Recharge_rate.*(1-exp(-1000*(1-min(1,-Recharge_rate*3600./(y./(f.*w)-d(1))))));
             end
             
             Recharge_rate_spatialized=Recharge_rate.*w;
@@ -291,19 +289,10 @@ classdef boussinesq_simulation
         
         function [x,isterm,dir] = eventfun(obj,t,y)
             block_size=obj.discretization.Nx;
-           
-            dy=obj.odefun(y,t); 
-            
-% %             [~,w]=obj.discretization.get_resampled_variables;
-% %             D=obj.source_terms.recharge_mean*w;%obj.partition_source_terms(y,t);
-% %             dy=abs(dy./D(1:block_size));
-% %             dy=dy(D(1:block_size)>0);
-% %             x=max(dy)-5e-11;
-            
+            dy=obj.odefun(y,t);
             [~,w,soil_depth,~,~,f]=obj.discretization.get_resampled_variables;
             dy=dy./(f.*w.*soil_depth);
             x = max(abs(dy)) - 5e-11;%5e-11; %5e-8; %#JM think to change it 5e-8
-%             x = max(abs(dy)) - 5e-11;
             isterm = 1;
             dir = 0;  %or -1, doesn't matter
         end
