@@ -1123,44 +1123,14 @@ classdef simulation_set
         end
         
         function [Q_out2,residual2,Q_out,residual,run_obj]=run_simulation_unsat(k1,f1,phi1,file_path)
-% %             if(nargin<3)
-% %                 f1=0.2;
-% %             end
             tic
             range_= 4332:4505; % 1531:1704; %1:1465;%1:8759; %1:1500;%
             if(nargin<4)
                 f1=0.2;
             end
-            if(nargin<3)
-%                 folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Guillec2';
-%                 d_init_add=2.7707;
-                folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Synthetic';
-                d_init_add=0;
-            else
-                occurence_slash=strfind(file_path,'\');
-                folder_root=strcat(file_path(1:occurence_slash(end-1)),file_path(occurence_slash(end)+1:end-4));
-                if(strcmp(file_path(occurence_slash(end)+1:end-4),'Douffine2'))
-                    d_init_add=0;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Guillec2'))
-                    d_init_add=2.7707;%6.5;%
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dossen'))
-                    d_init_add=0.9249;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Dourduff'))
-                    d_init_add=2.2063;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Penze'))
-                    d_init_add=0.9392;
-                elseif(strcmp(file_path(occurence_slash(end)+1:end-4),'Ris'))
-                    d_init_add=1.7655;
-                else
-                    d_init_add=2.7707;%20;
-                end
-            end
-%             folder_root='C:\Users\Jean\Documents\ProjectDSi\GuillecEquiv';
-            
-%             folder_root='C:\Users\Jean\Documents\ProjectDSi\BV_ecoflux\Douffine2';
-            obj=simulation_set(folder_root);
+            obj=simulation_set(file_path);
             obj=obj.instantiate_all_inputs_directory;
-            
+            d_init_add=15;
                            
                 % locations of different inputs file
                 hydro_loc=obj.hydrologic_inputs_directory{1};
@@ -1171,23 +1141,9 @@ classdef simulation_set
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 
                 z_top=z(1)+cumtrapz(x,slope_angle);
-                slope_angle2=([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%slope_angle;
-                z_bottom=z_top(1)+cumtrapz(x,slope_angle2);
+%                 slope_angle2=([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%slope_angle;
+                z_bottom=z_top(1)+cumtrapz(x,slope_angle)-d_init_add;
                 d=z_top-z_bottom;
-               
-                figure; hold on
-                plot(x,z_bottom)
-                plot(x,z_top)
-                
-                
-%                 M=obj.read_input_file(morpho_loc);
-%                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
-%                 
-%                 % first option
-%                 z_top=cumtrapz(x,slope_angle);
-%                 slope_angle2=0*slope_angle;%atan((d1)/(x(end)-x(1)))*ones(size(slope_angle));%zeros(size(slope_angle));
-%                 z_bottom=cumtrapz(x,slope_angle2)-d_init_add;
-%                 d=z_top-z_bottom;
                 
                 % hydraulic parameters
                 k=k1*ones(size(x));
@@ -1196,10 +1152,10 @@ classdef simulation_set
                 
                 if(sum(d<0)==0)
                    
-                    hs1D=hillslope1D_unsat;
+                    hs1D=hillslope1D;
                     hs1D=hs1D.set_properties(-1,f,k,phi);
                     
-                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
+                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d);
                     
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
