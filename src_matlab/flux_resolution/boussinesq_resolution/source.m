@@ -193,7 +193,11 @@ classdef source
             end
             
             obj.time=t;
-            obj.recharge_mean=nanmean(obj.recharge_chronicle,2);
+            if(isnan(obj.ETP_chronicle))
+                obj.recharge_mean=nanmean(obj.recharge_chronicle,2);
+            else
+                obj.recharge_mean=nanmean(obj.recharge_chronicle,2)-nanmean(obj.ETP_chronicle,2); % to adapt reflecting budyko equation #ToDO
+            end
         end
         
 %         function [Date_hourly_refined,Pluvio_hourly_refined,ETP_hourly_refined]=read_data(obj,Pluvio_directory)
