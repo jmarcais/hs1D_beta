@@ -73,7 +73,7 @@ classdef boussinesq_simulation_unsat
         end
 
         % set the parameters for the resolution of the Boussinesq DAE
-        function [t,x_center,x_edge,S,Q,QS,obj,S_u,Su_max,S_u_deficit]=implicit_scheme_solver(obj,t_properties,solver_options)
+        function [t,x_center,x_edge,S,Q,QS,obj,S_u,Su_max]=implicit_scheme_solver(obj,t_properties,solver_options)
             % initial vector for the DAE
             y0=[obj.initial_conditions.Sin];
            
@@ -186,13 +186,13 @@ classdef boussinesq_simulation_unsat
             A=obj.discretization.A; % derivation matrix 1
             
             %% compute recharge rate spatialized
-            [Recharge_rate_spatialized,Threshold]=obj.compute_source_term_spatialized(y,t,w,d,f);
+            [Recharge_rate_spatialized,Threshold,ETR_s,ETR_u]=obj.compute_source_term_spatialized(y,t,w,d,f);
             %% Compute darcy flux from one box to another with variable angle
             Q_from_S=obj.compute_Q_from_S(y,w,angle,f,k,f_edges);
             % compute Q spatial derivative
             dQ_from_S=A*Q_from_S;
             %% compute test if potential seepage
-            Test_Deriv=dQ_from_S*y(1:block_size)+Recharge_rate_spatialized;
+            Test_Deriv=dQ_from_S*y(1:block_size)+Recharge_rate_spatialized-ETR_s;
             Test_Deriv=Test_Deriv>=0;
             alpha=Threshold.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
@@ -206,8 +206,8 @@ classdef boussinesq_simulation_unsat
             C(block_size,:)=(1-Edges(2))*C(block_size,:);
             C(block_size+1,:)=0;
             %% compute D
-            D1=beta.*alpha.*Recharge_rate_spatialized;
-            D=[D1;gamma.*Recharge_rate_spatialized-(phi-f)./f.*D1];           
+            D1=beta.*alpha.*(Recharge_rate_spatialized-ETR_s);
+            D=[D1;gamma.*(Recharge_rate_spatialized-ETR_u)-(phi-f)./f.*D1];           
             D(1,:)=(1-Edges(1))*D(1,:);
             D(block_size,:)=(1-Edges(2))*D(block_size,:);
             D(block_size+1,:)=0;
@@ -240,13 +240,12 @@ classdef boussinesq_simulation_unsat
         function D=partition_source_terms_QS(obj,y,t)
             
             block_size=obj.discretization.Nx;
-            
-            alpha_complementar=1-obj.alpha(y,t);
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
             Test_Deriv=obj.Test_Derivative(y,t);
             beta=beta.*Test_Deriv+(1-Test_Deriv);   
-            Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-            D=beta.*alpha_complementar.*Recharge_rate_spatialized;
+            [Recharge_rate_spatialized,Threshold,ETR_s]=obj.compute_source_term_spatialized(y,t);
+            alpha_complementar=1-Threshold.*Test_Deriv+(1-Test_Deriv);
+            D=beta.*alpha_complementar.*(Recharge_rate_spatialized-ETR_s);
            
             D=sparse(D);
         end
@@ -274,11 +273,15 @@ classdef boussinesq_simulation_unsat
         end
         
         function QS_from_Q=compute_QS_from_Q(obj,y,t)
-            alpha_complementar=1-obj.alpha(y,t);
+            block_size=obj.discretization.Nx;
+            [~,w,soil_depth,~,~,f]=obj.discretization.get_resampled_variables;
+            
+            Thresh=threshold_function(y(1:block_size)./(f.*soil_depth.*w));
+            Test_Deriv=obj.Test_Derivative(y,t);            
+            alpha_complementar=1-Thresh.*Test_Deriv+(1-Test_Deriv);
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
-            Test_Deriv=obj.Test_Derivative(y,t);
             beta=beta.*Test_Deriv+(1-Test_Deriv);
-            QS_from_Q=-sparse(diag(alpha_complementar.*beta))*obj.discretization.A;
+            QS_from_Q=-sparse(diag(beta.*alpha_complementar))*obj.discretization.A;
         end
         
 % %         function dSdt_from_Q=compute_dSdt_from_Q(obj,y,t)
@@ -301,7 +304,7 @@ classdef boussinesq_simulation_unsat
 % %             dSdt_from_leakage=sum(Recharge_deep_spatialized.*dx)-k2*y(end);
 % %         end
         
-        function [Recharge_rate_spatialized,Threshold]=compute_source_term_spatialized(obj,y,t,w,d,f)
+        function [Recharge_rate_spatialized,Threshold,ETR_s,ETR_u]=compute_source_term_spatialized(obj,y,t,w,d,f)
             if(nargin<4)
                 [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
             end
@@ -319,9 +322,24 @@ classdef boussinesq_simulation_unsat
             if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
                 ETP_rate_spatialized=ETP_rate.*w;
-                ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
-                    (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate)));
-                Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
+                [Su_max,Smax]=obj.get_max_unsaturated_storage(y);
+                relative_occupancy_rate_unsaturated_zone=y(1+block_size)./Su_max;
+                relative_occupancy_rate_unsaturated_zone(Su_max<0.001*Smax)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
+                r=2;
+                r_u=5;
+                zeta=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
+                f_Su=zeta.*(1-exp(-r_u*relative_occupancy_rate_unsaturated_zone));
+                f_S=(1-zeta).*(1-exp(-r*relative_occupancy_rate));
+                Interception_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+                    (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*Recharge_rate_spatialized;
+                ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_Su;
+                ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_S;
+%                 ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+%                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate)));
+                Recharge_rate_spatialized=Recharge_rate_spatialized-Interception_rate_spatialized;
+            else
+                ETR_s=0;
+                ETR_u=0;
             end
         end
         
@@ -334,8 +352,8 @@ classdef boussinesq_simulation_unsat
         function OUT=Test_Derivative(obj,y,t)
             block_size=obj.discretization.Nx;
             A=obj.discretization.A;
-            Recharge_rate_spatialized=obj.compute_source_term_spatialized(y,t);
-            OUT=A*(obj.compute_Q_from_S(y)*y(1:block_size))+Recharge_rate_spatialized;
+            [Recharge_rate_spatialized,~,ETR_s]=obj.compute_source_term_spatialized(y,t);
+            OUT=A*(obj.compute_Q_from_S(y)*y(1:block_size))+Recharge_rate_spatialized-ETR_s;
             OUT=OUT>=0;
         end
         
