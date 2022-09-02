@@ -164,6 +164,15 @@ classdef runs
                     % if saturated at the river bank boundary_value=[f*w(1)*soil_depth(1),0]; else : boundary_value=[0,0];
                     boundary_value=[0,0];
                     % boundary conditions
+                elseif(strcmp(bound_river,'null_flux'))
+                    boundary_type={'Q','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
+                    boundary_value=[0,0];
+                elseif(isnumeric(bound_river) && bound_river<=1 && bound_river>=0)
+                    [x_S,w_resampled,soil_depth_resampled,~,~,f]=discretization.get_resampled_variables;
+                    % boundary conditions
+                    boundary_type={'S','Q'};                                     % boundary type of the problem for xmin & xmax if 'S' Dirichlet condition, S is fixed, if 'Q' Neuman condition, Q is fixed
+                    % if saturated at the river bank boundary_value=[f*w(1)*soil_depth(1),0]; else : boundary_value=[0,0];
+                    boundary_value=[bound_river*f(1).*w_resampled(1)*(soil_depth_resampled(1)),0];
                 end
             end
             
