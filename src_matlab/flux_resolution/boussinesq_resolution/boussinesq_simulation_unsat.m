@@ -281,7 +281,7 @@ classdef boussinesq_simulation_unsat
             alpha_complementar=1-Thresh.*Test_Deriv+(1-Test_Deriv);
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
             beta=beta.*Test_Deriv+(1-Test_Deriv);
-            QS_from_Q=-sparse(diag(beta.*alpha_complementar))*obj.discretization.A;
+            QS_from_Q=sparse(diag(beta.*alpha_complementar))*obj.discretization.A;
         end
         
 % %         function dSdt_from_Q=compute_dSdt_from_Q(obj,y,t)

@@ -228,7 +228,7 @@ classdef boussinesq_simulation
         end
         
         function QS_from_Q=compute_QS_from_Q(obj,y,t)
-            QS_from_Q=-sparse(diag(1-obj.alpha(y,t)))*obj.discretization.A;
+            QS_from_Q=sparse(diag(1-obj.alpha(y,t)))*obj.discretization.A;
         end
         
         function [Recharge_rate_spatialized,Threshold]=compute_source_term_spatialized(obj,y,t,w,d,f)
