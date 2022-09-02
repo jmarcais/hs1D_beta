@@ -1122,15 +1122,12 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function [Q_out2,residual2,Q_out,residual,run_obj]=run_simulation_unsat(k1,f1,phi1,file_path)
-            tic
-            range_= 4332:4505; % 1531:1704; %1:1465;%1:8759; %1:1500;%
-            if(nargin<4)
-                f1=0.2;
-            end
+        function run_obj=run_simulation_unsat(file_path,k1,f1,phi1,d_init)
             obj=simulation_set(file_path);
             obj=obj.instantiate_all_inputs_directory;
-            d_init_add=15;
+            if(nargin<5)
+                d_init=15;
+            end
                            
                 % locations of different inputs file
                 hydro_loc=obj.hydrologic_inputs_directory{1};
@@ -1142,7 +1139,7 @@ classdef simulation_set
                 
                 z_top=z(1)+cumtrapz(x,slope_angle);
 %                 slope_angle2=([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%slope_angle;
-                z_bottom=z_top(1)+cumtrapz(x,slope_angle)-d_init_add;
+                z_bottom=z_top(1)+cumtrapz(x,slope_angle)-d_init;
                 d=z_top-z_bottom;
                 
                 % hydraulic parameters
@@ -1159,18 +1156,17 @@ classdef simulation_set
                     
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
-                    recharge_chronicle=(M(:,2:end))';
-                    
-% %                     time_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
-% %                     source_terms=source('data_based');
-% %                     source_terms.time=time_1;
-% %                     source_terms.recharge_chronicle=interp1((t)',(M(:,2:end))',(time_1.get_properties));
-% %                     source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
-                    
-                    ratio_P_R=1;%0.875;%.33;%/0.38;
+                    recharge_chronicle=(M(:,2))';
+                    ratio_P_R=1;
                     source_terms=source('data_based');
-                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                    ratio_P_R=1;%0.38;
+                    if(size(M,2)==2)
+                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                    elseif(size(M,2)==3)
+                        ETP_chronicle=(M(:,3))';
+                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s',ETP_chronicle);
+                    end
+                    
+                    
                     
                     % 3/ create a runs object and run the simulation
                     run_obj=runs;
@@ -1187,48 +1183,16 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'null_flux');
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
-                    
-                    [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
-                    slope_angle_top=interpn(x,slope_angle,x_Q1);
-                    toc
-                    
-                    Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
-                    Q_out=Q_temp(range_);
-                    
-                    Q_temp2=run_obj.simulation_results.compute_river_flow_with_rooting(k1_2,slope_angle_top,k_soil);
-                    Q_out2=Q_temp2(range_);
-
-                    
-                    Q_out=Q_out+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
-                    Q_out2=Q_out2+run_obj.boussinesq_simulation.source_terms.recharge_chronicle(range_)*x_S1(1)*w_1(1);
-%                     toc
-                    
-                    load(file_path);
-                    
-                    if(length(Q_real)==length(Q_out))
-                        residual2=Q_out2-Q_real;
-                        residual2=nansum(residual2.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                        
-                        residual=Q_out-Q_real;
-                        residual=nansum(residual.^2)/nansum((Q_real-nanmean(Q_real)).^2);
-                    else
-                        residual2=nan;
-                        residual=nan;
-                    end
-                else
-                    Q_out2=nan;
-                    
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'null_flux');      
                 end
-%             DSi_out=sum(DSi,1);      
         end
         
         
-%        function run_obj=run_simulation_temp(file_path)
-        function run_simulation_temp(file_path)
+       function run_obj=run_simulation_temp(file_path)
+%         function run_simulation_temp(file_path)
             obj=simulation_set(file_path);
             obj.geologic_inputs_directory=obj.get_inputs(obj.mother_folder_directory,'GeologicInputs');
             obj.morphologic_inputs_directory= obj.get_inputs(obj.mother_folder_directory,'MorphologicInputs');
@@ -1239,16 +1203,16 @@ classdef simulation_set
             folder_create(simulation_folder_root);
             
 
-            numCores = feature('numcores');
-            p = parpool(numCores);
+%             numCores = feature('numcores');
+%             p = parpool(numCores);
             size_=size(obj.combination_inputs);
             
-            parfor i=1:size_(1)
+            for i=1:size_(1)
                 % sloped simus / bedrock parallel to the surface
                 c=clock; time_string_folder=strcat(num2str(c(1)),'_',num2str(c(2)),'_',num2str(c(3)),'_',num2str(c(4)),'_',num2str(c(5)),'_',num2str(c(6)));
-                t = getCurrentTask(); ID_string=num2str(t.ID);
-                folder_output=strcat(simulation_folder_root,time_string_folder,'_',ID_string);
-%                 folder_output=strcat(simulation_folder_root,time_string_folder);
+%                 t = getCurrentTask(); ID_string=num2str(t.ID);
+%                 folder_output=strcat(simulation_folder_root,time_string_folder,'_',ID_string);
+                folder_output=strcat(simulation_folder_root,time_string_folder);
                 folder_create(folder_output);
                 
                 hydro_loc=obj.combination_inputs{i,2};
