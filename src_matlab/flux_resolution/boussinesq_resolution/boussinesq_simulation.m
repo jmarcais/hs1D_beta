@@ -163,6 +163,11 @@ classdef boussinesq_simulation
             % direct precipitations onto saturated areas
             DPSA_spat=obj.partition_source_terms_QS(S,t);
         end
+        
+        function [Rainfall,Recharge,ETR]=partition_rainfall(obj,y,t) % unit m2/s
+            [Recharge,~,ETR]=obj.compute_source_term_spatialized(y,t);
+            Rainfall=Recharge+ETR;
+        end
     end
     
     methods(Access=private)
@@ -231,7 +236,7 @@ classdef boussinesq_simulation
             QS_from_Q=sparse(diag(1-obj.alpha(y,t)))*obj.discretization.A;
         end
         
-        function [Recharge_rate_spatialized,Threshold]=compute_source_term_spatialized(obj,y,t,w,d,f)
+        function [Recharge_rate_spatialized,Threshold,ETR_rate_spatialized]=compute_source_term_spatialized(obj,y,t,w,d,f)
             if(nargin<4)
                 [~,w,d,~,~,f]=obj.discretization.get_resampled_variables;
             end
@@ -252,6 +257,8 @@ classdef boussinesq_simulation
                 ETR_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(Recharge_rate_spatialized+(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate))); 
                 Recharge_rate_spatialized=Recharge_rate_spatialized-ETR_rate_spatialized;
+            else
+                ETR_rate_spatialized=nan;
             end
         end
         
