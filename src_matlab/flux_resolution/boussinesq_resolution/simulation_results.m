@@ -525,6 +525,7 @@ classdef simulation_results
             RF_spat(RF_spat<0)=0;
             RF_spat(DPSA_spat<0)=RF_spat(DPSA_spat<0)+DPSA_spat(DPSA_spat<0);
             DPSA_spat(DPSA_spat<0)=0;
+            RF_spat(RF_spat<0)=0;
             
             DPSA=sum(DPSA_spat);
             RF=sum(RF_spat);
