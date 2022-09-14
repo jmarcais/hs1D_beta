@@ -2,7 +2,7 @@ function OUT=threshold_function2(x)
 % sigmoid function centered on 1 so it is concave
 % %     OUT=1-1./(1+exp(-100*(x-0.99)));
 %     OUT=1-2./(1+exp(-1000*(x-1)));
-    OUT=1-exp(-20*(1-x));
+    OUT=1-exp(-10*(1-x));
 %     OUT=double(x>1)+(x<=1).*(1-exp(-1000*(1-x)));
 % % % % %     OUT=1-1.01./(1+exp(-((x-1))/1e-2+log(0.01)));%2./(1+exp(-(x-1)/1e-3));
 % % % % % % % % % %     K=1.0001;
