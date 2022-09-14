@@ -78,7 +78,11 @@ classdef source
             obj.recharge_mean=nanmean(obj.recharge_chronicle);
         end
         
-        function Recharge=compute_recharge_rate(obj,t)
+        function [Recharge,ETP]=compute_recharge_rate(obj,t)
+            if(isnan(obj.ETP_chronicle))
+                obj.ETP_chronicle=nan(size(obj.recharge_chronicle));
+                ETP=nan;
+            end
             switch obj.period
                 case Inf
                     Recharge=obj.recharge_rate*ones(size(t));
@@ -93,17 +97,24 @@ classdef source
                             idx=find_idx(t,t_chronicle);
                             Rech1=obj.recharge_chronicle(:,floor(idx));
                             Rech2=obj.recharge_chronicle(:,ceil(idx)); 
+                            ETP1=obj.ETP_chronicle(:,floor(idx));
+                            ETP2=obj.ETP_chronicle(:,ceil(idx));
                             prop_=(idx-floor(idx));%/(ceil(idx)-floor(idx));
                             Recharge=Rech1*(1-prop_)+prop_*Rech2;
+                            ETP=ETP1*(1-prop_)+prop_*ETP2;
                        else
                            % #JM Is there a way to improve the speed of simulation with find_idx 
                            Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t');
                            Recharge=Recharge'; 
+                           ETP=interp1(t_chronicle',(obj.ETP_chronicle)',t');
+                           ETP=ETP';
                        end
                     else
 %                         Recharge=interp1(t_chronicle',(obj.recharge_chronicle)',t','spline');
                         Recharge=nakeinterp1(t_chronicle',(obj.recharge_chronicle)',t');
                         Recharge=Recharge'; 
+                        ETP=nakeinterp1(t_chronicle',(obj.ETP_chronicle)',t');
+                        ETP=ETP';
                     end
                 case -2
                     t2=obj.time.get_properties;
