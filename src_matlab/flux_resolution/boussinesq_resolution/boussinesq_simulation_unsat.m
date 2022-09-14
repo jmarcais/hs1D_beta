@@ -219,15 +219,12 @@ classdef boussinesq_simulation_unsat
         end
         
         function D=partition_source_terms_QS(obj,y,t)
-            
-            block_size=obj.discretization.Nx;
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
             Test_Deriv=obj.Test_Derivative(y,t);
             beta=beta.*Test_Deriv+(1-Test_Deriv);   
             [Recharge_rate_spatialized,Threshold]=obj.compute_source_term_spatialized(y,t);
-            alpha_complementar=1-Threshold.*Test_Deriv+(1-Test_Deriv);
+            alpha_complementar=1-(Threshold.*Test_Deriv+(1-Test_Deriv));
             D=beta.*alpha_complementar.*Recharge_rate_spatialized;
-           
             D=sparse(D);
         end
         
@@ -290,19 +287,19 @@ classdef boussinesq_simulation_unsat
             block_size=obj.discretization.Nx;
             relative_occupancy_rate=y(1:block_size)./(f.*w.*d);
             Threshold=threshold_function(relative_occupancy_rate);
-            Recharge_rate=obj.source_terms.compute_recharge_rate(t);
+            [Recharge_rate,ETP_rate]=obj.source_terms.compute_recharge_rate(t);
             if(Recharge_rate<0)
                 Recharge_rate=Recharge_rate.*[1;(1-exp(-10*((y(2:block_size)-f(2:block_size).*w(2:block_size).*d(1))./(f(2:block_size).*w(2:block_size).*(d(2:block_size)-d(1))))))];%                Recharge_rate=Recharge_rate.*(1-exp(-1000*(1-min(1,-Recharge_rate*3600./(y./(f.*w)-d(1))))));
             end
             
             Recharge_rate_spatialized=Recharge_rate.*w;
             % if there is an ETP time series given, compute ETR from ETP, Recharge and S/Smax
-            if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
-                ETP_rate=obj.source_terms.compute_ETP_rate(t);
+            if(~isnan(ETP_rate))
+%                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
                 ETP_rate_spatialized=ETP_rate.*w;
                 [Su_max,Smax]=obj.get_max_unsaturated_storage(y);
                 relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
-                relative_occupancy_rate_unsaturated_zone(Su_max<0.001*(phi-f)./f.*Smax)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
+                relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
                 r=5;
                 r_u=5;
                 zeta=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
@@ -353,7 +350,7 @@ classdef boussinesq_simulation_unsat
             
 %             Thresh=threshold_function2((0.05*Smax+y(block_size+1:end))./(0.05*Smax+Su_max));
             Thresh=threshold_function2(y(block_size+1:end)./Su_max);
-            Thresh(Su_max==0)=0;
+            Thresh(Su_max<=0)=0;
 %             Test_Deriv=obj.Test_Derivative(y,t);
 %             OUT=Thresh.*Test_Deriv+(1-Test_Deriv);
             OUT=1-Thresh;
@@ -369,9 +366,9 @@ classdef boussinesq_simulation_unsat
         % Mass matrix: Identity on S, O for Q & QS
         function M=compute_mass_matrix(obj)
             block_size=obj.discretization.Nx;
-            Nunknowns=3*block_size+1;
+            Nunknowns=2*block_size;
             M=zeros(Nunknowns,Nunknowns);
-            M(1:block_size,1:block_size)=eye(block_size);
+            M(1:2*block_size,1:2*block_size)=eye(block_size);
             M=sparse(M);
         end
         
