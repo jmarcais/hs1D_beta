@@ -1176,7 +1176,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-2,'MaxStep',3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-2,'MaxStep',3600*24/2);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
