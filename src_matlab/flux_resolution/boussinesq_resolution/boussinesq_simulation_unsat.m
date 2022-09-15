@@ -39,13 +39,8 @@ classdef boussinesq_simulation_unsat
                  initial_conditions.Sin=Sin.Sin;
             elseif(percentage_loaded==-2 && ~isnan(sum(Sinitial)))
                 % assign only the initial storage values
-                if(length(Sinitial)==obj.discretization.Nx)
+                if(length(Sinitial)==2*obj.discretization.Nx)
                     initial_conditions.Sin=Sinitial;
-                elseif(length(Sinitial)==3*obj.discretization.Nx+1)
-                    initial_conditions.Sin=Sinitial;
-                elseif(length(Sinitial)==4*obj.discretization.Nx+1)
-                    Su_max=obj.get_max_unsaturated_storage([Sinitial(1:obj.discretization.Nx);Sinitial(3*obj.discretization.Nx+2:end)]);
-                    initial_conditions.Sin=[Sinitial(1:obj.discretization.Nx);Sinitial(3*obj.discretization.Nx+2:end)];
                 else
                     fprintf('Error: length of the assigned initial state values of the simulation are not of the good length \n');
                 end
@@ -55,14 +50,14 @@ classdef boussinesq_simulation_unsat
                 if(percentage_loaded==-2 && isnan(Sinitial))
                     initial_conditions.Sin=0*Smax;
                 else
-                    initial_conditions.Sin=[percentage_loaded*Smax;(phi-f)./f*percentage_loaded*(1-percentage_loaded).*Smax];
+                    initial_conditions.Sin=[percentage_loaded*Smax;percentage_loaded*(phi-f)./f.*Smax];
                 end
             end
             
             
             Edges=obj.boundary_cond.fixed_edge_matrix_values;
             Edges_bool=obj.boundary_cond.fixed_edge_matrix_boolean;
-            initial_conditions.Sin(1)=Edges_bool(1)*Edges(1)+(1-Edges_bool(1))*initial_conditions.Sin(1); initial_conditions.Sin(end)=Edges_bool(2)*Edges(2)+(1-Edges_bool(2))*initial_conditions.Sin(end);
+            initial_conditions.Sin(1)=Edges_bool(1)*Edges(1)+(1-Edges_bool(1))*initial_conditions.Sin(1); initial_conditions.Sin(obj.discretization.Nx)=Edges_bool(2)*Edges(2)+(1-Edges_bool(2))*initial_conditions.Sin(obj.discretization.Nx);
 %             if(~isnan(sum(Sinitial)) && length(Sinitial)==3*obj.discretization.Nx+1)
 %                 initial_conditions.Qin(1)=Edges_bool(3)*Edges(3)+(1-Edges_bool(3))*initial_conditions.Qin(1); initial_conditions.Qin(end)=Edges_bool(4)*Edges(4)+(1-Edges_bool(4))*initial_conditions.Qin(end);
 %             else
@@ -137,13 +132,12 @@ classdef boussinesq_simulation_unsat
             size_S=size(S);
             Q=nan(size_S(1)+1,size_S(2));
             QS=nan(size_S);
-            Su_max=nan(size_S);
             
             for i=1:length(t)
                 Q(:,i)=-obj.compute_Q_from_S(S_tot(:,i))*S(:,i);
-                QS(:,i)=obj.compute_QS_from_Q(S_tot(:,i),t(i))*Q(:,i)+obj.partition_source_terms_QS(S_tot(:,i),t(i)); %2*block_size+2:3*block_size+1,:);
-                Su_max(:,i)=obj.get_max_unsaturated_storage(S_tot(:,i));
+                QS(:,i)=obj.compute_QS_from_Q(S_tot(:,i),t(i))*Q(:,i)+obj.partition_source_terms_QS(S_tot(:,i),t(i)); %2*block_size+2:3*block_size+1,:);    
             end
+            Su_max=obj.get_max_unsaturated_storage;
             
             x_edge=obj.discretization.get_edges_coordinates;
             x_center=obj.discretization.get_center_coordinates;
@@ -198,18 +192,19 @@ classdef boussinesq_simulation_unsat
             Test_Deriv=Test_Deriv>=0;
             alpha=Threshold.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
-            beta=beta.*Test_Deriv+(1-Test_Deriv);            
+            Test_Deriv2=Recharge_rate_spatialized-ETR_u>=0;
+            beta=beta.*Test_Deriv2;            
             gamma=1-beta;
 
             %% compute C
             C1=sparse(1:block_size,1:block_size,alpha)*dQ_from_S;
-            C=[C1,sparse(block_size,block_size);-sparse(1:block_size,1:block_size,(phi-f)./f)*C1,sparse(block_size,block_size)];
+            C=[C1,sparse(block_size,block_size);sparse(block_size,block_size),sparse(block_size,block_size)];
             C(1,:)=(1-Edges(1))*C(1,:);
             C(block_size,:)=(1-Edges(2))*C(block_size,:);
             C(block_size+1,:)=0;
             %% compute D
             D1=beta.*alpha.*Recharge_rate_spatialized-ETR_s;
-            D=[D1;gamma.*Recharge_rate_spatialized-ETR_u-(phi-f)./f.*D1];           
+            D=[D1;gamma.*Recharge_rate_spatialized-ETR_u];           
             D(1,:)=(1-Edges(1))*D(1,:);
             D(block_size,:)=(1-Edges(2))*D(block_size,:);
             D(block_size+1,:)=0;
@@ -219,10 +214,11 @@ classdef boussinesq_simulation_unsat
         end
         
         function D=partition_source_terms_QS(obj,y,t)
-            beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
+            beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component 
+            [Recharge_rate_spatialized,Threshold,~,ETR_u]=obj.compute_source_term_spatialized(y,t);
+            Test_Deriv2=Recharge_rate_spatialized-ETR_u>=0;
+            beta=beta.*Test_Deriv2;
             Test_Deriv=obj.Test_Derivative(y,t);
-            beta=beta.*Test_Deriv+(1-Test_Deriv);   
-            [Recharge_rate_spatialized,Threshold]=obj.compute_source_term_spatialized(y,t);
             alpha_complementar=1-(Threshold.*Test_Deriv+(1-Test_Deriv));
             D=beta.*alpha_complementar.*Recharge_rate_spatialized;
             D=sparse(D);
@@ -297,19 +293,18 @@ classdef boussinesq_simulation_unsat
             if(~isnan(ETP_rate))
 %                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
                 ETP_rate_spatialized=ETP_rate.*w;
-                [Su_max,Smax]=obj.get_max_unsaturated_storage(y);
+                [Su_max,Smax]=obj.get_max_unsaturated_storage;
                 relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
                 relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
                 r=5;
                 r_u=5;
-                zeta=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
-                f_Su=zeta.*(1-exp(-r_u*relative_occupancy_rate_unsaturated_zone));
-                f_S=(1-zeta).*(1-exp(-r*relative_occupancy_rate));
+                f_Su=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
+                f_S=1-exp(-r*relative_occupancy_rate);
                 % 1st option with interception
                 Interception_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*Recharge_rate_spatialized;
                 ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_Su;
-                ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_S;
+                ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized-ETR_u).*f_S;
                 Recharge_rate_spatialized=Recharge_rate_spatialized-Interception_rate_spatialized;
                 % 2nd option : former computation
 %                 ETR_u=0;
@@ -346,7 +341,7 @@ classdef boussinesq_simulation_unsat
         
         function OUT=beta(obj,y,t)
             block_size=obj.discretization.Nx;
-            [Su_max,Smax]=obj.get_max_unsaturated_storage(y);
+            Su_max=obj.get_max_unsaturated_storage;
             
 %             Thresh=threshold_function2((0.05*Smax+y(block_size+1:end))./(0.05*Smax+Su_max));
             Thresh=threshold_function2(y(block_size+1:end)./Su_max);
@@ -356,10 +351,9 @@ classdef boussinesq_simulation_unsat
             OUT=1-Thresh;
         end
         
-        function [Su_max,Smax]=get_max_unsaturated_storage(obj,y)
-            block_size=obj.discretization.Nx;
+        function [Su_max,Smax]=get_max_unsaturated_storage(obj)
             [~,w,soil_depth,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
-            Su_max=(phi-f)./f.*((f.*soil_depth.*w)-y(1:block_size));
+            Su_max=(phi-f).*soil_depth.*w;
             Smax=f.*soil_depth.*w;
         end
         
