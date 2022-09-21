@@ -288,6 +288,9 @@ classdef source
             [t,unit]=obj.time.get_properties;
             size_=size(obj.recharge_chronicle);
             M=nan(size_(2),size_(1)+1); M(:,1)=t'; M(:,2:end)=(obj.recharge_chronicle)';
+            if(~isempty(obj.ETP_chronicle))
+                M=[M,(obj.ETP_chronicle)'];
+            end
             fid = fopen(filename, 'w');
             a=strfind(file_output,filesep); 
             recharge_type=file_output(a(end)+1:end); 
@@ -296,6 +299,9 @@ classdef source
             fprintf(fid, string_char2);
             fprintf(fid, string_char);
             string_char=sprintf('t(s)\trecharge_chronicle(m.s-1)\n');
+            if(~isempty(obj.ETP_chronicle))
+                string_char=sprintf('t(s)\t Precip(m.s-1) \t ETP(m.s-1) \n');
+            end
             fprintf(fid, string_char);
             fclose(fid);
             dlmwrite(filename,M, '-append', 'precision', '%.10E','delimiter','\t');
