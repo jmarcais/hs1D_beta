@@ -1122,11 +1122,14 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function run_obj=run_simulation_unsat(file_path,k1,f1,phi1,d_init)
+        function run_obj=run_simulation_unsat(file_path,k1,f1,phi1,d_init,Nx)
             obj=simulation_set(file_path);
             obj=obj.instantiate_all_inputs_directory;
             if(nargin<5)
                 d_init=15;
+            end
+            if(nargin<6)
+                Nx=100;
             end
                            
                 % locations of different inputs file
@@ -1173,7 +1176,7 @@ classdef simulation_set
                     % set the solver options default or assigned in parameters via an odeset structure
                     % specify Refine options for real infiltrations chronicle because for accuracy you need
                     % to force matlab ode15s to compute where you know sthg is happening
-                    odeset_struct=odeset('RelTol',1e-5,'MaxStep',30*3600*24);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
+                    odeset_struct=odeset('RelTol',1e-2,'MaxStep',3600*24/2);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
 % % %                     % run the simulation starting from half empty hillslope
@@ -1183,10 +1186,10 @@ classdef simulation_set
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty',Nx);
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');      
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty',Nx);      
                 end
         end
         

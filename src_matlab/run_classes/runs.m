@@ -282,8 +282,8 @@ classdef runs
             elseif(length(z)==1)
                 z=z*ones(size(x));
             elseif(length(z)~=length(x))
-                fprintf('no consistency betweeen x and elevation information \n');
-                fprintf('elevation consistant with angle and soil depth will be assumed \n');
+%                 fprintf('no consistency betweeen x and elevation information \n');
+%                 fprintf('elevation consistant with angle and soil depth will be assumed \n');
                 z=cumtrapz(x,angle)+soil_depth;
             end
             switch length(x)
@@ -394,16 +394,12 @@ classdef runs
         function state_values_fin=get_final_state_values(obj)
             Sfin=obj.simulation_results.S;
             Sfin=Sfin(:,end);
-            Qfin=obj.simulation_results.Q;
-            Qfin=Qfin(:,end);
-            QSfin=obj.simulation_results.QS;
-            QSfin=QSfin(:,end);
             if(~isempty(obj.simulation_results.S_u))
                 Su_fin=obj.simulation_results.S_u;
                 Su_fin=Su_fin(:,end);
-                state_values_fin=[Sfin;Qfin;QSfin;Su_fin];
+                state_values_fin=[Sfin;Su_fin];
             else
-                state_values_fin=[Sfin;Qfin;QSfin];
+                state_values_fin=Sfin;
             end
         end
         
