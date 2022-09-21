@@ -294,10 +294,16 @@ classdef boussinesq_simulation_unsat
 %                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
                 ETP_rate_spatialized=ETP_rate.*w;
                 [Su_max,Smax]=obj.get_max_unsaturated_storage;
-                relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
-                relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
-                r=5;
-                r_u=5;
+                % test
+                Svz=y(1+block_size:end)-(phi-f)./f.*y(1:block_size);
+                relative_occupancy_rate_vadose_zone=Svz./(Su_max-(phi-f)./f.*y(1:block_size));
+                relative_occupancy_rate_vadose_zone(relative_occupancy_rate>=1)=0;
+                relative_occupancy_rate_unsaturated_zone=relative_occupancy_rate_vadose_zone;
+                
+%                 relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
+%                 relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
+                r=1;
+                r_u=1;
                 f_Su=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
                 f_S=1-exp(-r*relative_occupancy_rate);
                 % 1st option with interception
