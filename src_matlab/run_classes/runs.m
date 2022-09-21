@@ -282,8 +282,8 @@ classdef runs
             elseif(length(z)==1)
                 z=z*ones(size(x));
             elseif(length(z)~=length(x))
-                fprintf('no consistency betweeen x and elevation information \n');
-                fprintf('elevation consistant with angle and soil depth will be assumed \n');
+%                 fprintf('no consistency betweeen x and elevation information \n');
+%                 fprintf('elevation consistant with angle and soil depth will be assumed \n');
                 z=cumtrapz(x,angle)+soil_depth;
             end
             switch length(x)
