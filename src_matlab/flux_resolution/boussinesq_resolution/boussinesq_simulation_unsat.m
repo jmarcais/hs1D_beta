@@ -188,11 +188,11 @@ classdef boussinesq_simulation_unsat
             % compute Q spatial derivative
             dQ_from_S=A*Q_from_S;
             %% compute test if potential seepage
-            Test_Deriv=dQ_from_S*y(1:block_size)+Recharge_rate_spatialized-ETR_s;
+            Test_Deriv=dQ_from_S*y(1:block_size)+Recharge_rate_spatialized;
             Test_Deriv=Test_Deriv>=0;
             alpha=Threshold.*Test_Deriv+(1-Test_Deriv); % regularization function : drives where goes variations of mass to S or to QS
             beta=obj.beta(y,t); % regularization function : drives where goes precip to saturated or unsaturated component
-            Test_Deriv2=Recharge_rate_spatialized-ETR_u>=0;
+            Test_Deriv2=Recharge_rate_spatialized-ETR_u-ETR_s>=0;
             beta=beta.*Test_Deriv2;            
             gamma=1-beta;
 
@@ -203,8 +203,8 @@ classdef boussinesq_simulation_unsat
             C(block_size,:)=(1-Edges(2))*C(block_size,:);
             C(block_size+1,:)=0;
             %% compute D
-            D1=beta.*alpha.*Recharge_rate_spatialized-ETR_s;
-            D=[D1;gamma.*Recharge_rate_spatialized-ETR_u];           
+            D1=beta.*alpha.*Recharge_rate_spatialized;
+            D=[D1;gamma.*Recharge_rate_spatialized-ETR_u-ETR_s];           
             D(1,:)=(1-Edges(1))*D(1,:);
             D(block_size,:)=(1-Edges(2))*D(block_size,:);
             D(block_size+1,:)=0;
@@ -295,23 +295,40 @@ classdef boussinesq_simulation_unsat
                 ETP_rate_spatialized=ETP_rate.*w;
                 [Su_max,Smax]=obj.get_max_unsaturated_storage;
                 % test
+                r=0.1;
+                r_u=0.1;
                 Svz=y(1+block_size:end)-(phi-f)./f.*y(1:block_size);
+                Svz(Svz<0)=0;
                 relative_occupancy_rate_vadose_zone=Svz./(Su_max-(phi-f)./f.*y(1:block_size));
                 relative_occupancy_rate_vadose_zone(relative_occupancy_rate>=1)=0;
-                relative_occupancy_rate_unsaturated_zone=relative_occupancy_rate_vadose_zone;
-                
-%                 relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
-%                 relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
-                r=1;
-                r_u=1;
-                f_Su=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
-                f_S=1-exp(-r*relative_occupancy_rate);
-                % 1st option with interception
+                relative_occupancy_rate_vadose_zone(relative_occupancy_rate_vadose_zone>=1)=1;
+                relative_occupancy_rate_vadose_zone(relative_occupancy_rate_vadose_zone<=0)=0;
+                Ssz=y(1+block_size:end)-Svz;
+                Ssz(Ssz<0)=0;
+                relative_occupancy_rate_saturated_zone=Ssz./((phi-f)./f.*y(1:block_size));
+                relative_occupancy_rate_saturated_zone(relative_occupancy_rate<=0)=0;
+                relative_occupancy_rate_saturated_zone(relative_occupancy_rate_saturated_zone>=1)=1;
+                relative_occupancy_rate_saturated_zone(relative_occupancy_rate_saturated_zone<=0)=0;
+                f_Su=1-exp(-r_u*relative_occupancy_rate_vadose_zone);
+                f_S=1-exp(-r*relative_occupancy_rate_saturated_zone);
                 Interception_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*Recharge_rate_spatialized;
-                ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_Su;
-                ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized-ETR_u).*f_S;
+                ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*f_Su.*Svz.*tanh((ETP_rate_spatialized-Recharge_rate_spatialized)./Svz);
+                ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*f_S.*Ssz.*tanh((ETP_rate_spatialized-Recharge_rate_spatialized-ETR_u)./Ssz);
                 Recharge_rate_spatialized=Recharge_rate_spatialized-Interception_rate_spatialized;
+
+%                 relative_occupancy_rate_unsaturated_zone=y(1+block_size:end)./Su_max;
+%                 relative_occupancy_rate_unsaturated_zone(Su_max<=0)=0; % to avoid division by zero leading to inf or nan values for relative_occupancy_rate_unsaturated_zone quantity
+%                 r=1;
+%                 r_u=5;
+%                 f_Su=1-exp(-r_u*relative_occupancy_rate_unsaturated_zone);
+%                 f_S=1-exp(-r*relative_occupancy_rate);
+%                 % 1st option with interception
+%                 Interception_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
+%                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*Recharge_rate_spatialized;
+%                 ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*f_Su;
+%                 ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized-ETR_u).*f_S;
+%                 Recharge_rate_spatialized=Recharge_rate_spatialized-Interception_rate_spatialized;
                 % 2nd option : former computation
 %                 ETR_u=0;
 %                 ETR_s=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*(ETP_rate_spatialized-Recharge_rate_spatialized).*(1-exp(-5*relative_occupancy_rate));
@@ -332,7 +349,7 @@ classdef boussinesq_simulation_unsat
             block_size=obj.discretization.Nx;
             A=obj.discretization.A;
             [Recharge_rate_spatialized,~,ETR_s]=obj.compute_source_term_spatialized(y,t);
-            OUT=A*(obj.compute_Q_from_S(y)*y(1:block_size))+Recharge_rate_spatialized-ETR_s;
+            OUT=A*(obj.compute_Q_from_S(y)*y(1:block_size))+Recharge_rate_spatialized;
             OUT=OUT>=0;
         end
         
@@ -380,7 +397,7 @@ classdef boussinesq_simulation_unsat
             [~,w,soil_depth,~,~,f,~,~,phi]=obj.discretization.get_resampled_variables;
             dy1=dy1./(f.*w.*soil_depth);
             dy2=dy2./((phi-f).*w.*soil_depth);
-            x = max(abs([dy1;dy2])) - 1e-5;%5e-11; %5e-8; %#JM think to change it 5e-8
+            x = max(abs([dy1;dy2])) - 5e-11; %5e-8; %#JM think to change it 5e-8
             if(x<0)
                 AAA=1;
             end
