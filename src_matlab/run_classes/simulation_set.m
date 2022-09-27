@@ -1141,8 +1141,8 @@ classdef simulation_set
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 
                 z_top=z(1)+cumtrapz(x,slope_angle);
-%                 slope_angle2=([(linspace(0,0.1,6)),(linspace(0.1,1,length(x)-6)).^0.2])'.*slope_angle;%(linspace(0.7,1,length(x)))'.*slope_angle;%slope_angle;
-                z_bottom=z_top(1)+cumtrapz(x,slope_angle)-d_init;
+                slope_angle2=slope_angle;
+                z_bottom=z_top(1)+cumtrapz(x,slope_angle2)-d_init;
                 d=z_top-z_bottom;
                 
                 % hydraulic parameters
@@ -1155,7 +1155,7 @@ classdef simulation_set
                     hs1D=hillslope1D;
                     hs1D=hs1D.set_properties(-1,f,k,phi);
                     
-                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle,d);
+                    hs1D=hs1D.set_spatial_parameters(x,w,slope_angle2,d);
                     
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
