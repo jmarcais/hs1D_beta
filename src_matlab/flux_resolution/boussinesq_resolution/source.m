@@ -207,7 +207,7 @@ classdef source
             if(isnan(obj.ETP_chronicle))
                 obj.recharge_mean=nanmean(obj.recharge_chronicle,2);
             else
-                obj.recharge_mean=nanmean(obj.recharge_chronicle,2)-nanmean(obj.ETP_chronicle,2); % to adapt reflecting budyko equation #ToDO
+                obj.recharge_mean=nanmean(obj.recharge_chronicle,2)-0.5*nanmean(obj.ETP_chronicle,2); % to adapt reflecting budyko equation #ToDO
             end
         end
         
