@@ -5,7 +5,7 @@ classdef boussinesq_simulation
         source_terms            % source object containing the time properties and the recharge related to it
         boundary_cond           % boundary_conditions object containing the time of boundary on xmin & xmax (Q fixed, S fixed or free condtions)
         initial_conditions      % initial conditions for S, Q & QS
-        ratio_P_R               % ratio Recharge over Precipitation
+        r_ETP               % ratio Recharge over Precipitation
         sol_simulated           % contains all the information provided by ode15s
     end
     
@@ -14,16 +14,16 @@ classdef boussinesq_simulation
         function obj=boussinesq_simulation
         end
         
-        function obj=simulation_parametrization(obj,discretization,source_terms,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Sinitial)
+        function obj=simulation_parametrization(obj,discretization,source_terms,boundary_cond,percentage_loaded,t_initial,r_ETP,Sinitial)
             if(nargin<7)
-                obj.ratio_P_R=1;
+                obj.r_ETP=1;
             end
             if(nargin<8)
                 Sinitial=nan;
             end
             obj.discretization=discretization;
             obj.source_terms=source_terms;
-            obj.ratio_P_R=ratio_P_R;
+            obj.r_ETP=r_ETP;
             obj.boundary_cond=boundary_cond;
             obj.initial_conditions=obj.set_initial_conditions(percentage_loaded,t_initial,Sinitial);
         end
@@ -249,7 +249,6 @@ classdef boussinesq_simulation
             end
             
             Recharge_rate_spatialized=Recharge_rate.*w;
-%#To test but weird to appear here             Recharge_rate_spatialized=(Threshold*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
             % if there is an ETP time series given, compute ETR from ETP, Recharge and S/Smax
             if(logical((~isnan(obj.source_terms.ETP_chronicle)).*(~isempty(obj.source_terms.ETP_chronicle))))
                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
@@ -407,8 +406,6 @@ classdef boussinesq_simulation
                 Recharge_rate=obj.source_terms.compute_recharge_rate(t);
                 Recharge_rate_spatialized=Recharge_rate.*w;
                 relative_occupancy_rate=bsxfun(@rdivide,S,f*w.*d);
-                Thresh=threshold_function(relative_occupancy_rate);
-                Recharge_rate_spatialized=(Thresh*(obj.ratio_P_R-1)+1).*Recharge_rate_spatialized;
                 ETP_rate=obj.source_terms.compute_ETP_rate(t);
                 ETP_rate_spatialized=ETP_rate.*w;
                 ETR_OUT=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...

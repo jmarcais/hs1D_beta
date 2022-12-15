@@ -38,7 +38,7 @@ classdef runs
 %             obj.save_results;
         end
         
-        function obj=run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river,Nx)
+        function obj=run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP,Sinitial,bound_river,Nx)
             if(nargin<6)
                 Sinitial=nan;
             end
@@ -59,7 +59,7 @@ classdef runs
             boundary_cond=obj.set_boundary_conditions(discretization,bound_river);
             
             % initialize a boussinesq simulation
-            obj=obj.initialize_boussinesq_simulation(discretization,source_terms,boundary_cond,percentage_loaded,t.get_tmin,ratio_P_R,Sinitial);
+            obj=obj.initialize_boussinesq_simulation(discretization,source_terms,boundary_cond,percentage_loaded,t.get_tmin,r_ETP,Sinitial);
             % Run the DAE
             if(obj.hs1D.Id==-1)
                 [t,x_center,x_edge,S,Q,QS,obj.boussinesq_simulation,S_u]=obj.boussinesq_simulation.implicit_scheme_solver(t,solver_options);
@@ -199,9 +199,9 @@ classdef runs
             end
         end
         
-        function obj=initialize_boussinesq_simulation(obj,discretization,source_term,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Sinitial)
+        function obj=initialize_boussinesq_simulation(obj,discretization,source_term,boundary_cond,percentage_loaded,t_initial,r_ETP,Sinitial)
             if(nargin<7)
-                ratio_P_R=1;
+                r_ETP=[1,1];
             end
             if(nargin<8)
                 Sinitial=nan;
@@ -211,7 +211,7 @@ classdef runs
             else
                 obj.boussinesq_simulation=boussinesq_simulation;
             end
-            obj.boussinesq_simulation=obj.boussinesq_simulation.simulation_parametrization(discretization,source_term,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Sinitial);
+            obj.boussinesq_simulation=obj.boussinesq_simulation.simulation_parametrization(discretization,source_term,boundary_cond,percentage_loaded,t_initial,r_ETP,Sinitial);
         end
         
 %         function [time_travel,time_ref]=postprocess_results(obj,t)

@@ -188,9 +188,8 @@ classdef simulation_set2
                     [M,input_type]=obj.read_input_file(destination_hydro_file);
                     t=M(:,1);
                     recharge_chronicle=(M(:,2))';
-                    ratio_P_R=1;
                     source_terms=source('data_based');
-                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
                     
                     % 3/ create a runs object and run the simulation
                     run_obj=runs;

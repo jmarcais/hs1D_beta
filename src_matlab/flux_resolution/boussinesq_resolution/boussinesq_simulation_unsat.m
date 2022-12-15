@@ -5,7 +5,7 @@ classdef boussinesq_simulation_unsat
         source_terms            % source object containing the time properties and the recharge related to it
         boundary_cond           % boundary_conditions object containing the time of boundary on xmin & xmax (Q fixed, S fixed or free condtions)
         initial_conditions      % initial conditions for S, Q & QS
-        ratio_P_R               % ratio Recharge over Precipitation
+        r_ETP                   % parameters driving the ETR response as a function of vadose zone water content
         sol_simulated           % contains all the information provided by ode15s
     end
     
@@ -14,16 +14,16 @@ classdef boussinesq_simulation_unsat
         function obj=boussinesq_simulation_unsat
         end
         
-        function obj=simulation_parametrization(obj,discretization,source_terms,boundary_cond,percentage_loaded,t_initial,ratio_P_R,Storages_initial)
+        function obj=simulation_parametrization(obj,discretization,source_terms,boundary_cond,percentage_loaded,t_initial,r_ETP,Storages_initial)
             if(nargin<7)
-                obj.ratio_P_R=1;
+                obj.r_ETP=[1,1];
             end
             if(nargin<8)
                 Storages_initial=nan;
             end
             obj.discretization=discretization;
             obj.source_terms=source_terms;
-            obj.ratio_P_R=ratio_P_R;
+            obj.r_ETP=r_ETP;
             obj.boundary_cond=boundary_cond;
             obj.initial_conditions=obj.set_initial_conditions(percentage_loaded,t_initial,Storages_initial);
         end
@@ -167,6 +167,24 @@ classdef boussinesq_simulation_unsat
             [Infiltration,~,ETRs,ETRu,Interception]=obj.compute_source_term_spatialized(y,t);
             Rainfall=Infiltration+Interception;
         end
+        
+        function [Rainfall,Infiltration,Interception,ETRs,ETRu]=partition_rainfall_tot(obj,y,t) % unit m2/s
+            Rainfall=nan(length(t),1);
+            Infiltration=nan(length(t),1);
+            Interception=nan(length(t),1);
+            ETRs=nan(length(t),1);
+            ETRu=nan(length(t),1);
+            [~,~,~,~,x]=obj.discretization.get_resampled_variables;
+            dx=x(2:end)-x(1:end-1);
+            for k=1:length(t)
+                [Rainfall_tmp,Infiltration_tmp,Interception_tmp,ETRs_tmp,ETRu_tmp]=partition_rainfall(obj,y(:,k),t(k));
+                Rainfall(k)=sum(Rainfall_tmp.*dx);
+                Infiltration(k)=sum(Infiltration_tmp.*dx);
+                Interception(k)=sum(Interception_tmp.*dx);
+                ETRs(k)=sum(ETRs_tmp.*dx);
+                ETRu(k)=sum(ETRu_tmp.*dx);
+            end
+        end
     end
     
     methods(Access=private)
@@ -295,12 +313,18 @@ classdef boussinesq_simulation_unsat
                 ETP_rate_spatialized=ETP_rate.*w;
                 [Su_max,Smax]=obj.get_max_unsaturated_storage;
                 % test
-                r=0.1;
-                r_u=0.1;
+                if(~isempty(obj.r_ETP))
+                    r_u=obj.r_ETP(1);
+                    r_s=obj.r_ETP(2);
+                else
+                    fprintf('WARNING ETP \n');
+                    r_s=0.1;
+                    r_u=0.1;
+                end
                 Svz=y(1+block_size:end)-(phi-f)./f.*y(1:block_size);
                 Svz(Svz<0)=0;
                 relative_occupancy_rate_vadose_zone=Svz./(Su_max-(phi-f)./f.*y(1:block_size));
-                relative_occupancy_rate_vadose_zone(relative_occupancy_rate>=1)=0;
+                relative_occupancy_rate_vadose_zone(Su_max<=(phi-f)./f.*y(1:block_size))=0;
                 relative_occupancy_rate_vadose_zone(relative_occupancy_rate_vadose_zone>=1)=1;
                 relative_occupancy_rate_vadose_zone(relative_occupancy_rate_vadose_zone<=0)=0;
                 Ssz=y(1+block_size:end)-Svz;
@@ -310,7 +334,7 @@ classdef boussinesq_simulation_unsat
                 relative_occupancy_rate_saturated_zone(relative_occupancy_rate_saturated_zone>=1)=1;
                 relative_occupancy_rate_saturated_zone(relative_occupancy_rate_saturated_zone<=0)=0;
                 f_Su=1-exp(-r_u*relative_occupancy_rate_vadose_zone);
-                f_S=1-exp(-r*relative_occupancy_rate_saturated_zone);
+                f_S=1-exp(-r_s*relative_occupancy_rate_saturated_zone);
                 Interception_rate_spatialized=(Recharge_rate_spatialized-ETP_rate_spatialized>0).*(ETP_rate_spatialized)+...
                     (Recharge_rate_spatialized-ETP_rate_spatialized<=0).*Recharge_rate_spatialized;
                 ETR_u=(Recharge_rate_spatialized-ETP_rate_spatialized<=0).*f_Su.*Svz.*tanh((ETP_rate_spatialized-Recharge_rate_spatialized)./Svz);

@@ -273,16 +273,16 @@ classdef simulation_set
                 recharge_chronicle=(M(:,2))';
                 if(length(M(1,:))>2)
                     ETP_chronicle=(M(:,3))';
-                    ratio_P_R=1;
+                    r_ETP=1;
                     source_terms=source('data_based');
-                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s',ETP_chronicle);
-%                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle-ETP_chronicle,'m/s');
-                    ratio_P_R=1;
+                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s',ETP_chronicle);
+%                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle-ETP_chronicle,'m/s');
+                    r_ETP=1;
                 else
-                    ratio_P_R=1;%/0.38;
+                    r_ETP=1;%/0.38;
                     source_terms=source('data_based');
-                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                    ratio_P_R=1;%0.38;
+                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+                    r_ETP=1;%0.38;
                 end
                 
                 % 3/ create a runs object and run the simulation
@@ -306,14 +306,14 @@ classdef simulation_set
                     % ##JM better change after
 %                     recharge_averaged=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R);
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,r_ETP);
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run the simulation starting from the steady state condition 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial);
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial);
                 else
                     % run the simulation starting from empty hillslope
                     percentage_loaded=0;
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP);
                 end
                 tmax=t(end);
                 error=run_obj.boussinesq_simulation.save_error_file(tmax,folder_output);
@@ -462,24 +462,23 @@ classdef simulation_set
 % %                         t=[t-t(end)+2*t(1)-t(2);t];
 % %                         recharge_chronicle=[recharge_chronicle,recharge_chronicle];
                         
-                        ratio_P_R=1;%0.83;%1.1588;%0.875;%.33;%/0.38;
+                        r_ETP=1;%0.83;%1.1588;%0.875;%.33;%/0.38;
                         source_terms=source('data_based');
-                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
                         time_2006_bis=time_properties(t(1),t(1000),1000,'sec');%time_2006_bis=time_properties(t(1),t(end),length(t),'sec');
                         time_2006_1=time_properties(t(1),t(1000),(1000-1)*4+1,'sec');%time_2006_1=time_properties(t(1),t(end),(length(t)-1)*4+1,'sec');
                         source_terms.time=time_2006_1;
-                        source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle*ratio_P_R,(time_2006_1.get_properties));
+                        source_terms.recharge_chronicle=interp1((time_2006_bis.get_properties)',recharge_chronicle,(time_2006_1.get_properties));
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                         
                         odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600*24);%30*3600*24);
-                        ratio_P_R=1;
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,'empty');
                         presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         % run transient simulation
                         runs_=runs;
                         solver_options=runs_.set_solver_options(odeset_struct);
-                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
+                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial,'empty');
                     else
                         [~,w_1]=get_resampled_variables(runs_below.boussinesq_simulation.discretization);
                         [~,~,DPSA_spat_bed]=compute_DPSA_RF(runs_below.simulation_results,runs_below.boussinesq_simulation);
@@ -500,14 +499,14 @@ classdef simulation_set
                         source_terms.recharge_mean=mean(source_terms.recharge_chronicle,2);
                         dt_mean=mean(diff(runs_below.simulation_results.t));
                         odeset_struct=odeset('RelTol',1e-5,'MaxStep',dt_mean);%3600*24);
-                        ratio_P_R=1;
                         presteadystate_percentage_loaded=-2; %presteadystate_percentage_loaded=0; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                         recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty');
+                        state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,'empty');
                         % run transient simulation
                         runs_=runs;
                         solver_options=runs_.set_solver_options(odeset_struct);
-                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty');
+                        r_ETP=1;
+                        runs_=runs_.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial,'empty');
                     end
                     
                     
@@ -533,10 +532,8 @@ classdef simulation_set
         end
         
                 
-        function state_values_initial=prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river,Nx)
-            if(nargin<4)
-                ratio_P_R=1;
-            end
+        function state_values_initial=prerun_steady_state(hs1D,recharge_averaged,bound_river,Nx,r_ETP)
+
             percentage_loaded=0;
             source_steady=source('steady');
             tsteady=0:1:36500;
@@ -550,12 +547,15 @@ classdef simulation_set
             odeset_struct=odeset('RelTol',2.5e-14,  'Events',detect_steady_state);
             solver_options=prerun_steady.set_solver_options(odeset_struct);
             Sinitial=nan;
-            if(nargin<4)
-                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial);
-            elseif(nargin<5)
-                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river);
+            if(nargin<5)
+                r_ETP=nan;
+            end
+            if(nargin<3)
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,r_ETP,Sinitial);
+            elseif(nargin<4)
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,r_ETP,Sinitial,bound_river);
             else
-                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river,Nx);    
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,r_ETP,Sinitial,bound_river,Nx);    
             end
 %             Sinitial=prerun_steady.get_final_storage;
             state_values_initial=prerun_steady.get_final_state_values;
@@ -676,10 +676,9 @@ classdef simulation_set
                 [M,input_type]=obj.read_input_file(hydro_loc);
                 t=M(:,1);
                 recharge_chronicle=(M(:,2))';
-                ratio_P_R=1.33;%/0.38;
+                r_ETP=1;%/0.38;
                 source_terms=source('data_based');
-                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                ratio_P_R=1;%0.38;
+                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
                 
                 % 3/ create a runs object and run the simulation
                 run_obj=runs;
@@ -691,7 +690,7 @@ classdef simulation_set
 
                 % run the simulation starting from half empty hillslope
                 percentage_loaded=0;
-                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP);
                 Q_temp=run_obj.simulation_results.compute_seepage_total;
                 Q(i,:)=Q_temp(1531:1704);
                 
@@ -724,10 +723,9 @@ classdef simulation_set
                 [M,input_type]=obj.read_input_file(hydro_loc);
                 t=M(:,1);
                 recharge_chronicle=(M(:,2))';
-                ratio_P_R=1.33;%/0.38;
                 source_terms=source('data_based');
-                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                ratio_P_R=1;%0.38;
+                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+                r_ETP=1;%0.38;
                 
                 % 3/ create a runs object and run the simulation
                 run_obj=runs;
@@ -739,7 +737,7 @@ classdef simulation_set
 
                 % run the simulation starting from half empty hillslope
                 percentage_loaded=0;
-                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP);
                 Q_temp=run_obj.simulation_results.compute_seepage_total;
                 Q(i,:)=Q_temp(1531:1704);
                 
@@ -818,14 +816,9 @@ classdef simulation_set
                 [M,input_type]=obj.read_input_file(hydro_loc);
                 t=M(:,1);
                 recharge_chronicle=(M(:,2))';
-                if(nargin>3)
-                    ratio_P_R=Q_mean/(trapz(x,w)*mean(M(range_,2)));%*M(1200,2));%
-                else
-                    ratio_P_R=1;%0.875;%1;%.33;%/0.38;
-                end
                 source_terms=source('data_based');
-                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                ratio_P_R=1;%0.38;
+                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+                r_ETP=1;%0.38;
                 
                 % 3/ create a runs object and run the simulation
                 run_obj=runs;
@@ -837,7 +830,7 @@ classdef simulation_set
 
                 % run the simulation starting from half empty hillslope
                 percentage_loaded=0;
-                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP);
                 Q_temp=run_obj.simulation_results.compute_river_flow;%compute_seepage_total;
                 [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
                 slope_angle_top=interpn(x,slope_angle,x_Q1);
@@ -1040,10 +1033,9 @@ classdef simulation_set
 %                     t=[t-t(end)+2*t(1)-t(2);t];
 %                     recharge_chronicle=[recharge_chronicle,recharge_chronicle];
 
-                    ratio_P_R=1;%0.875;%.33;%/0.38;
                     source_terms=source('data_based');
-                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                    ratio_P_R=1;%0.38;
+                    [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+                    r_ETP=1;%0.38;
                     
                     % 3/ create a runs object and run the simulation
                     run_obj=runs;
@@ -1054,18 +1046,14 @@ classdef simulation_set
                     dt_mean=mean(dt);
                     odeset_struct=odeset('RelTol',1e-3,'AbsTol',1e-6,'MaxStep',dt_mean);%30*2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
-                    
-% % %                     % run the simulation starting from half empty hillslope
-% % %                     percentage_loaded=0.5;    
-% % %                     % run transient simulation 
-% % %                     run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty',Nx);
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,'empty',Nx);
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                     % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty',Nx);
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial,'empty',Nx);
                     
                     [x_S1,w_1,d1_2,angle1,x_Q1,f1,k1_2]=get_resampled_variables(run_obj.boussinesq_simulation.discretization);
 %                     slope_angle_top=interpn(x,slope_angle,x_Q1);
@@ -1122,13 +1110,17 @@ classdef simulation_set
 %             DSi_out=sum(DSi,1);      
         end
         
-        function run_obj=run_simulation_unsat(file_path,k1,f1,phi1,d_init,Nx)
+        function run_obj=run_simulation_unsat(file_path,k1,f1,phi1,d_init,ru,rs,Nx)
             obj=simulation_set(file_path);
             obj=obj.instantiate_all_inputs_directory;
             if(nargin<5)
                 d_init=15;
             end
-            if(nargin<6)
+            if(nargin<7)
+                ru=1;
+                rs=1;
+            end
+            if(nargin<8)
                 Nx=100;
             end
                            
@@ -1141,7 +1133,7 @@ classdef simulation_set
                 x=M(:,1); w=M(:,2); slope_angle=M(:,3); z=M(:,4);
                 
                 z_top=z(1)+cumtrapz(x,slope_angle);
-                slope_angle2=slope_angle;
+                slope_angle2=0*slope_angle;
                 z_bottom=z_top(1)+cumtrapz(x,slope_angle2)-d_init;
                 d=z_top-z_bottom;
                 
@@ -1160,13 +1152,12 @@ classdef simulation_set
                     [M,input_type]=obj.read_input_file(hydro_loc);
                     t=M(:,1);
                     recharge_chronicle=(M(:,2))';
-                    ratio_P_R=1;
                     source_terms=source('data_based');
                     if(size(M,2)==2)
-                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
                     elseif(size(M,2)==3)
                         ETP_chronicle=(M(:,3))';
-                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s',ETP_chronicle);
+                        [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s',ETP_chronicle);
                     end
                     
                     
@@ -1179,17 +1170,14 @@ classdef simulation_set
                     odeset_struct=odeset('RelTol',1e-2,'MaxStep',3600*24/2);%2.5e-14);%,'Refine',-1);%odeset('RelTol',1e-3);%,'AbsTol',1e-7);%
                     solver_options=run_obj.set_solver_options(odeset_struct);
                     
-% % %                     % run the simulation starting from half empty hillslope
-% % %                     percentage_loaded=0.5;    
-% % %                     % run transient simulation 
-% % %                     run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
                     % run the simulation starting from the steady state condition
                     percentage_loaded=0;
                     recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,'empty',Nx);
+                    r_ETP=[ru,rs];
+                    state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,'empty',Nx,r_ETP);
                     presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
-                    % run transient simulation 
-                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,'empty',Nx);      
+                    % run transient simulation
+                    run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial,'empty',Nx);      
                 end
         end
         
@@ -1245,13 +1233,12 @@ classdef simulation_set
                  [M,input_type]=obj.read_input_file(hydro_loc);
                  t=M(:,1);
                  recharge_chronicle=(M(:,2))';
-                 ratio_P_R=1;
                  source_terms=source('data_based');
                  if(size(M,2)==2)
-                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
+                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
                  elseif(size(M,2)==3)
                      ETP_chronicle=(M(:,3))';
-                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s',ETP_chronicle);
+                     [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s',ETP_chronicle);
                  end
                  
                  % 3/ create a runs object and run the simulation
@@ -1266,12 +1253,13 @@ classdef simulation_set
                  solver_options=run_obj.set_solver_options(odeset_struct);
                  
                  % run the simulation starting from half empty hillslope
+                 r_ETP=1;
                  percentage_loaded=0;
                  recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-                 state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R);
+                 state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged);
                  presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
                  % run the simulation starting from the steady state condition
-                 run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial);
+                 run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial);
                  simulation_results=run_obj.simulation_results;
                  boussinesq_simulation=run_obj.boussinesq_simulation;
                  run_obj.boussinesq_simulation.save_error_file(t(end),folder_output);
@@ -1318,10 +1306,9 @@ classdef simulation_set
 %                  t=M(:,1);
 %                  recharge_chronicle=(M(:,2))';
 %                  
-%                  ratio_P_R=1;
 %                  source_terms=source('data_based');
-%                  [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-%                  ratio_P_R=1;%0.38;
+%                  [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+%                  r_ETP=1;%0.38;
 %                  
 %                  % 3/ create a runs object and run the simulation
 %                  run_obj=runs;
@@ -1337,10 +1324,10 @@ classdef simulation_set
 %                  % run the simulation starting from half empty hillslope
 %                  percentage_loaded=0;
 %                  recharge_averaged=1e3*24*3600*source_terms.recharge_mean; % recharge averaged in mm/d
-%                  state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R);
+%                  state_values_initial=obj.prerun_steady_state(hs1D,recharge_averaged);
 %                  presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
 %                  % run the simulation starting from the steady state condition
-%                  run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial);
+%                  run_obj=run_obj.run_simulation(hs1D,source_terms,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial);
 %                  simulation_results=run_obj.simulation_results;
 %                  boussinesq_simulation=run_obj.boussinesq_simulation;
 %                  run_obj.boussinesq_simulation.save_error_file(t(end),folder_output);
@@ -1608,15 +1595,15 @@ classdef simulation_set
             % run steady state simulation
             percentage_loaded=0;
             recharge_averaged=1e3*24*3600*seep.recharge_mean; % recharge averaged in mm/d
-            ratio_P_R=1;
-            state_values_initial=obj2.prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river_soil);
+            state_values_initial=obj2.prerun_steady_state(hs1D,recharge_averaged,bound_river_soil);
             presteadystate_percentage_loaded=-2; % -2 is the key to start a simulation with a customed initial condition for storage prescribed in Sinitial
             
             % run transient simulation
             run_obj2=runs;
             odeset_struct=odeset('RelTol',1e-5,'AbsTol',1e-6,'MaxStep',3600*24);%odeset('RelTol',2.5e-14,'AbsTol',1e-12);%1e-10);%,'Refine',-1);
             solver_options=run_obj2.set_solver_options(odeset_struct);
-            run_obj2=run_obj2.run_simulation(hs1D,seep,presteadystate_percentage_loaded,solver_options,ratio_P_R,state_values_initial,bound_river_soil);
+            r_ETP=1;
+            run_obj2=run_obj2.run_simulation(hs1D,seep,presteadystate_percentage_loaded,solver_options,r_ETP,state_values_initial,bound_river_soil);
             toc
             
             t=datetime(datestr(run_obj.simulation_results.t/(24*3600)));
@@ -1678,10 +1665,9 @@ classdef simulation_set
                 [M,input_type]=obj.read_input_file(hydro_loc);
                 t=M(:,1);
                 recharge_chronicle=(M(:,2))';
-                ratio_P_R=1.0417;%1.2432;%/0.38;
                 source_terms=source('data_based');
-                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),ratio_P_R,recharge_chronicle,'m/s');
-                ratio_P_R=1;%0.38;
+                [~,source_terms]=source_terms.set_recharge_chronicle_data_based(t/(3600*24),recharge_chronicle,'m/s');
+                r_ETP=1;%0.38;
                 
                 % 3/ create a runs object and run the simulation
                 run_obj=runs;
@@ -1693,7 +1679,7 @@ classdef simulation_set
 
                 % run the simulation starting from half empty hillslope
                 percentage_loaded=0;
-                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,ratio_P_R);
+                run_obj=run_obj.run_simulation(hs1D,source_terms,percentage_loaded,solver_options,r_ETP);
                 Q_temp=run_obj.simulation_results.compute_seepage_total;
                 Q(i,:)=Q_temp(1531:1704);
                 run_obj.simulation_results.save_velocity_field(fullfile(folder_root));

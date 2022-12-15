@@ -177,27 +177,26 @@ classdef source
             recharge_chronicle=0;
         end
         
-        function [t,obj]=upload_recharge_chronicle(obj,Pluvio_directory,ratio_P_R)
-            if(nargin<3) ratio_P_R=1; end
+        function [t,obj]=upload_recharge_chronicle(obj,Pluvio_directory)
             [Date,Pluvio,ETP]=obj.read_data(Pluvio_directory);
-            [t,obj]=obj.set_recharge_chronicle_data_based(Date,ratio_P_R,Pluvio,'mm/h',ETP);
+            [t,obj]=obj.set_recharge_chronicle_data_based(Date,Pluvio,'mm/h',ETP);
         end
         
-        function [t,obj]=set_recharge_chronicle_data_based(obj,Date,ratio_P_R,Pluvio,unity,ETP)
+        function [t,obj]=set_recharge_chronicle_data_based(obj,Date,Pluvio,unity,ETP)
             % by default assume pluvio in mm/h 
-            if(nargin<5) unity='mm/h'; end
-            if(nargin<6) ETP=nan; end
+            if(nargin<4) unity='mm/h'; end
+            if(nargin<5) ETP=nan; end
 % % %#20180116                       tmin=Date(1); tmax=Date(end); Nt=length(Date); time_unity_type='day';
 % % %#20180116                       t=time_properties(tmin,tmax,Nt,time_unity_type);
             t=time_properties(Date');
             if(strcmp(unity,'mm/h'))
-                obj.recharge_chronicle=ratio_P_R*Pluvio/(1000*3600);
+                obj.recharge_chronicle=Pluvio/(1000*3600);
                 obj.ETP_chronicle=ETP/(1000*3600);
             elseif(strcmp(unity,'mm/d'))
-                obj.recharge_chronicle=ratio_P_R*Pluvio/(1000*3600*24);
+                obj.recharge_chronicle=Pluvio/(1000*3600*24);
                 obj.ETP_chronicle=ETP/(1000*3600*24);
             elseif(strcmp(unity,'m/s'))
-                obj.recharge_chronicle=ratio_P_R*Pluvio;
+                obj.recharge_chronicle=Pluvio;
                 obj.ETP_chronicle=ETP;
             else
                 fprintf('Problem with Pluvio units to set recharge_chronicle property in source object');
@@ -358,22 +357,21 @@ classdef source
             % 3/ real rainfall 1
             recharge=source('data_based');
             Pluvio_directory=which('dataQPluvioPF3.txt');
-            ratio_P_R=0.3;
-            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory,ratio_P_R);
+            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory);
             obj_set{3}=recharge;
             strfolder{3}='Real infiltration data(case 1) \n';
             strfolder2{3}='Real1';
             % 4/ real rainfall 2
             recharge=source('data_based');
             Pluvio_directory=which('dataQPluvioPF12.txt');
-            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory,ratio_P_R);
+            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory);
             obj_set{4}=recharge;
             strfolder{4}='Real infiltration data(case 2) \n';
             strfolder2{4}='Real2';
             % 5/ real rainfall 3 (1 year)
             recharge=source('data_based');
             Pluvio_directory=which('dataQPluvioPF13.txt');
-            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory,ratio_P_R);
+            [~,recharge]=recharge.upload_recharge_chronicle(Pluvio_directory);
             obj_set{5}=recharge;
             strfolder{5}='Real infiltration data(case 3) \n';
             strfolder2{5}='Real3';
@@ -404,7 +402,7 @@ classdef source
             R=R';
             t=t/(24*3600);
             obj=source('data_based',-1);
-            [~,obj]=obj.set_recharge_chronicle_data_based(t,1,R,'m/s',nan);
+            [~,obj]=obj.set_recharge_chronicle_data_based(t,R,'m/s',nan);
         end
     end
 end
