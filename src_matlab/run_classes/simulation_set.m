@@ -344,32 +344,6 @@ classdef simulation_set
             end
         end
         
-        function state_values_initial=prerun_steady_state(obj,hs1D,recharge_averaged,ratio_P_R,bound_river)
-            if(nargin<4)
-                ratio_P_R=1;
-            end
-            percentage_loaded=0;
-            source_steady=source('steady');
-            tsteady=0:1:36500;
-            tmin=tsteady(1); tmax=tsteady(end); Nt=length(tsteady); time_unity_type='day';
-            t=time_properties(tmin,tmax,Nt,time_unity_type);
-            source_steady=source_steady.set_recharge_chronicle(t,recharge_averaged);
-            prerun_steady=runs;
-            % add an event equal to 1 to detect steady_state
-            detect_steady_state=1;
-%             odeset_struct=odeset('RelTol',2.5e-14,'AbsTol',1e-17,'Events',detect_steady_state);
-            odeset_struct=odeset('RelTol',2.5e-14,'Events',detect_steady_state);
-            solver_options=prerun_steady.set_solver_options(odeset_struct);
-            Sinitial=nan;
-            if(nargin<5)
-                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial);
-            else
-                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river);
-            end
-%             Sinitial=prerun_steady.get_final_storage;
-            state_values_initial=prerun_steady.get_final_state_values;
-        end
-        
         function [M,input_type]=read_input_file(obj,filename)
             fid = fopen(filename, 'r');
             if(fid>0)
@@ -460,6 +434,32 @@ classdef simulation_set
     end
     
     methods(Static)
+        function state_values_initial=prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river)
+            if(nargin<4)
+                ratio_P_R=1;
+            end
+            percentage_loaded=0;
+            source_steady=source('steady');
+            tsteady=0:1:36500;
+            tmin=tsteady(1); tmax=tsteady(end); Nt=length(tsteady); time_unity_type='day';
+            t=time_properties(tmin,tmax,Nt,time_unity_type);
+            source_steady=source_steady.set_recharge_chronicle(t,recharge_averaged);
+            prerun_steady=runs;
+            % add an event equal to 1 to detect steady_state
+            detect_steady_state=1;
+%             odeset_struct=odeset('RelTol',2.5e-14,'AbsTol',1e-17,'Events',detect_steady_state);
+            odeset_struct=odeset('RelTol',2.5e-14,'Events',detect_steady_state);
+            solver_options=prerun_steady.set_solver_options(odeset_struct);
+            Sinitial=nan;
+            if(nargin<5)
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial);
+            else
+                prerun_steady=prerun_steady.run_simulation(hs1D,source_steady,percentage_loaded,solver_options,ratio_P_R,Sinitial,bound_river);
+            end
+%             Sinitial=prerun_steady.get_final_storage;
+            state_values_initial=prerun_steady.get_final_state_values;
+        end
+
         function run_simulations(folder_root)
             sim_set=simulation_set(folder_root);
             sim_set=sim_set.instantiate_all_inputs_directory;
