@@ -425,13 +425,14 @@ classdef boussinesq_simulation
             end
         end
         
-        function Flux_in_vector=compute_source_term_spatialized_vectorized(obj,t,y)
-            block_size=obj.discretization.Nx;
-            Flux_in_vector=nan(block_size,length(t));
-            for j=1:length(t)
-                Flux_in_vector(:,j)=obj.compute_source_term_spatialized(y(:,j),t(j));
-            end
-        end
+
+%         function Flux_in_vector=compute_source_term_spatialized_vectorized(obj,t,y)
+%             block_size=obj.discretization.Nx;
+%             Flux_in_vector=nan(block_size,length(t));
+%             for j=1:length(t)
+%                 Flux_in_vector(:,j)=obj.compute_source_term_spatialized(y(:,j),t(j));
+%             end
+%         end
     end
     
     %% Test functions
@@ -499,6 +500,19 @@ classdef boussinesq_simulation
     end
     
     methods(Access=public)
+        function Flux_in_spat=compute_source_term_spatialized_vectorized(obj,t,y,steady_opt)
+            block_size=obj.discretization.Nx;
+            Flux_in_spat=nan(block_size,length(t));
+            if(nargin>3 && strcmp(steady_opt,'on'))
+                Flux_in_spat=obj.compute_source_term_spatialized(y(:,end),t(end));
+                Flux_in_spat=repmat(Flux_in_spat,1,length(t));
+            else
+                for j=1:length(t)
+                    Flux_in_spat(:,j)=obj.compute_source_term_spatialized(y(:,j),t(j));
+                end
+            end
+        end
+        
         function N_in=compute_recharge_total(obj,t)
             N_in=obj.source_terms.compute_recharge_rate(t);
             [~,w,~,~]=obj.discretization.get_resampled_variables;
