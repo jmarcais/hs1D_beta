@@ -434,7 +434,7 @@ classdef simulation_set
     end
     
     methods(Static)
-        function state_values_initial=prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river)
+        function [state_values_initial,prerun_steady]=prerun_steady_state(hs1D,recharge_averaged,ratio_P_R,bound_river)
             if(nargin<4)
                 ratio_P_R=1;
             end
