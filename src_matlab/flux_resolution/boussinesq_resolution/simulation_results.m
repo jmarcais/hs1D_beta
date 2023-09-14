@@ -494,13 +494,24 @@ classdef simulation_results
             DPES_tot=sum(DPES_spatialized);
         end
         
-        function [DPSA,RF,DPSA_spat,RF_spat]=compute_DPSA_RF(obj,bouss_sim)
-            t=obj.t; y=[obj.S;obj.Q;obj.QS];
+        function [DPSA,RF,DPSA_spat,RF_spat]=compute_DPSA_RF(obj,bouss_sim,steady_opt)
             DPSA_spat=nan(size(obj.S));
             RF_spat=nan(size(obj.S));
-            for i=1:length(t)
-                [DPSA_spat(:,i),RF_spat(:,i)]=bouss_sim.partition_DPSA_RF(y(:,i),t(i));
+            if(nargin>2 && strcmp(steady_opt,'on'))
+                [DPSA_spat,RF_spat]=bouss_sim.partition_DPSA_RF([obj.S(:,end);obj.Q(:,end);obj.QS(:,end)],obj.t(end));
+                DPSA_spat=repmat(DPSA_spat,1,length(obj.t));
+                RF_spat=repmat(RF_spat,1,length(obj.t));
+            else
+                for i=1:length(obj.t)
+                    [DPSA_spat(:,i),RF_spat(:,i)]=bouss_sim.partition_DPSA_RF([obj.S(:,i);obj.Q(:,i);obj.QS(:,i)],obj.t(i));
+                end
             end
+%             t=obj.t; y=[obj.S;obj.Q;obj.QS];
+%             DPSA_spat=nan(size(obj.S));
+%             RF_spat=nan(size(obj.S));
+%             for i=1:length(t)
+%                 [DPSA_spat(:,i),RF_spat(:,i)]=bouss_sim.partition_DPSA_RF(y(:,i),t(i));
+%             end
             dx=obj.x_Q(2:end)-obj.x_Q(1:end-1);
             dx_QS=diag(dx);
             DPSA_spat=dx_QS*DPSA_spat;
@@ -510,6 +521,18 @@ classdef simulation_results
             RF_spat(1,:)=-obj.Q(2,:);
             DPSA=sum(DPSA_spat);
             RF=sum(RF_spat);
+        end
+        
+        % Flux_in Flux_in_spat
+        function [Flux_in,Flux_in_spat]=compute_infiltration(obj,bouss_sim,steady_opt)
+            if(nargin<3)
+                steady_opt='off';
+            end
+            Flux_in_spat=bouss_sim.compute_source_term_spatialized_vectorized(obj.t,obj.S,steady_opt);
+            dx=obj.x_Q(2:end)-obj.x_Q(1:end-1);
+            dx_QS=diag(dx);
+            Flux_in_spat=dx_QS*Flux_in_spat;
+            Flux_in=sum(Flux_in_spat);
         end
         
         function Q_diff_spatialized=compute_Q_difference_spatialized(obj)
